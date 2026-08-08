@@ -85,6 +85,16 @@ const duplicate = validateManualVariantMapping({
 assert(!duplicate.valid, "Supplier variant duplicada deveria bloquear");
 console.log("✅ uma supplier variant não pode atender duas variantes canônicas");
 
+console.log("=== MANUAL CONFLITANTE ===");
+const manualConflict = validateManualVariantMapping({
+  canonicalVariants: [{ id: "c1", name: "Black 8pcs" }],
+  supplierVariants: [{ id: "s1", sourceSkuId: "sku1", name: "Pink 4pcs" }],
+  mappings: [{ canonicalVariantId: "c1", supplierVariantId: "s1" }],
+});
+assert(!manualConflict.valid, "Conflito explícito não pode ser liberado manualmente");
+assert(manualConflict.issues.some((issue) => issue.includes("conflitante")), "Motivo do conflito manual não foi reportado");
+console.log("✅ confirmação manual não ignora conflito objetivo de cor/kit");
+
 console.log("====================================================");
 console.log("SUPPLIER VARIANT MAPPER: PASS");
 console.log("====================================================");
