@@ -1,11 +1,18 @@
 export const PUBLICATION_TARGET_CONTRACT_VERSION = "1";
 
+export type VercelPreviewTarget = {
+  provider: "vercel";
+  projectId: string;
+  teamId: string;
+};
+
 export type GitHubCatalogPublicationTarget = {
   contractVersion: "1";
   kind: "github-catalog";
   adapter: "github-json-catalog-v1";
   catalogPath: string;
   editorialAssetsDir?: string;
+  preview?: VercelPreviewTarget;
 };
 
 export type HttpApiPublicationTarget = {
@@ -101,6 +108,58 @@ function safeEndpointPath(
       part === "." ||
       part === ".."
   );
+}
+
+function parseVercelPreview(
+  value: unknown,
+  issues: PublicationTargetContractIssue[],
+): VercelPreviewTarget | undefined {
+  if (value === undefined || value === null) return undefined;
+
+  if (typeof value !== "object" || Array.isArray(value)) {
+    issues.push({
+      code: "PUBLICATION_TARGET_PREVIEW_INVALID",
+      detail: "publicationTarget.preview precisa ser um objeto.",
+    });
+    return undefined;
+  }
+
+  const preview = objectValue(value);
+  const provider = stringValue(preview.provider);
+  const projectId = stringValue(preview.projectId);
+  const teamId = stringValue(preview.teamId);
+
+  if (provider !== "vercel") {
+    issues.push({
+      code: "PUBLICATION_TARGET_PREVIEW_PROVIDER_UNSUPPORTED",
+      detail: "publicationTarget.preview.provider suporta atualmente apenas vercel.",
+    });
+  }
+
+  if (!projectId || !/^prj_[A-Za-z0-9]+$/.test(projectId)) {
+    issues.push({
+      code: "PUBLICATION_TARGET_PREVIEW_PROJECT_INVALID",
+      detail: "publicationTarget.preview.projectId precisa ser um ID Vercel prj_* válido.",
+    });
+  }
+
+  if (!teamId || !/^team_[A-Za-z0-9]+$/.test(teamId)) {
+    issues.push({
+      code: "PUBLICATION_TARGET_PREVIEW_TEAM_INVALID",
+      detail: "publicationTarget.preview.teamId precisa ser um ID Vercel team_* válido.",
+    });
+  }
+
+  if (provider !== "vercel" || !projectId || !teamId) return undefined;
+  if (!/^prj_[A-Za-z0-9]+$/.test(projectId) || !/^team_[A-Za-z0-9]+$/.test(teamId)) {
+    return undefined;
+  }
+
+  return {
+    provider: "vercel",
+    projectId,
+    teamId,
+  };
 }
 
 export function parsePublicationTargetContract(
@@ -225,6 +284,8 @@ export function parsePublicationTargetContract(
         target.editorialAssetsDir
       );
 
+    const preview = parseVercelPreview(target.preview, issues);
+
     if (
       !safeRelativeRepositoryPath(
         catalogPath
@@ -278,6 +339,7 @@ export function parsePublicationTargetContract(
               editorialAssetsDir,
             }
           : {}),
+        ...(preview ? { preview } : {}),
       },
       issues: [],
     };
