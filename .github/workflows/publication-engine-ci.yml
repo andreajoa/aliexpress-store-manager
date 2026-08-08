@@ -40,3 +40,6 @@ jobs:
 
       - name: GitHub publication executor
         run: npm run test:github-publication
+
+      - name: Vercel preview verifier
+        run: npm run test:vercel-preview
