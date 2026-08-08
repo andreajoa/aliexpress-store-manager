@@ -105,9 +105,10 @@ model Store {
   webhookEnabled        Boolean   @default(false)
   webhookLastSeenAt     DateTime?
 
-  publications Publication[]
-  orders       Order[]
-  events       IntegrationEvent[]
+  publications          Publication[]
+  orders                Order[]
+  events                IntegrationEvent[]
+  inventoryReservations InventoryReservation[]
 
   brandProfile          Json?
   categoriesCache       Json?
@@ -158,8 +159,9 @@ model Product {
   images           ProductImage[]
   variants         ProductVariant[]
   publications     Publication[]
-  supplierProducts SupplierProduct[]
-  orderItems       OrderItem[]
+  supplierProducts          SupplierProduct[]
+  orderItems                OrderItem[]
+  inventoryReservationItems InventoryReservationItem[]
 
   importedAt                DateTime         @default(now())
   createdAt                 DateTime         @default(now())
@@ -207,8 +209,9 @@ model ProductVariant {
   imageUrl   String? @db.Text
   rawPayload Json?
 
-  orderItems       OrderItem[]
-  supplierMappings SupplierVariantMapping[]
+  orderItems                 OrderItem[]
+  supplierMappings           SupplierVariantMapping[]
+  inventoryReservationItems  InventoryReservationItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -319,8 +322,9 @@ model SupplierProduct {
 
   variants              SupplierVariant[]
   mappings              SupplierVariantMapping[]
-  fulfillmentOrderItems OrderItem[]        @relation("OrderItemFulfillmentSupplierProduct")
-  fulfillmentBatches    FulfillmentBatch[] @relation("FulfillmentBatchSupplierProduct")
+  fulfillmentOrderItems      OrderItem[]        @relation("OrderItemFulfillmentSupplierProduct")
+  fulfillmentBatches         FulfillmentBatch[] @relation("FulfillmentBatchSupplierProduct")
+  inventoryReservationItems  InventoryReservationItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -345,7 +349,8 @@ model SupplierVariant {
   orderSkuAttr String?  @db.Text
 
   mappings              SupplierVariantMapping[]
-  fulfillmentOrderItems OrderItem[] @relation("OrderItemFulfillmentSupplierVariant")
+  fulfillmentOrderItems      OrderItem[] @relation("OrderItemFulfillmentSupplierVariant")
+  inventoryReservationItems  InventoryReservationItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -392,8 +397,9 @@ model Order {
   paymentStatus     PaymentStatus     @default(PENDING)
   fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
 
-  sourceOrderScope String   @default("FULL_ORDER")
-  sourceOrderTotal Decimal? @db.Decimal(12, 2)
+  sourceOrderScope      String   @default("FULL_ORDER")
+  sourceOrderTotal      Decimal? @db.Decimal(12, 2)
+  checkoutReservationId String?
 
   currency       String   @default("BRL")
   subtotal       Decimal? @db.Decimal(12, 2)
@@ -560,6 +566,46 @@ model AliExpressConnection {
   authorizedAt          DateTime @default(now())
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+model InventoryReservation {
+  id                    String   @id @default(cuid())
+  storeId               String
+  store                 Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  externalReservationId String
+  status                String   @default("ACTIVE")
+  expiresAt             DateTime
+  stripeCheckoutSessionId String?
+  consumedOrderId       String?
+  items                 InventoryReservationItem[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([storeId, externalReservationId])
+  @@index([status, expiresAt])
+  @@index([consumedOrderId])
+}
+
+model InventoryReservationItem {
+  id                 String @id @default(cuid())
+  reservationId      String
+  reservation        InventoryReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  productId          String
+  product            Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  canonicalVariantId String
+  canonicalVariant   ProductVariant @relation(fields: [canonicalVariantId], references: [id], onDelete: Cascade)
+  supplierProductId  String
+  supplierProduct    SupplierProduct @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
+  supplierVariantId  String
+  supplierVariant    SupplierVariant @relation(fields: [supplierVariantId], references: [id], onDelete: Cascade)
+  quantity           Int
+  sourceCurrency     String?
+  sourceUnitCost     Decimal? @db.Decimal(12, 2)
+  createdAt          DateTime @default(now())
+
+  @@unique([reservationId, canonicalVariantId])
+  @@index([supplierVariantId])
+  @@index([productId])
 }
 
 model IntegrationEvent {

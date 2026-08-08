@@ -54,6 +54,7 @@ export function isPublicManagerPath(pathname: string) {
   if (pathname === "/api/aliexpress/oauth/callback") return true;
   if (pathname === "/api/cron/maintenance") return true;
   if (/^\/api\/stores\/[^/]+\/orders\/webhook\/?$/.test(pathname)) return true;
+  if (/^\/api\/stores\/[^/]+\/inventory\/reservations\/?$/.test(pathname)) return true;
   if (pathname.startsWith("/_next/static/") || pathname.startsWith("/_next/image/")) return true;
   if (pathname === "/favicon.ico" || pathname === "/robots.txt") return true;
   return false;
