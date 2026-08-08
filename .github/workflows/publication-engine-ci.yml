@@ -43,3 +43,6 @@ jobs:
 
       - name: Vercel preview verifier
         run: npm run test:vercel-preview
+
+      - name: GitHub PR lifecycle
+        run: npm run test:github-pr-lifecycle
