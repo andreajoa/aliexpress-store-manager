@@ -89,6 +89,11 @@ export default async function OrderDetailPage({
             <span className="rounded-full bg-emerald-950 px-3 py-1 text-xs font-semibold text-emerald-300">
               {order.paymentStatus}
             </span>
+            {order.sourceOrderScope === "MANAGED_ITEMS" && (
+              <span className="rounded-full bg-amber-950 px-3 py-1 text-xs font-semibold text-amber-300">
+                Itens gerenciados
+              </span>
+            )}
           </div>
         </div>
 
@@ -96,6 +101,11 @@ export default async function OrderDetailPage({
           <section className="space-y-6">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
               <h2 className="text-xl font-semibold">Itens vendidos</h2>
+              {order.sourceOrderScope === "MANAGED_ITEMS" && (
+                <div className="mt-4 rounded-xl border border-amber-900/70 bg-amber-950/20 p-4 text-sm text-amber-200">
+                  Este registro contém somente os itens controlados pelo Store Manager. O pagamento integral da loja foi {money(order.sourceOrderTotal, order.currency)}; nenhum valor de frete ou desconto dos itens legados foi atribuído artificialmente a este subconjunto.
+                </div>
+              )}
               <div className="mt-5 space-y-3">
                 {order.items.map((item) => (
                   <div key={item.id} className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
@@ -121,10 +131,13 @@ export default async function OrderDetailPage({
               </div>
 
               <div className="mt-5 space-y-2 border-t border-zinc-800 pt-4 text-sm">
-                <div className="flex justify-between text-zinc-400"><span>Subtotal</span><span>{money(order.subtotal, order.currency)}</span></div>
-                <div className="flex justify-between text-zinc-400"><span>Frete</span><span>{money(order.shippingAmount, order.currency)}</span></div>
-                <div className="flex justify-between text-zinc-400"><span>Desconto</span><span>{money(order.discountAmount, order.currency)}</span></div>
-                <div className="flex justify-between pt-2 text-lg font-semibold"><span>Total</span><span>{money(order.total, order.currency)}</span></div>
+                <div className="flex justify-between text-zinc-400"><span>Subtotal gerenciado</span><span>{money(order.subtotal, order.currency)}</span></div>
+                <div className="flex justify-between text-zinc-400"><span>Frete atribuído</span><span>{money(order.shippingAmount, order.currency)}</span></div>
+                <div className="flex justify-between text-zinc-400"><span>Desconto atribuído</span><span>{money(order.discountAmount, order.currency)}</span></div>
+                <div className="flex justify-between pt-2 text-lg font-semibold"><span>Total gerenciado</span><span>{money(order.total, order.currency)}</span></div>
+                {order.sourceOrderScope === "MANAGED_ITEMS" && (
+                  <div className="flex justify-between pt-2 text-zinc-400"><span>Total integral da loja</span><span>{money(order.sourceOrderTotal, order.currency)}</span></div>
+                )}
               </div>
             </div>
 
