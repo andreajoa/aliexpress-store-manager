@@ -1,0 +1,80 @@
+name: Reconcile editorial read persistence once
+
+on:
+  push:
+    branches:
+      - feat/persistent-editorial-storage
+    paths:
+      - .github/workflows/reconcile-editorial-read-persistence-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/persistent-editorial-storage
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Replace direct generatedPath fs reads
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          function files(dir) {
+            return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+              const full = path.join(dir, entry.name);
+              return entry.isDirectory() ? files(full) : /\.(ts|tsx)$/.test(entry.name) ? [full] : [];
+            });
+          }
+          let changed = 0;
+          for (const file of files('src')) {
+            if (file.endsWith('editorial-binary-store.ts') || file.endsWith('editorial-persistent-access.ts')) continue;
+            let s = fs.readFileSync(file, 'utf8');
+            if (!s.includes('generatedPath')) continue;
+            const before = s;
+            s = s.replace(/await\s+readFile\(\s*([^\n;]*?generatedPath[^\n;]*?)\s*\)/g, 'await readEditorialPersistentFile($1)');
+            s = s.replace(/await\s+stat\(\s*([^\n;]*?generatedPath[^\n;]*?)\s*\)/g, 'await editorialPersistentFileInfo($1)');
+            s = s.replace(/existsSync\(\s*([^\n;]*?generatedPath[^\n;]*?)\s*\)/g, 'await editorialPersistentFileExists($1)');
+            if (s !== before) {
+              const needed = [];
+              if (s.includes('readEditorialPersistentFile(')) needed.push('readEditorialPersistentFile');
+              if (s.includes('editorialPersistentFileInfo(')) needed.push('editorialPersistentFileInfo');
+              if (s.includes('editorialPersistentFileExists(')) needed.push('editorialPersistentFileExists');
+              if (!s.includes('from "@/lib/editorial-persistent-access"')) {
+                const imports = [...s.matchAll(/^import .*;$/gm)];
+                if (!imports.length) throw new Error(`No import anchor in ${file}`);
+                const last = imports[imports.length - 1];
+                const pos = last.index + last[0].length;
+                s = s.slice(0, pos) + `\nimport { ${[...new Set(needed)].join(', ')} } from "@/lib/editorial-persistent-access";` + s.slice(pos);
+              }
+              fs.writeFileSync(file, s);
+              changed += 1;
+            }
+          }
+          console.log(`patched ${changed} file(s)`);
+          NODE
+      - name: Validate
+        run: |
+          npx prisma generate
+          npm run lint
+          npm run build
+      - name: Remove reconciler and commit
+        run: |
+          rm .github/workflows/reconcile-editorial-read-persistence-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add src .github/workflows/reconcile-editorial-read-persistence-once.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: read editorial assets from persistent storage"
+          git push origin HEAD:feat/persistent-editorial-storage
