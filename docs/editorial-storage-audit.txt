@@ -1,0 +1,125 @@
+# Editorial storage audit
+
+## References
+src/lib/local-export.ts:190:  await fs.writeFile(
+src/lib/local-export.ts:208:  await fs.writeFile(
+src/lib/editorial-export.ts:10:} from "@/lib/editorial-storage";
+src/lib/editorial-export.ts:119:          asset.generatedPath
+src/lib/editorial-export.ts:183:      !asset.generatedPath
+src/lib/editorial-export.ts:214:          asset.generatedPath
+src/lib/editorial-export.ts:217:      await fs.writeFile(
+src/lib/editorial-export.ts:262:  await fs.writeFile(
+src/lib/editorial-storage.ts:29:  await fs.writeFile(
+src/lib/editorial-storage.ts:40:  return fs.readFile(
+src/lib/publication-plan.ts:56:  generatedPath: string | null;
+src/lib/publication-plan.ts:988:          .generatedPath
+src/lib/publication-plan.ts:993:          `Asset ${id}: generatedPath ausente.`
+src/lib/publication-plan.ts:1432:                  ?.generatedPath ||
+src/app/api/editorial-assets/[id]/route.ts:119:    const generatedPath =
+src/app/api/editorial-assets/[id]/route.ts:120:      asset.generatedPath;
+src/app/api/editorial-assets/[id]/route.ts:122:    if (!generatedPath) {
+src/app/api/editorial-assets/[id]/route.ts:139:          generatedPath
+src/app/api/editorial-assets/[id]/regenerate/route.ts:21:} from "@/lib/editorial-storage";
+src/app/api/editorial-assets/[id]/regenerate/route.ts:589:            generatedPath:
+src/app/api/editorial-assets/[id]/regenerate/route.ts:630:      asset.generatedPath &&
+src/app/api/editorial-assets/[id]/regenerate/route.ts:631:      asset.generatedPath !==
+src/app/api/editorial-assets/[id]/regenerate/route.ts:635:        asset.generatedPath
+src/app/api/editorial-assets/[id]/image/route.ts:7:} from "@/lib/editorial-storage";
+src/app/api/editorial-assets/[id]/image/route.ts:34:    !asset.generatedPath
+src/app/api/editorial-assets/[id]/image/route.ts:47:        asset.generatedPath
+src/app/api/publications/[id]/execute/route.ts:135:      generatedPath: true,
+src/app/api/publications/[id]/execute/route.ts:141:    if (!asset.generatedPath) continue;
+src/app/api/publications/[id]/execute/route.ts:143:      assetSources[asset.generatedPath] = new Uint8Array(
+src/app/api/publications/[id]/execute/route.ts:144:        await fs.readFile(asset.generatedPath),
+src/app/api/publications/[id]/execute/route.ts:150:          error: `Asset editorial selecionado não está disponível: ${asset.generatedPath}`,
+src/app/api/publications/[id]/dry-run/route.ts:117:              .generatedPath
+src/app/api/publications/[id]/dry-run/route.ts:123:                    .generatedPath
+src/app/api/publications/[id]/dry-run/route.ts:141:            generatedPath:
+src/app/api/publications/[id]/dry-run/route.ts:143:                .generatedPath,
+src/app/api/publications/[id]/repository-dry-run/route.ts:135:      generatedPath: true,
+src/app/api/publications/[id]/repository-dry-run/route.ts:142:    if (!asset.generatedPath) {
+src/app/api/publications/[id]/repository-dry-run/route.ts:147:      assetSources[asset.generatedPath] = new Uint8Array(
+src/app/api/publications/[id]/repository-dry-run/route.ts:148:        await fs.readFile(asset.generatedPath)
+src/app/api/products/[id]/editorial/re-audit/route.ts:19:} from "@/lib/editorial-storage";
+src/app/api/products/[id]/editorial/re-audit/route.ts:78:          generatedPath: {
+src/app/api/products/[id]/editorial/re-audit/route.ts:117:          generatedPath: {
+src/app/api/products/[id]/editorial/re-audit/route.ts:130:      if (!asset.generatedPath) {
+src/app/api/products/[id]/editorial/re-audit/route.ts:216:            asset.generatedPath
+src/app/api/products/[id]/editorial/route.ts:29:} from "@/lib/editorial-storage";
+src/app/api/products/[id]/editorial/route.ts:175:        generatedPath: {
+src/app/api/products/[id]/editorial/route.ts:207:        generatedPath: {
+src/app/api/products/[id]/editorial/route.ts:244:      generatedPath:
+src/app/api/products/[id]/editorial/route.ts:769:        generatedPath:
+src/app/api/products/[id]/editorial/route.ts:773:      const generatedPath =
+src/app/api/products/[id]/editorial/route.ts:781:      ].generatedPath =
+src/app/api/products/[id]/editorial/route.ts:782:        generatedPath;
+src/app/api/products/[id]/editorial/route.ts:792:            generatedPath,
+src/app/api/products/[id]/editorial/route.ts:824:        item.generatedPath
+src/app/api/products/[id]/publication-preview/route.ts:607:     * - possuir generatedPath;
+src/app/api/products/[id]/publication-preview/route.ts:640:      const generatedPath =
+src/app/api/products/[id]/publication-preview/route.ts:641:        asset.generatedPath;
+src/app/api/products/[id]/publication-preview/route.ts:643:      if (!generatedPath) {
+src/app/api/products/[id]/publication-preview/route.ts:661:            generatedPath
+scripts/repository-dry-run-smoke.ts:288:        generatedPath:
+
+## editorial-storage.ts
+import fs from "node:fs/promises";
+import path from "node:path";
+
+function root() {
+  return path.join(
+    process.cwd(),
+    ".data",
+    "editorials"
+  );
+}
+
+export async function saveEditorialImage(
+  id: string,
+  buffer: Buffer
+) {
+  await fs.mkdir(
+    root(),
+    {
+      recursive: true,
+    }
+  );
+
+  const filepath =
+    path.join(
+      root(),
+      `${id}.png`
+    );
+
+  await fs.writeFile(
+    filepath,
+    buffer
+  );
+
+  return filepath;
+}
+
+export async function readEditorialImage(
+  filepath: string
+) {
+  return fs.readFile(
+    filepath
+  );
+}
+
+export async function removeEditorialImage(
+  filepath:
+    | string
+    | null
+    | undefined
+) {
+  if (!filepath) return;
+
+  try {
+    await fs.unlink(
+      filepath
+    );
+  } catch {
+    // Arquivo pode já não existir.
+  }
+}
