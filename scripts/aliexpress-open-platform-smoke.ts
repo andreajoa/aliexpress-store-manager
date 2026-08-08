@@ -1,6 +1,6 @@
 import { decryptSecret, encryptSecret } from "../src/lib/aliexpress-token-crypto.ts";
-import { buildAliExpressAuthorizeUrl, tokenExpiryFromResponse } from "../src/lib/aliexpress-connection.ts";
-import { officialSkusFromProductResponse } from "../src/lib/aliexpress-sku-sync.ts";
+import { buildAliExpressAuthorizeUrl, tokenExpiryFromResponse } from "../src/lib/aliexpress-oauth.ts";
+import { officialSkusFromProductResponse } from "../src/lib/aliexpress-sku-parser.ts";
 import { AliExpressTopClient, signTopParameters } from "../src/lib/aliexpress-top-client.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
