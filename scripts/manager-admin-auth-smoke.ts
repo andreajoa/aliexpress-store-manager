@@ -30,6 +30,7 @@ console.log("✅ autenticação Basic validada sem comparação antecipada");
 console.log("=== PUBLIC PATHS ===");
 assert(isPublicManagerPath("/api/health"), "Health precisa permanecer público");
 assert(isPublicManagerPath("/api/stores/store-123/orders/webhook"), "Webhook por loja precisa passar para auth Bearer própria");
+assert(isPublicManagerPath("/api/stores/store-123/inventory/reservations"), "Reserva de estoque precisa passar para auth Bearer própria da loja");
 assert(isPublicManagerPath("/api/aliexpress/oauth/callback"), "Callback OAuth precisa chegar ao validador de state/cookie");
 assert(isPublicManagerPath("/api/cron/maintenance"), "Cron precisa chegar ao validador Bearer CRON_SECRET");
 assert(!isPublicManagerPath("/api/aliexpress/oauth/start"), "Início do OAuth deve exigir admin auth");
