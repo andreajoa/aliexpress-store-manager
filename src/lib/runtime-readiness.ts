@@ -30,6 +30,7 @@ export function runtimeReadiness(env: Record<string, string | undefined>) {
     "ALIEXPRESS_OAUTH_REDIRECT_URI",
     "ALIEXPRESS_TOKEN_ENCRYPTION_KEY",
   ]);
+  const maintenanceScheduler = capability(env, ["CRON_SECRET"]);
 
   const capabilities = {
     database,
@@ -40,6 +41,7 @@ export function runtimeReadiness(env: Record<string, string | undefined>) {
     githubPublication,
     vercelVerification,
     aliexpressOpenPlatform,
+    maintenanceScheduler,
   };
 
   return {
