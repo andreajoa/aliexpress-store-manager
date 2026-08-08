@@ -1,0 +1,39 @@
+name: Include checkout reservations in fulfillment preparation once
+
+on:
+  push:
+    branches:
+      - feat/checkout-stock-reservations
+    paths:
+      - .github/workflows/reconcile-prepare-checkout-reservations-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/checkout-stock-reservations
+      - name: Patch transactional revalidation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/order-fulfillment-service.ts')
+          t=p.read_text()
+          old='''      const otherReservations = await tx.orderItem.findMany({\n        where: {\n          orderId: { not: orderId },\n          fulfillmentSupplierVariantId: { in: [...quantities.keys()] },\n          OR: [\n            { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },\n            {\n              fulfillmentBatchId: null,\n              order: {\n                paymentStatus: "PAID",\n                fulfillmentStatus: "UNFULFILLED",\n                status: "PAID",\n              },\n            },\n          ],\n        },\n        select: { fulfillmentSupplierVariantId: true, quantity: true },\n      });\n      const reserved = reservationMap(otherReservations);'''
+          new='''      const [otherReservations, activeCheckoutReservations] = await Promise.all([\n        tx.orderItem.findMany({\n          where: {\n            orderId: { not: orderId },\n            fulfillmentSupplierVariantId: { in: [...quantities.keys()] },\n            OR: [\n              { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },\n              {\n                fulfillmentBatchId: null,\n                order: {\n                  paymentStatus: "PAID",\n                  fulfillmentStatus: "UNFULFILLED",\n                  status: "PAID",\n                },\n              },\n            ],\n          },\n          select: { fulfillmentSupplierVariantId: true, quantity: true },\n        }),\n        tx.inventoryReservationItem.findMany({\n          where: {\n            supplierVariantId: { in: [...quantities.keys()] },\n            reservation: { status: "ACTIVE", expiresAt: { gt: preparedAt } },\n          },\n          select: { supplierVariantId: true, quantity: true },\n        }),\n      ]);\n      const reserved = reservationMap(otherReservations);\n      for (const row of activeCheckoutReservations) {\n        reserved.set(row.supplierVariantId, (reserved.get(row.supplierVariantId) || 0) + row.quantity);\n      }'''
+          assert old in t
+          p.write_text(t.replace(old,new,1))
+          PY
+      - name: Commit
+        run: |
+          rm .github/workflows/reconcile-prepare-checkout-reservations-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add src/lib/order-fulfillment-service.ts .github/workflows/reconcile-prepare-checkout-reservations-once.yml
+          git commit -m "feat: revalidate checkout reservations before fulfillment"
+          git push origin HEAD:feat/checkout-stock-reservations
