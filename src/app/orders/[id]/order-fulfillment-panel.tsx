@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { SupplierSwitchControl } from "./supplier-switch-control";
+
 type Plan = {
   ready: boolean;
   frozen: boolean;
@@ -145,6 +147,12 @@ function BatchControls({
           </div>
         ))}
       </div>
+
+      {batch.status === "PROCESSING" && (
+        <div className="mt-4">
+          <SupplierSwitchControl orderId={orderId} batchId={batch.id} />
+        </div>
+      )}
 
       {batch.status === "PROCESSING" && (
         <div className="mt-4 border-t border-zinc-800 pt-4">
