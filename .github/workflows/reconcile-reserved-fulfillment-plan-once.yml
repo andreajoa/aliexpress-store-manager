@@ -1,0 +1,44 @@
+name: Preserve checkout-reserved supplier in fulfillment plan once
+
+on:
+  push:
+    branches:
+      - feat/checkout-stock-reservations
+    paths:
+      - .github/workflows/reconcile-reserved-fulfillment-plan-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/checkout-stock-reservations
+      - name: Patch reserved fulfillment plan
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/order-fulfillment-service.ts')
+          t=p.read_text()
+          anchor='''  const productIds = Array.from(new Set(order.items.flatMap((item) => item.productId ? [item.productId] : [])));'''
+          block='''  const hasCompleteCheckoutSnapshot = Boolean(\n    order.checkoutReservationId &&\n    order.items.length > 0 &&\n    order.items.every((item) =>\n      item.productId &&\n      item.variantId &&\n      item.fulfillmentSupplierProductId &&\n      item.fulfillmentSupplierVariantId &&\n      item.fulfillmentProvider &&\n      item.fulfillmentSourceProductId &&\n      item.fulfillmentSourceSkuId &&\n      item.fulfillmentSourceUrl &&\n      item.fulfillmentUnitCost,\n    )\n  );\n\n  if (hasCompleteCheckoutSnapshot && blockers.length === 0) {\n    const grouped = new Map<string, FulfillmentPlanBatch>();\n    for (const item of order.items) {\n      const supplierProductId = item.fulfillmentSupplierProductId!;\n      let batch = grouped.get(supplierProductId);\n      if (!batch) {\n        batch = {\n          supplierProductId,\n          provider: item.fulfillmentProvider!,\n          sourceProductId: item.fulfillmentSourceProductId!,\n          sourceUrl: item.fulfillmentSourceUrl!,\n          currency: item.fulfillmentCurrency,\n          role: "CHECKOUT_RESERVED",\n          priority: 0,\n          items: [],\n        };\n        grouped.set(supplierProductId, batch);\n      }\n      batch.items.push({\n        orderItemId: item.id,\n        productId: item.productId!,\n        canonicalVariantId: item.variantId!,\n        quantity: item.quantity,\n        title: item.titleSnapshot,\n        supplierProductId,\n        supplierVariantId: item.fulfillmentSupplierVariantId!,\n        provider: item.fulfillmentProvider!,\n        sourceProductId: item.fulfillmentSourceProductId!,\n        sourceSkuId: item.fulfillmentSourceSkuId!,\n        sourceUrl: item.fulfillmentSourceUrl!,\n        sourceCurrency: item.fulfillmentCurrency,\n        sourceUnitCost: Number(item.fulfillmentUnitCost!.toString()),\n        selectionEvidence: {\n          role: "CHECKOUT_RESERVED",\n          priority: 0,\n          totalSourceCost: null,\n          minimumRemainingStock: -1,\n        },\n      });\n    }\n    return {\n      orderId: order.id,\n      externalOrderId: order.externalOrderId,\n      ready: grouped.size > 0,\n      frozen: false,\n      requiresReview: false,\n      blockers: [],\n      batches: [...grouped.values()],\n    };\n  }\n\n'''
+          assert anchor in t
+          t=t.replace(anchor,block+anchor,1)
+
+          old='''  const reservationRows = await prisma.orderItem.findMany({\n    where: {\n      orderId: { not: order.id },\n      fulfillmentSupplierVariantId: { not: null },\n      OR: [\n        { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },\n        {\n          fulfillmentBatchId: null,\n          order: {\n            paymentStatus: "PAID",\n            fulfillmentStatus: "UNFULFILLED",\n            status: "PAID",\n          },\n        },\n      ],\n    },\n    select: { fulfillmentSupplierVariantId: true, quantity: true },\n  });\n  const reserved = reservationMap(reservationRows);'''
+          new='''  const [reservationRows, checkoutReservationRows] = await Promise.all([\n    prisma.orderItem.findMany({\n      where: {\n        orderId: { not: order.id },\n        fulfillmentSupplierVariantId: { not: null },\n        OR: [\n          { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },\n          {\n            fulfillmentBatchId: null,\n            order: {\n              paymentStatus: "PAID",\n              fulfillmentStatus: "UNFULFILLED",\n              status: "PAID",\n            },\n          },\n        ],\n      },\n      select: { fulfillmentSupplierVariantId: true, quantity: true },\n    }),\n    prisma.inventoryReservationItem.findMany({\n      where: { reservation: { status: "ACTIVE", expiresAt: { gt: new Date() } } },\n      select: { supplierVariantId: true, quantity: true },\n    }),\n  ]);\n  const reserved = reservationMap(reservationRows);\n  for (const row of checkoutReservationRows) {\n    reserved.set(row.supplierVariantId, (reserved.get(row.supplierVariantId) || 0) + row.quantity);\n  }'''
+          assert old in t
+          p.write_text(t.replace(old,new,1))
+          PY
+      - name: Commit
+        run: |
+          rm .github/workflows/reconcile-reserved-fulfillment-plan-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add src/lib/order-fulfillment-service.ts .github/workflows/reconcile-reserved-fulfillment-plan-once.yml
+          git commit -m "feat: preserve checkout supplier through fulfillment"
+          git push origin HEAD:feat/checkout-stock-reservations
