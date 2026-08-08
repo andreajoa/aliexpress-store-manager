@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { expireCheckoutReservations } from "@/lib/inventory-reservation";
 import { prisma } from "@/lib/prisma";
 import { refreshSupplier } from "@/lib/supplier-refresh-service";
 import { syncAliExpressBatch } from "@/lib/aliexpress-fulfillment";
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
+  const expiredReservations = await expireCheckoutReservations();
   const supplierResults: Array<{ id: string; ok: boolean; error?: string }> = [];
   const trackingResults: Array<{ id: string; ok: boolean; error?: string }> = [];
 
@@ -58,6 +60,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
+    reservations: expiredReservations,
     suppliers: {
       checked: supplierResults.length,
       failed: supplierResults.filter((item) => !item.ok).length,

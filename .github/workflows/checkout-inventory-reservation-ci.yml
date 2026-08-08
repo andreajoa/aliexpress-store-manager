@@ -1,0 +1,53 @@
+name: Checkout Inventory Reservation CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/lib/inventory-reservation*.ts'
+      - 'src/lib/paid-order-reservation.ts'
+      - 'src/lib/order-paid-contract.ts'
+      - 'src/lib/order-fulfillment-service.ts'
+      - 'src/lib/supplier-refresh-service.ts'
+      - 'src/app/api/stores/**/inventory/**'
+      - 'src/app/api/stores/**/orders/**'
+      - 'src/app/api/cron/**'
+      - 'prisma/**'
+      - 'scripts/inventory-reservation-smoke.ts'
+      - 'package.json'
+      - '.github/workflows/checkout-inventory-reservation-ci.yml'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Prisma
+        run: |
+          npx prisma validate
+          npx prisma generate
+      - name: Reservation contract
+        run: npm run test:inventory-reservation
+      - name: Order and supplier regressions
+        run: |
+          node --no-warnings --experimental-strip-types scripts/order-ingestion-smoke.ts
+          node --no-warnings --experimental-strip-types scripts/supplier-selection-smoke.ts
+          npm run test:aliexpress-open-platform
+      - name: Auth regression
+        run: node --no-warnings --experimental-strip-types scripts/manager-admin-auth-smoke.ts
+      - name: Publication regression
+        run: npm run test:github-publication
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
