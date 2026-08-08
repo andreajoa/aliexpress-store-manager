@@ -24,7 +24,66 @@ const inputSchema = z.object({
     .string()
     .trim()
     .min(2)
-    .max(150),
+    .max(150)
+    .refine(
+      (value) => {
+        const normalized =
+          value
+            .normalize("NFD")
+            .replace(
+              /[\u0300-\u036f]/g,
+              ""
+            )
+            .toLowerCase()
+            .replace(
+              /\s+/g,
+              " "
+            )
+            .trim();
+
+        const forbiddenExact = [
+          "a confirmar",
+          "a definir",
+          "a verificar",
+          "aguardando confirmacao",
+          "nao definido",
+          "nao definida",
+          "nao informada",
+          "nao informado",
+          "indefinido",
+          "indefinida",
+          "pendente",
+          "unknown",
+          "not informed",
+          "n/a",
+          "na",
+        ];
+
+        const forbiddenPrefixes = [
+          "a confirmar ",
+          "a definir ",
+          "a verificar ",
+          "aguardando confirmacao ",
+          "pendente ",
+        ];
+
+        return (
+          !forbiddenExact.includes(
+            normalized
+          ) &&
+          !forbiddenPrefixes.some(
+            (prefix) =>
+              normalized.startsWith(
+                prefix
+              )
+          )
+        );
+      },
+      {
+        message:
+          "A faixa etária precisa ser uma informação real e verificada; valores provisórios não são aceitos.",
+      }
+    ),
 });
 
 function objectValue(
@@ -137,6 +196,7 @@ export async function POST(
         {
           ok: false,
           error:
+            parsed.error.issues[0]?.message ||
             "Escolha a loja, a categoria e a faixa etária antes de preparar a publicação.",
         },
         {
