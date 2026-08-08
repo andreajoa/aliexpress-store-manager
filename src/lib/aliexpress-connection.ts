@@ -1,12 +1,7 @@
 import { prisma } from "./prisma";
 import { decryptSecret, encryptSecret } from "./aliexpress-token-crypto";
 import { AliExpressTopClient } from "./aliexpress-top-client";
-import {
-  aliExpressConfig,
-  buildAliExpressAuthorizeUrl,
-  exchangeAliExpressCode,
-  tokenExpiryFromResponse,
-} from "./aliexpress-oauth";
+import { aliExpressConfig } from "./aliexpress-oauth";
 
 export {
   aliExpressConfig,
