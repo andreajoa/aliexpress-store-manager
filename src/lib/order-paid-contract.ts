@@ -38,6 +38,7 @@ export const paidOrderEventSchema = z.object({
   occurredAt: z.string().datetime({ offset: true }),
   order: z.object({
     id: z.string().trim().min(1).max(255),
+    reservationId: z.string().trim().min(1).max(255).optional().nullable(),
     scope: z.enum(["FULL_ORDER", "MANAGED_ITEMS"]).default("FULL_ORDER"),
     sourceOrderTotalCents: cents.optional(),
     currency: z.string().trim().regex(/^[A-Z]{3}$/),
@@ -102,6 +103,7 @@ export function minimizedIntegrationPayload(event: PaidOrderEvent) {
     eventType: event.eventType,
     occurredAt: event.occurredAt,
     externalOrderId: event.order.id,
+    reservationId: event.order.reservationId || null,
     scope: event.order.scope,
     sourceOrderTotalCents: event.order.sourceOrderTotalCents ?? event.order.totalCents,
     currency: event.order.currency,
