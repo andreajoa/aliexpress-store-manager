@@ -13,7 +13,8 @@
     "test:github-publication": "node --no-warnings --experimental-strip-types scripts/github-publication-executor-smoke.ts",
     "test:vercel-preview": "node --no-warnings --experimental-strip-types scripts/vercel-preview-verifier-smoke.ts",
     "test:github-pr-lifecycle": "node --no-warnings --experimental-strip-types scripts/github-pr-lifecycle-smoke.ts",
-    "test:aliexpress-open-platform": "node --no-warnings --experimental-strip-types scripts/aliexpress-open-platform-smoke.ts"
+    "test:aliexpress-open-platform": "node --no-warnings --experimental-strip-types scripts/aliexpress-open-platform-smoke.ts",
+    "test:inventory-reservation": "node --no-warnings --experimental-strip-types scripts/inventory-reservation-smoke.ts"
   },
   "dependencies": {
     "@google/genai": "^2.16.0",
