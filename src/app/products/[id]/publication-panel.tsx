@@ -5,6 +5,10 @@ import {
   useState,
 } from "react";
 
+import type {
+  PublicationPlan,
+} from "@/lib/publication-plan";
+
 type Store = {
   id: string;
   name: string;
@@ -272,6 +276,34 @@ export function PublicationPanel({
       Preview | null
     >(null);
 
+  const [
+    dryRunPlan,
+    setDryRunPlan,
+  ] =
+    useState<
+      PublicationPlan | null
+    >(null);
+
+  const [
+    dryRunPublicationId,
+    setDryRunPublicationId,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const [
+    dryRunLoading,
+    setDryRunLoading,
+  ] =
+    useState(false);
+
+  const [
+    dryRunError,
+    setDryRunError,
+  ] =
+    useState("");
+
   async function analyze(
     forceRefresh =
       false
@@ -389,6 +421,139 @@ export function PublicationPanel({
     productStatus,
   ]);
 
+  async function loadDryRun(
+    knownPublicationId?:
+      string | null
+  ) {
+    if (
+      !storeId ||
+      productStatus !==
+        "READY"
+    ) {
+      setDryRunPlan(
+        null
+      );
+
+      setDryRunPublicationId(
+        null
+      );
+
+      return;
+    }
+
+    setDryRunLoading(
+      true
+    );
+
+    setDryRunError("");
+
+    try {
+      let publicationId =
+        knownPublicationId ||
+        null;
+
+      if (!publicationId) {
+        const lookupResponse =
+          await fetch(
+            `/api/products/${productId}/publication-status?storeId=${encodeURIComponent(
+              storeId
+            )}`,
+            {
+              method:
+                "GET",
+
+              cache:
+                "no-store",
+            }
+          );
+
+        const lookupData =
+          await lookupResponse
+            .json();
+
+        if (
+          !lookupResponse.ok
+        ) {
+          throw new Error(
+            lookupData.error ||
+              "Não foi possível localizar a preparação de publicação."
+          );
+        }
+
+        publicationId =
+          lookupData
+            .publication
+            ?.id ||
+          null;
+      }
+
+      setDryRunPublicationId(
+        publicationId
+      );
+
+      if (!publicationId) {
+        setDryRunPlan(
+          null
+        );
+
+        return;
+      }
+
+      const response =
+        await fetch(
+          `/api/publications/${publicationId}/dry-run`,
+          {
+            method:
+              "GET",
+
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Não foi possível executar a simulação local."
+        );
+      }
+
+      setDryRunPlan(
+        data.plan ||
+        null
+      );
+    } catch (err) {
+      setDryRunPlan(
+        null
+      );
+
+      setDryRunError(
+        err instanceof Error
+          ? err.message
+          : "Erro inesperado na simulação local."
+      );
+    } finally {
+      setDryRunLoading(
+        false
+      );
+    }
+  }
+
+  useEffect(() => {
+    void loadDryRun();
+
+    // A simulação reflete somente
+    // o estado persistido da Publication.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    storeId,
+    productId,
+    productStatus,
+  ]);
+
   async function prepare() {
     setLoading(true);
     setError("");
@@ -431,6 +596,12 @@ export function PublicationPanel({
 
       setPreview(
         data
+      );
+
+      await loadDryRun(
+        data.publication
+          ?.id ||
+        null
       );
     } catch (err) {
       setError(
@@ -508,6 +679,470 @@ export function PublicationPanel({
       <p className="mt-2 text-sm leading-6 text-zinc-400">
         O Manager lê a identidade e as categorias reais da loja antes de classificar o produto.
       </p>
+
+      <div className="mt-5 rounded-2xl border border-sky-900 bg-sky-950/20 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-400">
+              Simulação local de publicação
+            </p>
+
+            <p className="mt-2 text-sm leading-6 text-zinc-400">
+              Nenhuma alteração é enviada para GitHub, Vercel ou para a loja.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              void loadDryRun()
+            }
+            disabled={
+              dryRunLoading
+            }
+            className="rounded-lg border border-sky-800 px-3 py-2 text-xs font-medium text-sky-300 hover:bg-sky-950 disabled:opacity-50"
+          >
+            {
+              dryRunLoading
+                ? "Atualizando..."
+                : "Atualizar simulação"
+            }
+          </button>
+        </div>
+
+        {dryRunLoading && (
+          <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-400">
+            Validando Publication Plan...
+          </div>
+        )}
+
+        {!dryRunLoading &&
+          dryRunError && (
+            <div className="mt-4 rounded-xl border border-red-900 bg-red-950/30 p-4 text-sm text-red-300">
+              {
+                dryRunError
+              }
+            </div>
+          )}
+
+        {!dryRunLoading &&
+          !dryRunError &&
+          !dryRunPlan && (
+            <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+              <p className="text-sm font-medium text-zinc-300">
+                Ainda não existe uma preparação de publicação para esta loja.
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-zinc-500">
+                Preencha os requisitos abaixo para gerar o primeiro preview seguro.
+              </p>
+            </div>
+          )}
+
+        {!dryRunLoading &&
+          dryRunPlan && (
+            <div className="mt-4 space-y-4">
+              <div
+                className={
+                  dryRunPlan.ready
+                    ? "rounded-xl border border-emerald-800 bg-emerald-950/30 p-4"
+                    : "rounded-xl border border-amber-900 bg-amber-950/30 p-4"
+                }
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">
+                      Status de publicação
+                    </p>
+
+                    <p
+                      className={
+                        dryRunPlan.ready
+                          ? "mt-1 text-lg font-semibold text-emerald-300"
+                          : "mt-1 text-lg font-semibold text-amber-300"
+                      }
+                    >
+                      {
+                        dryRunPlan.ready
+                          ? "Pronto para dry-run"
+                          : "Bloqueado"
+                      }
+                    </p>
+                  </div>
+
+                  {dryRunPublicationId && (
+                    <span className="rounded-full border border-zinc-700 bg-zinc-950 px-3 py-1 text-xs text-zinc-500">
+                      DRAFT{" "}
+                      {
+                        dryRunPublicationId
+                      }
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {dryRunPlan.blockers.length >
+                0 && (
+                <div className="rounded-xl border border-red-900/80 bg-red-950/20 p-4">
+                  <p className="text-sm font-semibold text-red-300">
+                    O que está bloqueando
+                  </p>
+
+                  <div className="mt-3 space-y-3">
+                    {dryRunPlan.blockers.map(
+                      blocker => (
+                        <div
+                          key={
+                            blocker.code
+                          }
+                          className="rounded-lg border border-red-950 bg-zinc-950 p-3"
+                        >
+                          <p className="text-xs font-medium text-red-300">
+                            {
+                              blocker.code
+                            }
+                          </p>
+
+                          <p className="mt-1 text-sm leading-5 text-zinc-400">
+                            {
+                              blocker.detail
+                            }
+                          </p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                  <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">
+                    Destino
+                  </p>
+
+                  <div className="mt-3 space-y-2 text-sm">
+                    <p className="text-zinc-300">
+                      Repositório:{" "}
+                      <span className="text-zinc-500">
+                        {
+                          dryRunPlan
+                            .target
+                            .repository ||
+                          "Não aplicável"
+                        }
+                      </span>
+                    </p>
+
+                    <p className="text-zinc-300">
+                      Branch base:{" "}
+                      <span className="text-zinc-500">
+                        {
+                          dryRunPlan
+                            .target
+                            .baseBranch ||
+                          "Não definida"
+                        }
+                      </span>
+                    </p>
+
+                    <p className="break-all text-zinc-300">
+                      Branch futura:{" "}
+                      <span className="text-zinc-500">
+                        {
+                          dryRunPlan
+                            .target
+                            .futureBranch ||
+                          "Não definida"
+                        }
+                      </span>
+                    </p>
+
+                    <p className="break-all text-zinc-300">
+                      URL futura:{" "}
+                      <span className="text-zinc-500">
+                        {
+                          dryRunPlan
+                            .target
+                            .futureUrl ||
+                          "Não definida"
+                        }
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                  <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">
+                    Adapter
+                  </p>
+
+                  <div className="mt-3 space-y-2 text-sm">
+                    <p className="text-zinc-300">
+                      Transporte:{" "}
+                      <span className="text-zinc-500">
+                        {
+                          dryRunPlan
+                            .adapter
+                            .transport
+                        }
+                      </span>
+                    </p>
+
+                    <p className="text-zinc-300">
+                      Tipo:{" "}
+                      <span className="text-zinc-500">
+                        {
+                          dryRunPlan
+                            .adapter
+                            .kind ||
+                          "Não declarado"
+                        }
+                      </span>
+                    </p>
+
+                    <p className="text-zinc-300">
+                      Adapter:{" "}
+                      <span className="text-zinc-500">
+                        {
+                          dryRunPlan
+                            .adapter
+                            .id ||
+                          "Não declarado"
+                        }
+                      </span>
+                    </p>
+
+                    <p className="text-zinc-300">
+                      Contrato:{" "}
+                      <span
+                        className={
+                          dryRunPlan
+                            .adapter
+                            .contractResolved
+                            ? "text-emerald-400"
+                            : "text-amber-400"
+                        }
+                      >
+                        {
+                          dryRunPlan
+                            .adapter
+                            .contractResolved
+                            ? "Resolvido"
+                            : "Ausente"
+                        }
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3">
+                  <p className="text-xs text-zinc-500">
+                    Variantes / SKUs
+                  </p>
+
+                  <p className="mt-1 font-semibold text-zinc-200">
+                    {
+                      dryRunPlan
+                        .summary
+                        .variants
+                    }
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3">
+                  <p className="text-xs text-zinc-500">
+                    Estoque total
+                  </p>
+
+                  <p className="mt-1 font-semibold text-zinc-200">
+                    {
+                      dryRunPlan
+                        .summary
+                        .totalStock
+                    }
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3">
+                  <p className="text-xs text-zinc-500">
+                    Galeria
+                  </p>
+
+                  <p className="mt-1 font-semibold text-zinc-200">
+                    {
+                      dryRunPlan
+                        .summary
+                        .galleryImages
+                    }
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3">
+                  <p className="text-xs text-zinc-500">
+                    Editorias
+                  </p>
+
+                  <p className="mt-1 font-semibold text-zinc-200">
+                    {
+                      dryRunPlan
+                        .summary
+                        .editorialAssets
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {dryRunPlan.operations.length >
+                0 && (
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                  <p className="text-sm font-semibold text-zinc-300">
+                    Ações que seriam executadas
+                  </p>
+
+                  <div className="mt-3 space-y-2">
+                    {dryRunPlan.operations.map(
+                      operation => (
+                        <div
+                          key={`${operation.order}-${operation.kind}`}
+                          className="rounded-lg border border-zinc-800 bg-black/20 p-3"
+                        >
+                          <p className="text-xs font-medium text-sky-300">
+                            {
+                              operation.order
+                            }
+                            .{" "}
+                            {
+                              operation.kind
+                            }
+                          </p>
+
+                          <p className="mt-1 text-xs leading-5 text-zinc-500">
+                            {
+                              operation.description
+                            }
+                          </p>
+
+                          {operation.path && (
+                            <p className="mt-1 break-all font-mono text-[11px] text-zinc-600">
+                              {
+                                operation.path
+                              }
+                            </p>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {dryRunPlan.warnings.length >
+                0 && (
+                <div className="rounded-xl border border-yellow-900/60 bg-yellow-950/10 p-4">
+                  <p className="text-sm font-medium text-yellow-300">
+                    Avisos
+                  </p>
+
+                  <div className="mt-2 space-y-2">
+                    {dryRunPlan.warnings.map(
+                      warning => (
+                        <p
+                          key={
+                            warning.code
+                          }
+                          className="text-xs leading-5 text-zinc-500"
+                        >
+                          {
+                            warning.detail
+                          }
+                        </p>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-xl border border-violet-900/70 bg-violet-950/20 p-4">
+                <p className="text-sm font-semibold text-violet-300">
+                  Repository Dry-Run
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-zinc-400">
+                  {
+                    dryRunPlan.ready
+                      ? "O Publication Plan está apto. O diff de arquivos e hashes será exibido quando houver um snapshot de repositório compatível."
+                      : "Não executado porque o Publication Plan ainda possui bloqueios."
+                  }
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-emerald-900 bg-emerald-950/20 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-400">
+                  Segurança do dry-run
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  SIMULAÇÃO LOCAL — nenhuma alteração foi enviada à loja.
+                </p>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-500 sm:grid-cols-5">
+                  <span>
+                    GitHub writes:{" "}
+                    {
+                      dryRunPlan
+                        .execution
+                        .performed
+                        .githubWrites
+                    }
+                  </span>
+
+                  <span>
+                    Commits:{" "}
+                    {
+                      dryRunPlan
+                        .execution
+                        .performed
+                        .commits
+                    }
+                  </span>
+
+                  <span>
+                    PRs:{" "}
+                    {
+                      dryRunPlan
+                        .execution
+                        .performed
+                        .pullRequests
+                    }
+                  </span>
+
+                  <span>
+                    Vercel:{" "}
+                    {
+                      dryRunPlan
+                        .execution
+                        .performed
+                        .vercelDeployments
+                    }
+                  </span>
+
+                  <span>
+                    Produção:{" "}
+                    {
+                      dryRunPlan
+                        .execution
+                        .performed
+                        .productionWrites
+                    }
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+      </div>
 
       <div className="mt-6 space-y-5">
         <label className="block">
