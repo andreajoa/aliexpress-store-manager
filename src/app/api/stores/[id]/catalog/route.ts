@@ -15,6 +15,23 @@ type RemoteCatalog = {
   };
 };
 
+function hasCapability(
+  value: unknown,
+  capability: string
+): boolean {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    return false;
+  }
+
+  return (
+    (value as Record<string, unknown>)[capability] === true
+  );
+}
+
 export async function GET(
   _request: Request,
   context: {
@@ -41,14 +58,24 @@ export async function GET(
     return NextResponse.json(
       {
         ok: false,
-        error: "Valide o Store Connector antes de ler o catálogo.",
+        error:
+          "Valide o Store Connector antes de ler o catálogo.",
       },
       { status: 409 }
     );
   }
 
-  const endpoint =
-    `${store.baseUrl.replace(/\/+$/, "")}/api/store-connector/catalog`;
+  const connectorBase = (
+    store.apiEndpoint ||
+    `${store.baseUrl.replace(/\/+$/, "")}/api/store-connector`
+  ).replace(/\/+$/, "");
+
+  const endpoint = `${connectorBase}/catalog`;
+
+  const githubManagedCatalog = hasCapability(
+    store.connectorCapabilities,
+    "githubManagedCatalog"
+  );
 
   try {
     const response = await fetch(endpoint, {
@@ -61,13 +88,57 @@ export async function GET(
       signal: AbortSignal.timeout(15000),
     });
 
+    /*
+     * Um Store Connector pode declarar catálogo gerenciado
+     * pelo GitHub sem necessariamente publicar um endpoint
+     * HTTP /catalog.
+     *
+     * Isso NÃO significa que a loja está desconectada.
+     */
+    if (
+      response.status === 404 ||
+      response.status === 405
+    ) {
+      return NextResponse.json({
+        ok: true,
+        available: false,
+
+        source: githubManagedCatalog
+          ? "github-managed"
+          : "connector-not-exposed",
+
+        store: {
+          id: store.id,
+          name: store.name,
+          baseUrl: store.baseUrl,
+        },
+
+        catalog: {
+          currency: store.currency || "BRL",
+          priceUnit: null,
+          count: 0,
+          products: [],
+        },
+
+        endpoint,
+
+        warning: githubManagedCatalog
+          ? "A loja utiliza catálogo gerenciado pelo GitHub e não expõe leitura de catálogo por este endpoint HTTP."
+          : "O Store Connector não expõe um endpoint HTTP de catálogo.",
+
+        publicationCompatible:
+          githubManagedCatalog,
+      });
+    }
+
     if (!response.ok) {
       throw new Error(
         `Endpoint de catálogo respondeu com HTTP ${response.status}.`
       );
     }
 
-    const data = (await response.json()) as RemoteCatalog;
+    const data =
+      (await response.json()) as RemoteCatalog;
 
     if (
       data.ok !== true ||
@@ -82,27 +153,45 @@ export async function GET(
 
     return NextResponse.json({
       ok: true,
+      available: true,
+      source: "connector",
+
       store: {
         id: store.id,
         name: store.name,
         baseUrl: store.baseUrl,
       },
+
       catalog: {
-        currency: data.catalog.currency || "BRL",
-        priceUnit: data.catalog.priceUnit || null,
-        count: data.catalog.products.length,
-        products: data.catalog.products,
+        currency:
+          data.catalog.currency ||
+          store.currency ||
+          "BRL",
+
+        priceUnit:
+          data.catalog.priceUnit || null,
+
+        count:
+          data.catalog.products.length,
+
+        products:
+          data.catalog.products,
       },
+
       endpoint,
+
+      publicationCompatible: true,
     });
   } catch (error) {
     return NextResponse.json(
       {
         ok: false,
+
         error:
           error instanceof Error
             ? error.message
             : "Não foi possível ler o catálogo.",
+
         endpoint,
       },
       { status: 502 }
