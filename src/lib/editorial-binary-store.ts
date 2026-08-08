@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import { access, readFile, stat } from "node:fs/promises";
-import path from "node:path";
 
 import { prisma } from "./prisma";
 
@@ -16,10 +14,10 @@ function digest(bytes: Uint8Array) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-function mimeFromPath(filePath: string) {
-  const extension = path.extname(filePath).toLowerCase();
-  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
-  if (extension === ".webp") return "image/webp";
+function mimeFromStorageKey(storageKey: string) {
+  const lower = storageKey.toLowerCase();
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
   return "image/png";
 }
 
@@ -35,16 +33,6 @@ function safeStorageKey(value: string) {
   return key;
 }
 
-function safeLocalEditorialPath(value: string) {
-  const root = path.resolve(process.cwd(), ".data", "editorials");
-  const candidate = path.isAbsolute(value)
-    ? path.resolve(value)
-    : path.resolve(process.cwd(), value);
-  const relative = path.relative(root, candidate);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) return null;
-  return candidate;
-}
-
 export async function persistEditorialBinary(input: {
   storageKey: string;
   bytes: Uint8Array;
@@ -54,7 +42,7 @@ export async function persistEditorialBinary(input: {
   if (!input.bytes.length) throw new Error("Editorial binary is empty.");
   const bytes = Buffer.from(input.bytes);
   const sha256 = digest(bytes);
-  const mimeType = validMime(input.mimeType) ? input.mimeType : mimeFromPath(storageKey);
+  const mimeType = validMime(input.mimeType) ? input.mimeType : mimeFromStorageKey(storageKey);
 
   await prisma.editorialBinary.upsert({
     where: { storageKey },
@@ -74,6 +62,11 @@ export async function persistEditorialBinary(input: {
   });
 
   return { storageKey, mimeType, sha256, byteSize: bytes.length };
+}
+
+export async function deleteEditorialBinary(storageKeyValue: string) {
+  const storageKey = safeStorageKey(storageKeyValue);
+  await prisma.editorialBinary.deleteMany({ where: { storageKey } });
 }
 
 export async function readEditorialBinary(storageKeyValue: string): Promise<EditorialStoredBinary | null> {
@@ -98,23 +91,18 @@ export async function readEditorialBinary(storageKeyValue: string): Promise<Edit
     };
   }
 
-  const localPath = safeLocalEditorialPath(storageKey);
-  if (!localPath) return null;
-  try {
-    await access(localPath);
-    const info = await stat(localPath);
-    if (!info.isFile() || info.size <= 0) return null;
-    const bytes = await readFile(localPath);
-    return {
-      bytes,
-      mimeType: mimeFromPath(localPath),
-      sha256: digest(bytes),
-      byteSize: bytes.length,
-      source: "local-file",
-    };
-  } catch {
-    return null;
-  }
+  if (process.env.NODE_ENV === "production") return null;
+
+  const { readLocalEditorial } = await import("./editorial-local-fallback");
+  const localBytes = await readLocalEditorial(storageKey);
+  if (!localBytes?.length) return null;
+  return {
+    bytes: Buffer.from(localBytes),
+    mimeType: mimeFromStorageKey(storageKey),
+    sha256: digest(localBytes),
+    byteSize: localBytes.length,
+    source: "local-file",
+  };
 }
 
 export async function ensureEditorialBinary(storageKeyValue: string) {
