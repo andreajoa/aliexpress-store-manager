@@ -387,6 +387,9 @@ model Order {
   paymentStatus     PaymentStatus     @default(PENDING)
   fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
 
+  sourceOrderScope String   @default("FULL_ORDER")
+  sourceOrderTotal Decimal? @db.Decimal(12, 2)
+
   currency       String   @default("BRL")
   subtotal       Decimal? @db.Decimal(12, 2)
   shippingAmount Decimal? @db.Decimal(12, 2)

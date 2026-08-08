@@ -268,6 +268,10 @@ export async function POST(
           status: "PAID",
           paymentStatus: "PAID",
           fulfillmentStatus: "UNFULFILLED",
+          sourceOrderScope: event.order.scope,
+          sourceOrderTotal: centsToCurrencyUnits(
+            event.order.sourceOrderTotalCents ?? event.order.totalCents,
+          ),
           currency: event.order.currency,
           subtotal: centsToCurrencyUnits(event.order.subtotalCents),
           shippingAmount: centsToCurrencyUnits(event.order.shippingAmountCents),
