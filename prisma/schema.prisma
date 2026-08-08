@@ -74,6 +74,17 @@ enum EventStatus {
   FAILED
 }
 
+enum SupplierRole {
+  PRIMARY
+  BACKUP
+  ALTERNATIVE
+}
+
+enum SupplierMappingMethod {
+  AUTO
+  MANUAL
+}
+
 model Store {
   id             String              @id @default(cuid())
   name           String
@@ -139,10 +150,11 @@ model Product {
   aiCopyVersion String?
   status        ProductStatus @default(IMPORTED)
 
-  images       ProductImage[]
-  variants     ProductVariant[]
-  publications Publication[]
-  orderItems   OrderItem[]
+  images           ProductImage[]
+  variants         ProductVariant[]
+  publications     Publication[]
+  supplierProducts SupplierProduct[]
+  orderItems       OrderItem[]
 
   importedAt                DateTime         @default(now())
   createdAt                 DateTime         @default(now())
@@ -271,6 +283,85 @@ model Publication {
 
   @@unique([storeId, productId])
   @@index([storeId, status])
+}
+
+model SupplierProduct {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  provider        String @default("ALIEXPRESS")
+  sourceProductId String
+  sourceUrl       String @db.Text
+  sellerId        String?
+  sellerName      String?
+
+  role     SupplierRole @default(ALTERNATIVE)
+  priority Int          @default(100)
+  status   String       @default("ACTIVE")
+
+  sourceCurrency String?
+  costMin        Decimal? @db.Decimal(12, 2)
+  costMax        Decimal? @db.Decimal(12, 2)
+  rawPayload     Json?
+  lastCheckedAt  DateTime?
+
+  variants SupplierVariant[]
+  mappings SupplierVariantMapping[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, provider, sourceProductId])
+  @@index([productId, role])
+  @@index([status])
+}
+
+model SupplierVariant {
+  id String @id @default(cuid())
+
+  supplierProductId String
+  supplierProduct   SupplierProduct @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
+
+  sourceSkuId String
+  name        String
+  sourcePrice Decimal? @db.Decimal(12, 2)
+  stock       Int      @default(0)
+  attributes  Json?
+  imageUrl    String?  @db.Text
+
+  mappings SupplierVariantMapping[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([supplierProductId, sourceSkuId])
+  @@index([supplierProductId, stock])
+}
+
+model SupplierVariantMapping {
+  id String @id @default(cuid())
+
+  supplierProductId String
+  supplierProduct   SupplierProduct @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
+
+  supplierVariantId String
+  supplierVariant   SupplierVariant @relation(fields: [supplierVariantId], references: [id], onDelete: Cascade)
+
+  canonicalVariantId String
+  confidence         Decimal?              @db.Decimal(5, 4)
+  method             SupplierMappingMethod @default(MANUAL)
+  evidence           Json?
+  active             Boolean               @default(true)
+  verifiedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([supplierProductId, canonicalVariantId])
+  @@unique([supplierProductId, supplierVariantId])
+  @@index([canonicalVariantId, active])
 }
 
 model Order {
