@@ -1,0 +1,51 @@
+name: AliExpress Open Platform CI
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/aliexpress-*.ts'
+      - 'src/app/api/aliexpress/**'
+      - 'src/app/api/orders/**/aliexpress/**'
+      - 'src/app/api/cron/**'
+      - 'src/app/orders/**'
+      - 'src/app/settings/aliexpress/**'
+      - 'prisma/**'
+      - 'scripts/aliexpress-open-platform-smoke.ts'
+      - 'package.json'
+      - '.github/workflows/aliexpress-open-platform-ci.yml'
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Prisma
+        run: |
+          npx prisma validate
+          npx prisma generate
+      - name: AliExpress Open Platform
+        run: npm run test:aliexpress-open-platform
+      - name: Supplier mapping
+        run: node --no-warnings --experimental-strip-types scripts/supplier-variant-mapper-smoke.ts
+      - name: Supplier selection
+        run: node --no-warnings --experimental-strip-types scripts/supplier-selection-smoke.ts
+      - name: Order ingestion
+        run: node --no-warnings --experimental-strip-types scripts/order-ingestion-smoke.ts
+      - name: Publication regressions
+        run: |
+          npm run test:publication-target
+          npm run test:repository-dry-run
+          npm run test:github-publication
+      - name: Lint
+        run: npm run lint
+      - name: Production build
+        run: npm run build
