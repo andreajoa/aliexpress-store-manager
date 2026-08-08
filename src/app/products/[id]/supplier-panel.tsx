@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type CanonicalVariant = {
   id: string;
@@ -49,6 +49,39 @@ function roleLabel(role: Supplier["role"]) {
   return "Alternativo";
 }
 
+function decorateSupplier(productId: string, supplier: Supplier): SupplierWithUrls {
+  const root = `/api/products/${encodeURIComponent(productId)}/suppliers/${encodeURIComponent(supplier.id)}`;
+  return {
+    ...supplier,
+    baseUrl: root,
+    mappingUrl: `${root}/mapping`,
+    refreshUrl: `${root}/refresh`,
+  };
+}
+
+function mappingState(supplier: Supplier) {
+  const result: Record<string, string> = {};
+  for (const mapping of supplier.mappings) {
+    if (mapping.active) {
+      result[mapping.canonicalVariantId] = mapping.supplierVariantId;
+    }
+  }
+  return result;
+}
+
+function supplierCardKey(supplier: SupplierWithUrls) {
+  const mappings = supplier.mappings
+    .filter((item) => item.active)
+    .map((item) => `${item.canonicalVariantId}:${item.supplierVariantId}`)
+    .sort()
+    .join("|");
+  const variants = supplier.variants
+    .map((item) => `${item.id}:${item.sourceSkuId}:${item.stock}`)
+    .sort()
+    .join("|");
+  return `${supplier.id}:${supplier.role}:${supplier.status}:${mappings}:${variants}`;
+}
+
 function SupplierCard({
   supplier,
   canonicalVariants,
@@ -58,23 +91,9 @@ function SupplierCard({
   canonicalVariants: CanonicalVariant[];
   onReload: () => Promise<void>;
 }) {
-  const initialMapping = useMemo(() => {
-    const result: Record<string, string> = {};
-    for (const mapping of supplier.mappings) {
-      if (mapping.active) {
-        result[mapping.canonicalVariantId] = mapping.supplierVariantId;
-      }
-    }
-    return result;
-  }, [supplier.mappings]);
-
-  const [mapping, setMapping] = useState<Record<string, string>>(initialMapping);
+  const [mapping, setMapping] = useState<Record<string, string>>(() => mappingState(supplier));
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    setMapping(initialMapping);
-  }, [initialMapping]);
 
   const mappedCount = supplier.mappings.filter((item) => item.active).length;
   const complete = canonicalVariants.length > 0 && mappedCount === canonicalVariants.length;
@@ -144,9 +163,7 @@ function SupplierCard({
             </span>
             <span
               className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                complete
-                  ? "bg-emerald-950 text-emerald-300"
-                  : "bg-amber-950 text-amber-300"
+                complete ? "bg-emerald-950 text-emerald-300" : "bg-amber-950 text-amber-300"
               }`}
             >
               {complete ? "Mapping completo" : `${mappedCount}/${canonicalVariants.length} mapeadas`}
@@ -233,10 +250,7 @@ function SupplierCard({
                 <select
                   value={mapping[variant.id] || ""}
                   onChange={(event) =>
-                    setMapping((current) => ({
-                      ...current,
-                      [variant.id]: event.target.value,
-                    }))
+                    setMapping((current) => ({ ...current, [variant.id]: event.target.value }))
                   }
                   className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm"
                 >
@@ -291,20 +305,41 @@ export function SupplierPanel({
     }
 
     setSuppliers(
-      (data.suppliers as Supplier[]).map((supplier) => ({
-        ...supplier,
-        baseUrl: `/api/products/${encodeURIComponent(productId)}/suppliers/${encodeURIComponent(supplier.id)}`,
-        mappingUrl: `/api/products/${encodeURIComponent(productId)}/suppliers/${encodeURIComponent(supplier.id)}/mapping`,
-        refreshUrl: `/api/products/${encodeURIComponent(productId)}/suppliers/${encodeURIComponent(supplier.id)}/refresh`,
-      })),
+      (data.suppliers as Supplier[]).map((supplier) => decorateSupplier(productId, supplier)),
     );
   }, [productId]);
 
   useEffect(() => {
-    void load().catch((error) =>
-      setMessage(error instanceof Error ? error.message : "Falha ao carregar fornecedores."),
-    );
-  }, [load]);
+    const controller = new AbortController();
+    let active = true;
+
+    fetch(`/api/products/${encodeURIComponent(productId)}/suppliers`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "Não foi possível carregar fornecedores.");
+        }
+        return data.suppliers as Supplier[];
+      })
+      .then((items) => {
+        if (active) {
+          setSuppliers(items.map((supplier) => decorateSupplier(productId, supplier)));
+        }
+      })
+      .catch((error: unknown) => {
+        if (active && !(error instanceof DOMException && error.name === "AbortError")) {
+          setMessage(error instanceof Error ? error.message : "Falha ao carregar fornecedores.");
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [productId]);
 
   async function addSupplier() {
     if (!url.trim()) {
@@ -389,7 +424,7 @@ export function SupplierPanel({
         ) : (
           suppliers.map((supplier) => (
             <SupplierCard
-              key={supplier.id}
+              key={supplierCardKey(supplier)}
               supplier={supplier}
               canonicalVariants={canonicalVariants}
               onReload={load}
