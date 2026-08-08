@@ -159,6 +159,73 @@ export async function buildOrderFulfillmentPlan(orderId: string): Promise<Fulfil
     blockers.push({ code: "ORDER_NOT_FULFILLABLE", detail: `Pedido está ${order.status}.` });
   }
 
+  const hasCompleteCheckoutSnapshot = Boolean(
+    order.checkoutReservationId &&
+    order.items.length > 0 &&
+    order.items.every((item) =>
+      item.productId &&
+      item.variantId &&
+      item.fulfillmentSupplierProductId &&
+      item.fulfillmentSupplierVariantId &&
+      item.fulfillmentProvider &&
+      item.fulfillmentSourceProductId &&
+      item.fulfillmentSourceSkuId &&
+      item.fulfillmentSourceUrl &&
+      item.fulfillmentUnitCost,
+    )
+  );
+
+  if (hasCompleteCheckoutSnapshot && blockers.length === 0) {
+    const grouped = new Map<string, FulfillmentPlanBatch>();
+    for (const item of order.items) {
+      const supplierProductId = item.fulfillmentSupplierProductId!;
+      let batch = grouped.get(supplierProductId);
+      if (!batch) {
+        batch = {
+          supplierProductId,
+          provider: item.fulfillmentProvider!,
+          sourceProductId: item.fulfillmentSourceProductId!,
+          sourceUrl: item.fulfillmentSourceUrl!,
+          currency: item.fulfillmentCurrency,
+          role: "CHECKOUT_RESERVED",
+          priority: 0,
+          items: [],
+        };
+        grouped.set(supplierProductId, batch);
+      }
+      batch.items.push({
+        orderItemId: item.id,
+        productId: item.productId!,
+        canonicalVariantId: item.variantId!,
+        quantity: item.quantity,
+        title: item.titleSnapshot,
+        supplierProductId,
+        supplierVariantId: item.fulfillmentSupplierVariantId!,
+        provider: item.fulfillmentProvider!,
+        sourceProductId: item.fulfillmentSourceProductId!,
+        sourceSkuId: item.fulfillmentSourceSkuId!,
+        sourceUrl: item.fulfillmentSourceUrl!,
+        sourceCurrency: item.fulfillmentCurrency,
+        sourceUnitCost: Number(item.fulfillmentUnitCost!.toString()),
+        selectionEvidence: {
+          role: "CHECKOUT_RESERVED",
+          priority: 0,
+          totalSourceCost: null,
+          minimumRemainingStock: -1,
+        },
+      });
+    }
+    return {
+      orderId: order.id,
+      externalOrderId: order.externalOrderId,
+      ready: grouped.size > 0,
+      frozen: false,
+      requiresReview: false,
+      blockers: [],
+      batches: [...grouped.values()],
+    };
+  }
+
   const productIds = Array.from(new Set(order.items.flatMap((item) => item.productId ? [item.productId] : [])));
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
@@ -172,25 +239,34 @@ export async function buildOrderFulfillmentPlan(orderId: string): Promise<Fulfil
   });
   const productById = new Map(products.map((product) => [product.id, product]));
 
-  const reservationRows = await prisma.orderItem.findMany({
-    where: {
-      orderId: { not: order.id },
-      fulfillmentSupplierVariantId: { not: null },
-      OR: [
-        { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },
-        {
-          fulfillmentBatchId: null,
-          order: {
-            paymentStatus: "PAID",
-            fulfillmentStatus: "UNFULFILLED",
-            status: "PAID",
+  const [reservationRows, checkoutReservationRows] = await Promise.all([
+    prisma.orderItem.findMany({
+      where: {
+        orderId: { not: order.id },
+        fulfillmentSupplierVariantId: { not: null },
+        OR: [
+          { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },
+          {
+            fulfillmentBatchId: null,
+            order: {
+              paymentStatus: "PAID",
+              fulfillmentStatus: "UNFULFILLED",
+              status: "PAID",
+            },
           },
-        },
-      ],
-    },
-    select: { fulfillmentSupplierVariantId: true, quantity: true },
-  });
+        ],
+      },
+      select: { fulfillmentSupplierVariantId: true, quantity: true },
+    }),
+    prisma.inventoryReservationItem.findMany({
+      where: { reservation: { status: "ACTIVE", expiresAt: { gt: new Date() } } },
+      select: { supplierVariantId: true, quantity: true },
+    }),
+  ]);
   const reserved = reservationMap(reservationRows);
+  for (const row of checkoutReservationRows) {
+    reserved.set(row.supplierVariantId, (reserved.get(row.supplierVariantId) || 0) + row.quantity);
+  }
 
   const groups = new Map<string, typeof order.items>();
   for (const item of order.items) {
