@@ -169,7 +169,9 @@ export async function verifyVercelProductPreview(input: {
   add("PRODUCT_TITLE", text.includes(product.title), `Título esperado: ${product.title}`);
   add("PRODUCT_DESCRIPTION", text.includes(product.description), "Descrição comercial presente no HTML renderizado.");
   add("PRODUCT_PRICE", text.includes(priceToken(product.price)), `Preço esperado contém ${priceToken(product.price)}.`);
-  add("PRODUCT_STOCK", text.includes(String(product.stock)), `Estoque total esperado: ${product.stock}.`);
+  if (product.variants.length === 0) {
+    add("PRODUCT_STOCK", text.includes(String(product.stock)), `Estoque esperado: ${product.stock}.`);
+  }
 
   for (const variant of product.variants) {
     add(
@@ -184,12 +186,16 @@ export async function verifyVercelProductPreview(input: {
     );
     add(
       `VARIANT_${variant.sourceSkuId}_STOCK`,
-      text.includes(String(variant.stock)),
+      text.includes(`${variant.stock} em estoque`),
       `Estoque da variante ${variant.name}: ${variant.stock}.`,
     );
   }
 
-  add("SEO_TITLE", html.includes(`<title>${product.title} | BrinqueTEAndo</title>`), "Title SEO específico do produto.");
+  add(
+    "SEO_TITLE",
+    html.includes(`<title>${product.seo.title} | BrinqueTEAndo</title>`),
+    `Title SEO esperado: ${product.seo.title}.`,
+  );
   add(
     "SEO_DESCRIPTION",
     exactMetaContent(html, "name", "description", product.seo.description),
