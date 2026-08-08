@@ -113,9 +113,9 @@ function decodeEntities(value: string) {
 
 function htmlText(html: string) {
   return html
-    .replace(/<!--.*?-->/gs, " ")
-    .replace(/<script\b[^>]*>.*?<\/script>/gis, " ")
-    .replace(/<style\b[^>]*>.*?<\/style>/gis, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&([A-Za-z0-9#]+);/g, (_match, entity: string) => decodeEntity(entity))
     .replace(/\u00a0/g, " ")
