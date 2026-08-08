@@ -65,13 +65,13 @@ export function StoreCompatibilityPanel({
         </span>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {report.items.map((entry) => (
           <div
             key={entry.key}
             className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-3"
           >
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                 {entry.label}
               </p>
@@ -87,7 +87,7 @@ export function StoreCompatibilityPanel({
               {entry.summary}
             </p>
 
-            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            <p className="mt-1 break-words text-xs leading-relaxed text-zinc-500">
               {entry.detail}
             </p>
           </div>
