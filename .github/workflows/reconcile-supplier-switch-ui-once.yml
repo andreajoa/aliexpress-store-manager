@@ -1,0 +1,56 @@
+name: Reconcile supplier switch UI once
+
+on:
+  push:
+    branches:
+      - feat/fulfillment-supplier-switch
+    paths:
+      - .github/workflows/reconcile-supplier-switch-ui-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/fulfillment-supplier-switch
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Wire UI
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'src/app/orders/[id]/order-fulfillment-panel.tsx';
+          let s = fs.readFileSync(path, 'utf8');
+          const importAnchor = 'import { useState } from "react";';
+          if (!s.includes(importAnchor)) throw new Error('React import anchor missing');
+          if (!s.includes('SupplierSwitchControl')) {
+            s = s.replace(importAnchor, importAnchor + '\n\nimport { SupplierSwitchControl } from "./supplier-switch-control";');
+          }
+          const statusAnchor = '      {batch.status === "PROCESSING" && (';
+          if (!s.includes(statusAnchor)) throw new Error('PROCESSING block anchor missing');
+          const control = '      {batch.status === "PROCESSING" && (\n        <div className="mt-4">\n          <SupplierSwitchControl orderId={orderId} batchId={batch.id} />\n        </div>\n      )}\n\n';
+          if (!s.includes('<SupplierSwitchControl orderId={orderId} batchId={batch.id} />')) {
+            s = s.replace(statusAnchor, control + statusAnchor);
+          }
+          fs.writeFileSync(path, s);
+          NODE
+      - name: Validate
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+      - name: Commit and remove reconciler
+        run: |
+          rm .github/workflows/reconcile-supplier-switch-ui-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add src/app/orders/[id]/order-fulfillment-panel.tsx src/app/orders/[id]/supplier-switch-control.tsx .github/workflows/reconcile-supplier-switch-ui-once.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: expose controlled supplier switching in fulfillment UI"
+          git push origin HEAD:feat/fulfillment-supplier-switch
