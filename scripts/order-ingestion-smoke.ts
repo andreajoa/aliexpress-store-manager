@@ -28,6 +28,8 @@ const validEvent = {
   occurredAt: "2026-08-08T18:30:00Z",
   order: {
     id: "cs_test_001",
+    scope: "FULL_ORDER" as const,
+    sourceOrderTotalCents: 10680,
     currency: "BRL",
     subtotalCents: 9980,
     shippingAmountCents: 1200,
@@ -69,7 +71,43 @@ const invalidTotal = paidOrderEventSchema.safeParse({
   order: { ...validEvent.order, totalCents: 9999 },
 });
 assert(!invalidTotal.success, "Total inconsistente deveria ser rejeitado");
+const invalidFullScope = paidOrderEventSchema.safeParse({
+  ...validEvent,
+  order: { ...validEvent.order, sourceOrderTotalCents: 15000 },
+});
+assert(!invalidFullScope.success, "FULL_ORDER com total-fonte divergente deveria ser rejeitado");
 console.log("✅ centavos inteiros e reconciliação financeira validados");
+
+console.log("=== MANAGED ITEMS SCOPE ===");
+const managedItemsEvent = paidOrderEventSchema.safeParse({
+  ...validEvent,
+  eventId: "evt_store_paid_managed_subset",
+  order: {
+    ...validEvent.order,
+    scope: "MANAGED_ITEMS",
+    sourceOrderTotalCents: 25000,
+    subtotalCents: 9980,
+    shippingAmountCents: 0,
+    discountAmountCents: 0,
+    totalCents: 9980,
+  },
+});
+assert(managedItemsEvent.success, managedItemsEvent.success ? "" : JSON.stringify(managedItemsEvent.error.issues));
+const managedWithoutSourceTotal = paidOrderEventSchema.safeParse({
+  ...validEvent,
+  order: {
+    ...validEvent.order,
+    scope: "MANAGED_ITEMS",
+    sourceOrderTotalCents: undefined,
+    shippingAmountCents: 0,
+    discountAmountCents: 0,
+    totalCents: 9980,
+  },
+});
+assert(!managedWithoutSourceTotal.success, "MANAGED_ITEMS sem total integral deveria ser rejeitado");
+assert(managedItemsEvent.data.order.totalCents === 9980, "Subset operacional perdeu total gerenciado");
+assert(managedItemsEvent.data.order.sourceOrderTotalCents === 25000, "Total integral da loja não foi preservado");
+console.log("✅ carrinho misto preserva total integral sem atribuir itens legados ao Manager");
 
 console.log("=== EVENT MINIMIZATION ===");
 const minimized = minimizedIntegrationPayload(parsed.data);
@@ -77,6 +115,7 @@ const serialized = JSON.stringify(minimized);
 assert(!serialized.includes("Ana Cliente"), "PII do cliente vazou para IntegrationEvent");
 assert(!serialized.includes("Rua Exemplo"), "Endereço vazou para IntegrationEvent");
 assert(serialized.includes("ae-3256810332224371"), "Identificador operacional do produto foi perdido");
+assert(minimized.scope === "FULL_ORDER", "Escopo não foi preservado no evento operacional");
 console.log("✅ log de integração minimizado sem PII duplicada");
 
 console.log("=== ITEM RESOLUTION ===");
