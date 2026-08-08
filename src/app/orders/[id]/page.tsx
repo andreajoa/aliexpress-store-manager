@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { OrderFulfillmentPanel } from "./order-fulfillment-panel";
+import { AliExpressBatchPanel } from "./aliexpress-batch-panel";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -55,6 +56,8 @@ export default async function OrderDetailPage({
     trackingCode: batch.trackingCode,
     trackingUrl: batch.trackingUrl,
     carrier: batch.carrier,
+    placementStatus: batch.placementStatus,
+    logisticsServiceName: batch.logisticsServiceName,
     items: batch.items.map((item) => ({
       id: item.id,
       title: item.titleSnapshot,
@@ -146,6 +149,7 @@ export default async function OrderDetailPage({
               fulfillmentStatus={order.fulfillmentStatus}
               batches={batches}
             />
+            <AliExpressBatchPanel orderId={order.id} batches={batches} />
           </section>
 
           <aside className="space-y-6">

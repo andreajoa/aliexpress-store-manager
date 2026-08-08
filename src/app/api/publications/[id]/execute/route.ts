@@ -1,7 +1,6 @@
-import fs from "node:fs/promises";
-
 import { NextResponse } from "next/server";
 
+import { readEditorialPersistentFile } from "@/lib/editorial-persistent-access";
 import { prisma } from "@/lib/prisma";
 import type { PublicationPlan } from "@/lib/publication-plan";
 import { executeGitHubPublication } from "@/lib/github-publication-executor";
@@ -141,7 +140,7 @@ export async function POST(
     if (!asset.generatedPath) continue;
     try {
       assetSources[asset.generatedPath] = new Uint8Array(
-        await fs.readFile(asset.generatedPath),
+        await readEditorialPersistentFile(asset.generatedPath),
       );
     } catch {
       return NextResponse.json(
@@ -190,7 +189,6 @@ export async function POST(
         githubBranch: result.publicationBranch,
         githubCommitSha: result.commitSha,
         pullRequestNumber: result.pullRequestNumber,
-        lastError: null,
       },
     });
 
@@ -203,22 +201,14 @@ export async function POST(
         githubBranch: result.publicationBranch,
         githubCommitSha: result.commitSha,
         pullRequestNumber: result.pullRequestNumber,
+        pullRequestUrl: result.pullRequestUrl,
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Falha inesperada na execução GitHub.";
-
-    await prisma.publication.update({
-      where: { id: publication.id },
-      data: {
-        lastError: message,
-      },
-    }).catch(() => undefined);
-
     return NextResponse.json(
       {
         ok: false,
-        error: message,
+        error: error instanceof Error ? error.message : "Falha inesperada no executor GitHub.",
       },
       { status: 502 },
     );

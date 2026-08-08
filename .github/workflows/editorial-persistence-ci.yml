@@ -30,12 +30,15 @@ jobs:
       - name: Verify durable model and write path
         run: |
           grep -Fq 'model EditorialBinary {' prisma/schema.prisma
+          grep -Fq 'persistEditorialBinary' src/lib/editorial-binary-store.ts
           grep -Fq 'persistEditorialBinary' src/lib/editorial-storage.ts
           grep -Fq 'readEditorialBinary' 'src/app/api/editorial-assets/[id]/content/route.ts'
           grep -Fq 'CREATE TABLE "EditorialBinary"' prisma/migrations/20260808193500_add_editorial_binary_store/migration.sql
-      - name: Reject direct generatedPath fs reads outside compatibility adapters
+      - name: Reject production-first local filesystem storage
         run: |
-          if grep -R -n -E '(readFile|stat|existsSync)\([^;\n]*generatedPath' src --include='*.ts' --include='*.tsx' | grep -v 'editorial-binary-store.ts' | grep -v 'editorial-persistent-access.ts'; then
+          grep -Fq 'process.env.NODE_ENV !== "production"' src/lib/editorial-storage.ts
+          grep -Fq 'process.env.NODE_ENV === "production"' src/lib/editorial-binary-store.ts
+          if grep -R -n -E '(readFile|stat|existsSync)\([^;\n]*generatedPath' src --include='*.ts' --include='*.tsx' | grep -v 'editorial-local-fallback.ts' | grep -v 'editorial-persistent-access.ts'; then
             echo 'Direct filesystem dependency on generatedPath remains'
             exit 1
           fi

@@ -247,7 +247,13 @@ async function switchOnce(input: {
     );
     const switchedAt = new Date();
     const fromSupplierProductId = batch.supplierProductId;
-    const itemAudit: Array<Record<string, unknown>> = [];
+    const itemAudit: Array<{
+      orderItemId: string;
+      canonicalVariantId: string;
+      fromSupplierVariantId: string | null;
+      toSupplierVariantId: string;
+      toSourceSkuId: string;
+    }> = [];
 
     for (const item of batch.items) {
       if (!item.variantId) throw new Error("Item sem variante canônica.");

@@ -1,60 +1,56 @@
-import fs from "node:fs/promises";
-import path from "node:path";
+import {
+  deleteEditorialBinary,
+  persistEditorialBinary,
+  readEditorialBinary,
+} from "./editorial-binary-store";
 
-function root() {
-  return path.join(
-    process.cwd(),
-    ".data",
-    "editorials"
-  );
+function storageKey(id: string) {
+  const safeId = id.trim();
+  if (!safeId || safeId.includes("/") || safeId.includes("\\") || safeId.includes("\0")) {
+    throw new Error("Invalid editorial image id.");
+  }
+  return `.data/editorials/${safeId}.png`;
 }
 
 export async function saveEditorialImage(
   id: string,
-  buffer: Buffer
+  buffer: Buffer,
 ) {
-  await fs.mkdir(
-    root(),
-    {
-      recursive: true,
-    }
-  );
+  const key = storageKey(id);
 
-  const filepath =
-    path.join(
-      root(),
-      `${id}.png`
-    );
+  // Durable storage is authoritative. If this fails, the editorial must not
+  // be marked as generated; a transient local file is never enough online.
+  await persistEditorialBinary({
+    storageKey: key,
+    bytes: buffer,
+    mimeType: "image/png",
+  });
 
-  await fs.writeFile(
-    filepath,
-    buffer
-  );
+  if (process.env.NODE_ENV !== "production") {
+    const { writeLocalEditorial } = await import("./editorial-local-fallback");
+    await writeLocalEditorial(key, buffer);
+  }
 
-  return filepath;
+  return key;
 }
 
 export async function readEditorialImage(
-  filepath: string
+  storageKeyValue: string,
 ) {
-  return fs.readFile(
-    filepath
-  );
+  const resolved = await readEditorialBinary(storageKeyValue);
+  if (!resolved) throw new Error(`Editorial content is unavailable: ${storageKeyValue}`);
+  return resolved.bytes;
 }
 
 export async function removeEditorialImage(
-  filepath:
-    | string
-    | null
-    | undefined
+  storageKeyValue: string | null | undefined,
 ) {
-  if (!filepath) return;
+  if (!storageKeyValue) return;
 
-  try {
-    await fs.unlink(
-      filepath
-    );
-  } catch {
-    // Arquivo pode já não existir.
+  await deleteEditorialBinary(storageKeyValue);
+
+  if (process.env.NODE_ENV !== "production") {
+    const { removeLocalEditorial } = await import("./editorial-local-fallback");
+    await removeLocalEditorial(storageKeyValue);
   }
 }
