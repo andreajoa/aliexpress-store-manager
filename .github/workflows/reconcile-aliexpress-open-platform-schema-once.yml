@@ -1,0 +1,78 @@
+name: Reconcile AliExpress Open Platform schema once
+
+on:
+  push:
+    branches:
+      - feat/aliexpress-open-platform-fulfillment
+    paths:
+      - .github/workflows/reconcile-aliexpress-open-platform-schema-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/aliexpress-open-platform-fulfillment
+      - name: Reconcile Prisma schema
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('prisma/schema.prisma')
+          t=p.read_text()
+          old='''  fidelityScore      Float?\n\n  audit Json?\n'''
+          new='''  fidelityScore      Float?\n  content            Bytes?\n  mimeType           String?\n  contentSha256      String?\n  contentBytes       Int?\n\n  audit Json?\n'''
+          assert old in t
+          t=t.replace(old,new,1)
+          old='''  attributes  Json?\n  imageUrl    String?  @db.Text\n\n  mappings'''
+          new='''  attributes   Json?\n  imageUrl     String?  @db.Text\n  orderSkuAttr String?  @db.Text\n\n  mappings'''
+          assert old in t
+          t=t.replace(old,new,1)
+          old='''  carrier         String?\n\n  items'''
+          new='''  carrier         String?\n  logisticsServiceName String?\n\n  items'''
+          assert old in t
+          t=t.replace(old,new,1)
+          anchor='''model IntegrationEvent {'''
+          assert anchor in t
+          models='''model EditorialBinary {\n  storageKey String @id\n  content    Bytes\n  mimeType   String\n  sha256     String\n  byteSize   Int\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n\n  @@index([sha256])\n}\n\nmodel AliExpressConnection {\n  id                    String   @id @default("primary")\n  accessTokenCiphertext String   @db.Text\n  accessTokenIv         String\n  accessTokenTag        String\n  userId                String?\n  userNick              String?\n  expiresAt             DateTime\n  authorizedAt          DateTime @default(now())\n  createdAt             DateTime @default(now())\n  updatedAt             DateTime @updatedAt\n}\n\n'''
+          t=t.replace(anchor,models+anchor,1)
+          p.write_text(t)
+          PY
+      - name: Reconcile admin public callback
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/manager-admin-auth.ts')
+          t=p.read_text()
+          old='''  if (pathname === "/api/health") return true;\n  if (/^\\/api\\/stores\\/[^/]+\\/orders\\/webhook\\/?$/.test(pathname)) return true;'''
+          new='''  if (pathname === "/api/health") return true;\n  if (pathname === "/api/aliexpress/oauth/callback") return true;\n  if (/^\\/api\\/stores\\/[^/]+\\/orders\\/webhook\\/?$/.test(pathname)) return true;'''
+          assert old in t
+          p.write_text(t.replace(old,new,1))
+          PY
+      - name: Reconcile runtime readiness
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/runtime-readiness.ts')
+          t=p.read_text()
+          old='''  const vercelVerification = capability(env, ["VERCEL_TOKEN"]);\n\n  const capabilities = {'''
+          new='''  const vercelVerification = capability(env, ["VERCEL_TOKEN"]);\n  const aliexpressOpenPlatform = capability(env, [\n    "ALIEXPRESS_APP_KEY",\n    "ALIEXPRESS_APP_SECRET",\n    "ALIEXPRESS_OAUTH_REDIRECT_URI",\n    "ALIEXPRESS_TOKEN_ENCRYPTION_KEY",\n  ]);\n\n  const capabilities = {'''
+          assert old in t
+          t=t.replace(old,new,1)
+          old='''    githubPublication,\n    vercelVerification,\n  };'''
+          new='''    githubPublication,\n    vercelVerification,\n    aliexpressOpenPlatform,\n  };'''
+          assert old in t
+          p.write_text(t.replace(old,new,1))
+          PY
+      - name: Record commit
+        run: |
+          rm .github/workflows/reconcile-aliexpress-open-platform-schema-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add prisma/schema.prisma src/lib/manager-admin-auth.ts src/lib/runtime-readiness.ts .github/workflows/reconcile-aliexpress-open-platform-schema-once.yml
+          git commit -m "feat: model AliExpress Open Platform connection"
+          git push origin HEAD:feat/aliexpress-open-platform-fulfillment
