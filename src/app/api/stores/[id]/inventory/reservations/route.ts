@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 
 const reserveSchema = z.object({
   reservationId: z.string().trim().min(1).max(255),
-  ttlMinutes: z.number().int().min(15).max(30).optional(),
+  ttlMinutes: z.number().int().min(30).max(45).optional(),
   items: z.array(z.object({
     externalProductId: z.string().trim().min(1).max(200),
     externalVariantId: z.string().trim().min(1).max(200),
