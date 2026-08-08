@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { PublicationPlan } from "@/lib/publication-plan";
 import { PublicationExecutionPanel } from "./publication-execution-panel";
+import { PublicationLifecyclePanel } from "./publication-lifecycle-panel";
 
 type RepositoryChange = {
   path: string;
@@ -84,7 +85,6 @@ export function RepositoryDryRunPanel({
       setError("Publication ainda não disponível.");
       return;
     }
-
     if (!snapshotText.trim()) {
       setError("Cole um Repository Snapshot JSON antes de simular.");
       return;
@@ -98,18 +98,13 @@ export function RepositoryDryRunPanel({
       const snapshot = JSON.parse(snapshotText) as unknown;
       const response = await fetch(`/api/publications/${publicationId}/repository-dry-run`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ snapshot }),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || "Não foi possível calcular o Repository Dry-Run.");
       }
-
       setResult(data.result || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Snapshot JSON inválido.");
@@ -120,11 +115,14 @@ export function RepositoryDryRunPanel({
 
   if (!plan.ready) {
     return (
-      <div className="rounded-xl border border-violet-900/70 bg-violet-950/20 p-4">
-        <p className="text-sm font-semibold text-violet-300">Repository Dry-Run</p>
-        <p className="mt-1 text-xs leading-5 text-zinc-400">
-          Não executado porque o Publication Plan ainda possui bloqueios.
-        </p>
+      <div className="space-y-4">
+        <div className="rounded-xl border border-violet-900/70 bg-violet-950/20 p-4">
+          <p className="text-sm font-semibold text-violet-300">Repository Dry-Run</p>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            Não executado porque o Publication Plan ainda possui bloqueios. Se uma publicação remota já foi iniciada, acompanhe o ciclo abaixo.
+          </p>
+        </div>
+        <PublicationLifecyclePanel publicationId={publicationId} />
       </div>
     );
   }
@@ -168,7 +166,6 @@ export function RepositoryDryRunPanel({
           >
             {loading ? "Calculando diff..." : "Calcular Repository Dry-Run"}
           </button>
-
           <p className="text-[11px] text-zinc-600">
             O snapshot é processado em memória e não é publicado.
           </p>
@@ -216,9 +213,7 @@ export function RepositoryDryRunPanel({
 
             {result.changes.length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                  Diff de arquivos
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Diff de arquivos</p>
                 <div className="mt-2 space-y-2">
                   {result.changes.map((change) => (
                     <div key={change.path} className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
@@ -242,15 +237,11 @@ export function RepositoryDryRunPanel({
 
             {result.workflowOperations.length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                  Workflow remoto planejado
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Workflow remoto planejado</p>
                 <div className="mt-2 space-y-2">
                   {result.workflowOperations.map((operation) => (
                     <div key={`${operation.order}-${operation.kind}`} className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
-                      <p className="text-xs font-medium text-violet-300">
-                        {operation.order}. {operation.kind}
-                      </p>
+                      <p className="text-xs font-medium text-violet-300">{operation.order}. {operation.kind}</p>
                       <p className="mt-1 text-xs text-zinc-500">{operation.description}</p>
                       <p className="mt-1 break-all text-[11px] text-zinc-600">{operation.target}</p>
                     </div>
@@ -274,6 +265,7 @@ export function RepositoryDryRunPanel({
       </div>
 
       <PublicationExecutionPanel publicationId={publicationId} plan={plan} />
+      <PublicationLifecyclePanel publicationId={publicationId} />
     </div>
   );
 }
