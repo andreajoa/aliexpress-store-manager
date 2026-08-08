@@ -2,7 +2,11 @@ ALTER TABLE "SupplierVariant"
   ADD COLUMN "orderSkuAttr" TEXT;
 
 ALTER TABLE "FulfillmentBatch"
-  ADD COLUMN "logisticsServiceName" TEXT;
+  ADD COLUMN "logisticsServiceName" TEXT,
+  ADD COLUMN "placementStatus" TEXT,
+  ADD COLUMN "placementAttemptId" TEXT,
+  ADD COLUMN "placementStartedAt" TIMESTAMP(3),
+  ADD COLUMN "placementLastError" TEXT;
 
 CREATE TABLE "AliExpressConnection" (
   "id" TEXT NOT NULL DEFAULT 'primary',
