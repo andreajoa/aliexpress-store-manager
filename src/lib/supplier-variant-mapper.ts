@@ -200,10 +200,6 @@ function scoreCandidate(
     reasons.push("Atributos fortemente correspondentes");
   }
 
-  // Quando cor e quantidade/kit estão explicitamente presentes dos dois lados,
-  // não existe conflito e ambos coincidem, há evidência semântica suficiente
-  // para classificar como alta confiança mesmo que os nomes das chaves variem
-  // (por exemplo: Kit/Set/Quantity e Color/Cor).
   if (quantityMatches && colorMatches) {
     confidence = Math.max(confidence, 0.90);
     reasons.push("Cor e quantidade confirmadas explicitamente");
@@ -322,13 +318,18 @@ export function validateManualVariantMapping(input: {
     supplierVariantId: string;
   }>;
 }) {
-  const canonicalIds = new Set(input.canonicalVariants.map((item) => item.id));
-  const supplierIds = new Set(input.supplierVariants.map((item) => item.id));
+  const canonicalById = new Map(input.canonicalVariants.map((item) => [item.id, item]));
+  const supplierById = new Map(input.supplierVariants.map((item) => [item.id, item]));
+  const canonicalIds = new Set(canonicalById.keys());
+  const supplierIds = new Set(supplierById.keys());
   const seenCanonical = new Set<string>();
   const seenSupplier = new Set<string>();
   const issues: string[] = [];
 
   for (const mapping of input.mappings) {
+    const canonical = canonicalById.get(mapping.canonicalVariantId);
+    const supplier = supplierById.get(mapping.supplierVariantId);
+
     if (!canonicalIds.has(mapping.canonicalVariantId)) {
       issues.push(`Variante canônica inexistente: ${mapping.canonicalVariantId}`);
     }
@@ -341,6 +342,19 @@ export function validateManualVariantMapping(input: {
     if (seenSupplier.has(mapping.supplierVariantId)) {
       issues.push(`Variante do fornecedor usada mais de uma vez: ${mapping.supplierVariantId}`);
     }
+
+    if (canonical && supplier) {
+      const candidate = scoreCandidate(canonical, supplier);
+      const explicitConflict = candidate.reasons.find(
+        (reason) => reason === "Quantidade/kit conflitante" || reason === "Cor conflitante",
+      );
+      if (explicitConflict) {
+        issues.push(
+          `Mapping incompatível ${mapping.canonicalVariantId} → ${mapping.supplierVariantId}: ${explicitConflict}`,
+        );
+      }
+    }
+
     seenCanonical.add(mapping.canonicalVariantId);
     seenSupplier.add(mapping.supplierVariantId);
   }
