@@ -20,6 +20,8 @@ export class InventoryReservationError extends Error {
   }
 }
 
+const WEBHOOK_GRACE_MINUTES = 10;
+
 function aggregateItems(items: CheckoutReservationItemInput[]) {
   const map = new Map<string, CheckoutReservationItemInput>();
   for (const item of items) {
@@ -63,11 +65,15 @@ function serializeReservation(reservation: {
     sourceUnitCost: unknown;
   }>;
 }) {
+  const checkoutExpiresAt = new Date(
+    reservation.expiresAt.getTime() - WEBHOOK_GRACE_MINUTES * 60_000,
+  );
   return {
     id: reservation.id,
     externalReservationId: reservation.externalReservationId,
     status: reservation.status,
-    expiresAt: reservation.expiresAt.toISOString(),
+    checkoutExpiresAt: checkoutExpiresAt.toISOString(),
+    holdExpiresAt: reservation.expiresAt.toISOString(),
     items: reservation.items.map((item) => ({
       productId: item.productId,
       canonicalVariantId: item.canonicalVariantId,
@@ -94,9 +100,10 @@ export async function reserveCheckoutInventory(input: {
   if (requested.length === 0 || requested.length > 50) {
     throw new InventoryReservationError("A reserva precisa conter de 1 a 50 itens.", "RESERVATION_ITEMS_INVALID", 400);
   }
-  const ttlMinutes = Math.max(15, Math.min(30, input.ttlMinutes ?? 30));
+  const ttlMinutes = Math.max(30, Math.min(45, input.ttlMinutes ?? 35));
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + ttlMinutes * 60_000);
+  const checkoutExpiresAt = new Date(now.getTime() + ttlMinutes * 60_000);
+  const expiresAt = new Date(checkoutExpiresAt.getTime() + WEBHOOK_GRACE_MINUTES * 60_000);
 
   const outcome = await prisma.$transaction(async (tx) => {
     await tx.inventoryReservation.updateMany({
@@ -104,7 +111,6 @@ export async function reserveCheckoutInventory(input: {
       data: { status: "EXPIRED" },
     });
 
-    // Serialize competing checkouts for the same commercial variants.
     const locks = requested
       .map((item) => `${input.storeId}:${item.externalProductId}:${item.externalVariantId}`)
       .sort();
