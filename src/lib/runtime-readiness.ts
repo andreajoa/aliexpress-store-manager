@@ -24,6 +24,12 @@ export function runtimeReadiness(env: Record<string, string | undefined>) {
   ]);
   const githubPublication = capability(env, ["GITHUB_PUBLISH_TOKEN"]);
   const vercelVerification = capability(env, ["VERCEL_TOKEN"]);
+  const aliexpressOpenPlatform = capability(env, [
+    "ALIEXPRESS_APP_KEY",
+    "ALIEXPRESS_APP_SECRET",
+    "ALIEXPRESS_OAUTH_REDIRECT_URI",
+    "ALIEXPRESS_TOKEN_ENCRYPTION_KEY",
+  ]);
 
   const capabilities = {
     database,
@@ -33,6 +39,7 @@ export function runtimeReadiness(env: Record<string, string | undefined>) {
     editorialStudio,
     githubPublication,
     vercelVerification,
+    aliexpressOpenPlatform,
   };
 
   return {

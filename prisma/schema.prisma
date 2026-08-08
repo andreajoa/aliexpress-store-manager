@@ -242,6 +242,10 @@ model EditorialAsset {
   prompt             String?  @db.Text
   seed               Int?
   fidelityScore      Float?
+  content            Bytes?
+  mimeType           String?
+  contentSha256      String?
+  contentBytes       Int?
 
   audit Json?
 
@@ -336,8 +340,9 @@ model SupplierVariant {
   name        String
   sourcePrice Decimal? @db.Decimal(12, 2)
   stock       Int      @default(0)
-  attributes  Json?
-  imageUrl    String?  @db.Text
+  attributes   Json?
+  imageUrl     String?  @db.Text
+  orderSkuAttr String?  @db.Text
 
   mappings              SupplierVariantMapping[]
   fulfillmentOrderItems OrderItem[] @relation("OrderItemFulfillmentSupplierVariant")
@@ -463,6 +468,7 @@ model FulfillmentBatch {
   trackingCode    String?
   trackingUrl     String? @db.Text
   carrier         String?
+  logisticsServiceName String?
 
   items       OrderItem[]
   orderedAt   DateTime?
@@ -525,6 +531,31 @@ model OrderItem {
   @@index([fulfillmentBatchId])
   @@index([fulfillmentSupplierProductId])
   @@index([fulfillmentSupplierVariantId])
+}
+
+model EditorialBinary {
+  storageKey String @id
+  content    Bytes
+  mimeType   String
+  sha256     String
+  byteSize   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([sha256])
+}
+
+model AliExpressConnection {
+  id                    String   @id @default("primary")
+  accessTokenCiphertext String   @db.Text
+  accessTokenIv         String
+  accessTokenTag        String
+  userId                String?
+  userNick              String?
+  expiresAt             DateTime
+  authorizedAt          DateTime @default(now())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model IntegrationEvent {
