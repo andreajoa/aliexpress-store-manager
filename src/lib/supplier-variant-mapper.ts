@@ -172,14 +172,22 @@ function scoreCandidate(
   const nameSimilarity = jaccard(canonicalName, supplierName);
   const attributeSimilarity = jaccard(canonicalAttrs, supplierAttrs);
   const combinedSimilarity = jaccard(canonicalAll, supplierAll);
+  const quantityMatches =
+    canonicalQuantity.size > 0 &&
+    supplierQuantity.size > 0 &&
+    intersectionSize(canonicalQuantity, supplierQuantity) > 0;
+  const colorMatches =
+    canonicalColors.size > 0 &&
+    supplierColors.size > 0 &&
+    intersectionSize(canonicalColors, supplierColors) > 0;
 
   let confidence = combinedSimilarity * 0.45 + nameSimilarity * 0.35 + attributeSimilarity * 0.20;
 
-  if (canonicalQuantity.size > 0 && intersectionSize(canonicalQuantity, supplierQuantity) > 0) {
+  if (quantityMatches) {
     confidence += 0.18;
     reasons.push("Kit/quantidade correspondente");
   }
-  if (canonicalColors.size > 0 && intersectionSize(canonicalColors, supplierColors) > 0) {
+  if (colorMatches) {
     confidence += 0.18;
     reasons.push("Cor correspondente");
   }
@@ -190,6 +198,15 @@ function scoreCandidate(
   if (attributeSimilarity >= 0.75 && canonicalAttrs.size > 0) {
     confidence += 0.10;
     reasons.push("Atributos fortemente correspondentes");
+  }
+
+  // Quando cor e quantidade/kit estão explicitamente presentes dos dois lados,
+  // não existe conflito e ambos coincidem, há evidência semântica suficiente
+  // para classificar como alta confiança mesmo que os nomes das chaves variem
+  // (por exemplo: Kit/Set/Quantity e Color/Cor).
+  if (quantityMatches && colorMatches) {
+    confidence = Math.max(confidence, 0.90);
+    reasons.push("Cor e quantidade confirmadas explicitamente");
   }
 
   confidence = Math.max(0, Math.min(1, confidence));
