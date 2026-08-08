@@ -11,16 +11,19 @@ async function getDashboardData() {
     products,
     publications,
     orders,
+    ordersPendingFulfillment,
   ] = await Promise.all([
     prisma.store.count(),
-    prisma.store.count({
-      where: {
-        status: "ACTIVE",
-      },
-    }),
+    prisma.store.count({ where: { status: "ACTIVE" } }),
     prisma.product.count(),
     prisma.publication.count(),
     prisma.order.count(),
+    prisma.order.count({
+      where: {
+        paymentStatus: "PAID",
+        fulfillmentStatus: { in: ["UNFULFILLED", "PROCESSING"] },
+      },
+    }),
   ]);
 
   return {
@@ -29,6 +32,7 @@ async function getDashboardData() {
     products,
     publications,
     orders,
+    ordersPendingFulfillment,
   };
 }
 
@@ -40,21 +44,25 @@ export default async function Home() {
       label: "Lojas conectadas",
       value: stats.storesActive,
       description: `${stats.storesActive} conectadas de ${stats.storesTotal} cadastradas`,
+      href: "/stores",
     },
     {
       label: "Produtos",
       value: stats.products,
-      description: "Produtos importados do AliExpress",
+      description: "Produtos importados e Supplier Engine",
+      href: "/products",
     },
     {
       label: "Publicações",
       value: stats.publications,
-      description: "Produtos enviados para lojas",
+      description: "Publicações e Previews gerenciadas",
+      href: "/products",
     },
     {
       label: "Pedidos",
       value: stats.orders,
-      description: "Vendas recebidas das lojas",
+      description: `${stats.ordersPendingFulfillment} aguardando ou em fulfillment`,
+      href: "/orders",
     },
   ];
 
@@ -72,8 +80,7 @@ export default async function Home() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-zinc-400">
-              Importe produtos do AliExpress, otimize a apresentação,
-              publique em suas lojas e acompanhe os pedidos em um único lugar.
+              Importe produtos, mantenha fornecedores alternativos, publique com Preview e processe as vendas das lojas em um fluxo controlado.
             </p>
           </div>
 
@@ -83,6 +90,13 @@ export default async function Home() {
               className="inline-flex justify-center rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-zinc-950 transition hover:bg-emerald-400"
             >
               Importar produto
+            </Link>
+
+            <Link
+              href="/orders"
+              className="inline-flex justify-center rounded-xl border border-zinc-700 px-5 py-3 font-semibold text-white transition hover:bg-zinc-900"
+            >
+              Operar pedidos
             </Link>
 
             <Link
@@ -96,93 +110,70 @@ export default async function Home() {
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map((card) => (
-            <div
+            <Link
               key={card.label}
-              className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
+              href={card.href}
+              className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 transition hover:border-zinc-700 hover:bg-zinc-800/80"
             >
-              <p className="text-sm text-zinc-400">
-                {card.label}
-              </p>
-
-              <p className="mt-3 text-4xl font-semibold">
-                {card.value}
-              </p>
-
-              <p className="mt-2 text-sm text-zinc-500">
-                {card.description}
-              </p>
-            </div>
+              <p className="text-sm text-zinc-400">{card.label}</p>
+              <p className="mt-3 text-4xl font-semibold">{card.value}</p>
+              <p className="mt-2 text-sm text-zinc-500">{card.description}</p>
+            </Link>
           ))}
         </section>
 
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-7">
-            <p className="text-sm font-medium text-emerald-400">
-              FLUXO DO SISTEMA
-            </p>
+            <p className="text-sm font-medium text-emerald-400">FLUXO DO SISTEMA</p>
 
-            <h2 className="mt-2 text-2xl font-semibold">
-              Do AliExpress até sua loja
-            </h2>
+            <h2 className="mt-2 text-2xl font-semibold">Do AliExpress até o pós-venda</h2>
 
             <div className="mt-6 space-y-4">
               {[
-                "Cole a URL de um produto do AliExpress",
-                "Extraia imagens, variantes, preços e informações",
-                "Organize e otimize a copy com inteligência artificial",
-                "Revise preço, imagens e conteúdo",
-                "Escolha uma loja conectada",
-                "Publique o produto",
-                "Receba as vendas no painel",
-                "Processe o fulfillment e acompanhe o rastreio",
+                "Importe o produto e preserve SKU, custo e estoque de origem",
+                "Otimize copy, preço e imagens sem alterar os dados operacionais",
+                "Adicione fornecedores principal, reserva e alternativos com mapping 1:1",
+                "Publique em branch isolada, valide Preview e só então promova para produção",
+                "Receba o pedido pago da loja por webhook autenticado e idempotente",
+                "Selecione o fornecedor com dados recentes, mapping e estoque seguro",
+                "Fixe o fornecedor/SKU em lotes de fulfillment e execute a compra",
+                "Registre pedido externo, rastreamento e entrega por lote",
               ].map((item, index) => (
-                <div
-                  key={item}
-                  className="flex items-start gap-4"
-                >
+                <div key={item} className="flex items-start gap-4">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-sm font-semibold text-emerald-400">
                     {index + 1}
                   </div>
-
-                  <p className="pt-1 text-zinc-300">
-                    {item}
-                  </p>
+                  <p className="pt-1 text-zinc-300">{item}</p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="rounded-2xl border border-emerald-900/60 bg-emerald-950/20 p-7">
-            <p className="text-sm font-medium text-emerald-400">
-              STATUS
-            </p>
+            <p className="text-sm font-medium text-emerald-400">OPERAÇÃO</p>
 
-            <h2 className="mt-2 text-2xl font-semibold">
-              Infraestrutura pronta
-            </h2>
+            <h2 className="mt-2 text-2xl font-semibold">Gates de segurança ativos</h2>
 
-            <div className="mt-5 rounded-xl border border-emerald-900 bg-zinc-950/50 p-4">
-              <div className="flex items-center gap-3">
-                <span className="h-3 w-3 rounded-full bg-emerald-400" />
-
-                <span className="font-medium">
-                  Neon PostgreSQL
-                </span>
-              </div>
-
-              <p className="mt-3 text-sm text-zinc-400">
-                Banco conectado e pronto para armazenar lojas,
-                produtos e pedidos.
-              </p>
+            <div className="mt-5 space-y-3">
+              {[
+                "Publicação nunca escreve diretamente na main",
+                "Faixa etária sem evidência bloqueia publicação",
+                "Mapping incompatível bloqueia fornecedor",
+                "Estoque reservado é descontado da disponibilidade",
+                "Pedido desconhecido nunca é criado parcialmente",
+              ].map((item) => (
+                <div key={item} className="rounded-xl border border-emerald-900 bg-zinc-950/50 p-4 text-sm text-zinc-300">
+                  {item}
+                </div>
+              ))}
             </div>
 
             <div className="mt-6">
-              <p className="text-sm text-zinc-500">
-                Próxima etapa
-              </p>
-
+              <p className="text-sm text-zinc-500">Atenção operacional</p>
               <p className="mt-1 font-medium">
-                Importar o primeiro produto do AliExpress.
+                {stats.ordersPendingFulfillment > 0
+                  ? `${stats.ordersPendingFulfillment} pedido(s) precisam de acompanhamento.`
+                  : "Nenhum pedido aguardando fulfillment."}
               </p>
             </div>
           </div>
