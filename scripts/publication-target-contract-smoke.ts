@@ -48,7 +48,6 @@ assert(
 
 console.log("✅ Ausencia bloqueada");
 
-
 console.log("");
 console.log("=== GITHUB CONTRACT VALIDO ===");
 
@@ -77,6 +76,55 @@ assert(
 
 console.log("✅ GitHub contract valido");
 
+console.log("");
+console.log("=== GITHUB + VERCEL PREVIEW VALIDO ===");
+
+const githubPreview = parsePublicationTargetContract({
+  publicationTarget: {
+    contractVersion: "1",
+    kind: "github-catalog",
+    adapter: "github-json-catalog-v1",
+    catalogPath: "data/products.json",
+    preview: {
+      provider: "vercel",
+      projectId: "prj_Abc123",
+      teamId: "team_Xyz789",
+    },
+  },
+});
+
+assert(githubPreview.valid === true, JSON.stringify(githubPreview));
+assert(
+  githubPreview.target?.kind === "github-catalog" &&
+    githubPreview.target.preview?.provider === "vercel" &&
+    githubPreview.target.preview.projectId === "prj_Abc123",
+  "Preview Vercel nao normalizado.",
+);
+console.log("✅ Preview Vercel normalizado");
+
+console.log("");
+console.log("=== VERCEL PREVIEW INVALIDO ===");
+
+const invalidPreview = parsePublicationTargetContract({
+  publicationTarget: {
+    contractVersion: "1",
+    kind: "github-catalog",
+    adapter: "github-json-catalog-v1",
+    catalogPath: "data/products.json",
+    preview: {
+      provider: "vercel",
+      projectId: "project-sem-prefixo",
+      teamId: "team_Xyz789",
+    },
+  },
+});
+
+assert(invalidPreview.valid === false, "Preview Vercel invalido foi aceito.");
+assert(
+  hasIssue(invalidPreview, "PUBLICATION_TARGET_PREVIEW_PROJECT_INVALID"),
+  "Issue de projectId Vercel ausente.",
+);
+console.log("✅ Preview Vercel invalido bloqueado");
 
 console.log("");
 console.log("=== PATH TRAVERSAL ===");
@@ -106,7 +154,6 @@ assert(
 
 console.log("✅ Path traversal bloqueado");
 
-
 console.log("");
 console.log("=== VERSAO DESCONHECIDA ===");
 
@@ -134,7 +181,6 @@ assert(
 );
 
 console.log("✅ Versao desconhecida bloqueada");
-
 
 console.log("");
 console.log("=== ADAPTER DESCONHECIDO ===");
@@ -164,7 +210,6 @@ assert(
 
 console.log("✅ Adapter desconhecido bloqueado");
 
-
 console.log("");
 console.log("=== HTTP CONTRACT VALIDO ===");
 
@@ -189,7 +234,6 @@ assert(
 );
 
 console.log("✅ HTTP contract valido");
-
 
 console.log("");
 console.log("=== HTTP ENDPOINT INSEGURO ===");
@@ -219,7 +263,6 @@ assert(
 );
 
 console.log("✅ Endpoint inseguro bloqueado");
-
 
 console.log("");
 console.log("====================================================");
