@@ -1,5 +1,6 @@
 export type GitHubPullRequestStatus = {
   number: number;
+  nodeId: string;
   state: string;
   draft: boolean;
   merged: boolean;
@@ -43,6 +44,7 @@ export async function getGitHubPullRequestStatus(input: {
 
   const data = await response.json() as {
     number?: number;
+    node_id?: string;
     state?: string;
     draft?: boolean;
     merged?: boolean;
@@ -53,12 +55,13 @@ export async function getGitHubPullRequestStatus(input: {
     base?: { ref?: string };
   };
 
-  if (!data.number || !data.head?.sha || !data.head.ref || !data.base?.ref || !data.html_url) {
+  if (!data.number || !data.node_id || !data.head?.sha || !data.head.ref || !data.base?.ref || !data.html_url) {
     throw new Error("GitHub retornou PR incompleto.");
   }
 
   return {
     number: data.number,
+    nodeId: data.node_id,
     state: data.state || "unknown",
     draft: data.draft === true,
     merged: data.merged === true || Boolean(data.merged_at),
@@ -69,6 +72,35 @@ export async function getGitHubPullRequestStatus(input: {
     baseRef: data.base.ref,
     url: data.html_url,
   };
+}
+
+async function markReadyForReview(input: {
+  token: string;
+  nodeId: string;
+  fetcher: typeof fetch;
+}) {
+  const response = await input.fetcher("https://api.github.com/graphql", {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      ...headers(input.token),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: "mutation($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { pullRequest { isDraft } } }",
+      variables: { id: input.nodeId },
+    }),
+  });
+  const data = await response.json().catch(() => ({})) as {
+    data?: { markPullRequestReadyForReview?: { pullRequest?: { isDraft?: boolean } } };
+    errors?: Array<{ message?: string }>;
+  };
+
+  if (!response.ok || data.errors?.length || data.data?.markPullRequestReadyForReview?.pullRequest?.isDraft !== false) {
+    throw new Error(
+      `GitHub não conseguiu marcar o PR como pronto: ${data.errors?.map((item) => item.message).filter(Boolean).join(" | ") || `HTTP ${response.status}`}`,
+    );
+  }
 }
 
 export async function mergeGitHubPullRequest(input: {
@@ -109,6 +141,14 @@ export async function mergeGitHubPullRequest(input: {
   }
   if (status.baseRef !== input.expectedBaseRef) {
     throw new Error("A branch base do PR não corresponde ao contrato da Publication.");
+  }
+
+  if (status.draft) {
+    await markReadyForReview({
+      token: input.token,
+      nodeId: status.nodeId,
+      fetcher,
+    });
   }
 
   const response = await fetcher(
