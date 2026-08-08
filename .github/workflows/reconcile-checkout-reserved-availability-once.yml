@@ -1,0 +1,43 @@
+name: Include checkout reservations in canonical availability once
+
+on:
+  push:
+    branches:
+      - feat/checkout-stock-reservations
+    paths:
+      - .github/workflows/reconcile-checkout-reserved-availability-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/checkout-stock-reservations
+      - name: Patch availability reservation accounting
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/supplier-refresh-service.ts')
+          t=p.read_text()
+          old='''export async function syncCanonicalAvailability(productId: string) {\n  const [product, reservationRows] = await Promise.all(['''
+          new='''export async function syncCanonicalAvailability(productId: string) {\n  const now = new Date();\n  const [product, reservationRows, checkoutReservationRows] = await Promise.all(['''
+          assert old in t
+          t=t.replace(old,new,1)
+          old='''      select: { fulfillmentSupplierVariantId: true, quantity: true },\n    }),\n  ]);\n\n  if (!product) throw new Error("Produto não encontrado para sincronizar disponibilidade.");\n  const reserved = reservationMap(reservationRows);'''
+          new='''      select: { fulfillmentSupplierVariantId: true, quantity: true },\n    }),\n    prisma.inventoryReservationItem.findMany({\n      where: {\n        productId,\n        reservation: { status: "ACTIVE", expiresAt: { gt: now } },\n      },\n      select: { supplierVariantId: true, quantity: true },\n    }),\n  ]);\n\n  if (!product) throw new Error("Produto não encontrado para sincronizar disponibilidade.");\n  const reserved = reservationMap(reservationRows);\n  for (const row of checkoutReservationRows) {\n    reserved.set(\n      row.supplierVariantId,\n      (reserved.get(row.supplierVariantId) || 0) + row.quantity,\n    );\n  }'''
+          assert old in t
+          p.write_text(t.replace(old,new,1))
+          PY
+      - name: Commit
+        run: |
+          rm .github/workflows/reconcile-checkout-reserved-availability-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add src/lib/supplier-refresh-service.ts .github/workflows/reconcile-checkout-reserved-availability-once.yml
+          git commit -m "feat: subtract active checkout reservations from safe stock"
+          git push origin HEAD:feat/checkout-stock-reservations
