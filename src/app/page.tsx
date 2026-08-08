@@ -1,69 +1,193 @@
-import Image from "next/image";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+async function getDashboardData() {
+  const [
+    storesTotal,
+    storesActive,
+    products,
+    publications,
+    orders,
+  ] = await Promise.all([
+    prisma.store.count(),
+    prisma.store.count({
+      where: {
+        status: "ACTIVE",
+      },
+    }),
+    prisma.product.count(),
+    prisma.publication.count(),
+    prisma.order.count(),
+  ]);
+
+  return {
+    storesTotal,
+    storesActive,
+    products,
+    publications,
+    orders,
+  };
+}
+
+export default async function Home() {
+  const stats = await getDashboardData();
+
+  const cards = [
+    {
+      label: "Lojas conectadas",
+      value: stats.storesActive,
+      description: `${stats.storesActive} conectadas de ${stats.storesTotal} cadastradas`,
+    },
+    {
+      label: "Produtos",
+      value: stats.products,
+      description: "Produtos importados do AliExpress",
+    },
+    {
+      label: "Publicações",
+      value: stats.publications,
+      description: "Produtos enviados para lojas",
+    },
+    {
+      label: "Pedidos",
+      value: stats.orders,
+      description: "Vendas recebidas das lojas",
+    },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen bg-zinc-950 text-white">
+      <div className="mx-auto max-w-7xl px-6 py-10">
+        <header className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-400">
+              AliExpress Store Manager
+            </p>
+
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+              Central de operações
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-zinc-400">
+              Importe produtos do AliExpress, otimize a apresentação,
+              publique em suas lojas e acompanhe os pedidos em um único lugar.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/products"
+              className="inline-flex justify-center rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-zinc-950 transition hover:bg-emerald-400"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Importar produto
+            </Link>
+
+            <Link
+              href="/stores"
+              className="inline-flex justify-center rounded-xl border border-zinc-700 px-5 py-3 font-semibold text-white transition hover:bg-zinc-900"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+              Gerenciar lojas
+            </Link>
+          </div>
+        </header>
+
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {cards.map((card) => (
+            <div
+              key={card.label}
+              className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
+            >
+              <p className="text-sm text-zinc-400">
+                {card.label}
+              </p>
+
+              <p className="mt-3 text-4xl font-semibold">
+                {card.value}
+              </p>
+
+              <p className="mt-2 text-sm text-zinc-500">
+                {card.description}
+              </p>
+            </div>
+          ))}
+        </section>
+
+        <section className="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-7">
+            <p className="text-sm font-medium text-emerald-400">
+              FLUXO DO SISTEMA
+            </p>
+
+            <h2 className="mt-2 text-2xl font-semibold">
+              Do AliExpress até sua loja
+            </h2>
+
+            <div className="mt-6 space-y-4">
+              {[
+                "Cole a URL de um produto do AliExpress",
+                "Extraia imagens, variantes, preços e informações",
+                "Organize e otimize a copy com inteligência artificial",
+                "Revise preço, imagens e conteúdo",
+                "Escolha uma loja conectada",
+                "Publique o produto",
+                "Receba as vendas no painel",
+                "Processe o fulfillment e acompanhe o rastreio",
+              ].map((item, index) => (
+                <div
+                  key={item}
+                  className="flex items-start gap-4"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-sm font-semibold text-emerald-400">
+                    {index + 1}
+                  </div>
+
+                  <p className="pt-1 text-zinc-300">
+                    {item}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-900/60 bg-emerald-950/20 p-7">
+            <p className="text-sm font-medium text-emerald-400">
+              STATUS
+            </p>
+
+            <h2 className="mt-2 text-2xl font-semibold">
+              Infraestrutura pronta
+            </h2>
+
+            <div className="mt-5 rounded-xl border border-emerald-900 bg-zinc-950/50 p-4">
+              <div className="flex items-center gap-3">
+                <span className="h-3 w-3 rounded-full bg-emerald-400" />
+
+                <span className="font-medium">
+                  Neon PostgreSQL
+                </span>
+              </div>
+
+              <p className="mt-3 text-sm text-zinc-400">
+                Banco conectado e pronto para armazenar lojas,
+                produtos e pedidos.
+              </p>
+            </div>
+
+            <div className="mt-6">
+              <p className="text-sm text-zinc-500">
+                Próxima etapa
+              </p>
+
+              <p className="mt-1 font-medium">
+                Importar o primeiro produto do AliExpress.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
