@@ -3,8 +3,8 @@ import {
   type RepositoryDryRunResult,
   type RepositoryFileContent,
   type RepositorySnapshot,
-} from "./repository-dry-run";
-import type { PublicationPlan } from "./publication-plan";
+} from "./repository-dry-run.ts";
+import type { PublicationPlan } from "./publication-plan.ts";
 
 export type GitHubRepositoryRef = {
   commitSha: string;
