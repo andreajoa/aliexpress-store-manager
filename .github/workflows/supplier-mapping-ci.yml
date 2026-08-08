@@ -13,6 +13,9 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
