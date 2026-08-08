@@ -467,8 +467,12 @@ model FulfillmentBatch {
   externalOrderId String?
   trackingCode    String?
   trackingUrl     String? @db.Text
-  carrier         String?
+  carrier                String?
   logisticsServiceName String?
+  placementStatus        String?
+  placementAttemptId     String?
+  placementStartedAt     DateTime?
+  placementLastError     String? @db.Text
 
   items       OrderItem[]
   orderedAt   DateTime?
