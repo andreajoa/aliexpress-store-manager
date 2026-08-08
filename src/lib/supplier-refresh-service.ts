@@ -39,7 +39,17 @@ export async function syncCanonicalAvailability(productId: string) {
       where: {
         productId,
         fulfillmentSupplierVariantId: { not: null },
-        fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } },
+        OR: [
+          { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },
+          {
+            fulfillmentBatchId: null,
+            order: {
+              paymentStatus: "PAID",
+              fulfillmentStatus: "UNFULFILLED",
+              status: "PAID",
+            },
+          },
+        ],
       },
       select: { fulfillmentSupplierVariantId: true, quantity: true },
     }),

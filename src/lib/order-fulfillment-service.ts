@@ -176,7 +176,17 @@ export async function buildOrderFulfillmentPlan(orderId: string): Promise<Fulfil
     where: {
       orderId: { not: order.id },
       fulfillmentSupplierVariantId: { not: null },
-      fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } },
+      OR: [
+        { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },
+        {
+          fulfillmentBatchId: null,
+          order: {
+            paymentStatus: "PAID",
+            fulfillmentStatus: "UNFULFILLED",
+            status: "PAID",
+          },
+        },
+      ],
     },
     select: { fulfillmentSupplierVariantId: true, quantity: true },
   });
@@ -382,7 +392,17 @@ async function prepareOnce(orderId: string, plan: FulfillmentPlan) {
         where: {
           orderId: { not: orderId },
           fulfillmentSupplierVariantId: { in: [...quantities.keys()] },
-          fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } },
+          OR: [
+            { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },
+            {
+              fulfillmentBatchId: null,
+              order: {
+                paymentStatus: "PAID",
+                fulfillmentStatus: "UNFULFILLED",
+                status: "PAID",
+              },
+            },
+          ],
         },
         select: { fulfillmentSupplierVariantId: true, quantity: true },
       });
