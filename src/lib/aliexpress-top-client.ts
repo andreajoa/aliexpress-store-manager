@@ -31,7 +31,7 @@ export function topTimestamp(date = new Date()) {
     second: "2-digit",
     hour12: false,
   }).formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || "";
+  const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
   return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
 }
 
@@ -65,8 +65,10 @@ function asArray<T = unknown>(value: unknown): T[] {
 
 export class AliExpressTopClient {
   private readonly endpoint: string;
+  private readonly config: AliExpressTopConfig;
 
-  constructor(private readonly config: AliExpressTopConfig) {
+  constructor(config: AliExpressTopConfig) {
+    this.config = config;
     this.endpoint = config.endpoint || "https://eco.taobao.com/router/rest";
   }
 
