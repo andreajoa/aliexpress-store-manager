@@ -1,0 +1,64 @@
+name: Consume checkout reservation in paid order once
+
+on:
+  push:
+    branches:
+      - feat/checkout-stock-reservations
+    paths:
+      - .github/workflows/reconcile-paid-order-reservation-consumption-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/checkout-stock-reservations
+      - name: Wire reservation into order ingestion
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/app/api/stores/[id]/orders/webhook/route.ts')
+          t=p.read_text()
+          old='''import { resolvePaidOrderItems } from "@/lib/order-item-resolver";\nimport { prisma } from "@/lib/prisma";'''
+          new='''import { resolvePaidOrderItems } from "@/lib/order-item-resolver";\nimport { loadPaidOrderReservation } from "@/lib/paid-order-reservation";\nimport { prisma } from "@/lib/prisma";'''
+          assert old in t
+          t=t.replace(old,new,1)
+
+          old='''    const existingOrder = await prisma.order.findUnique({'''
+          new='''    const reservationSnapshot = await loadPaidOrderReservation({\n      storeId,\n      reservationId: event.order.reservationId,\n      occurredAt: new Date(event.occurredAt),\n      resolvedItems: resolution.items,\n    });\n    const usableReservation = reservationSnapshot?.valid ? reservationSnapshot : null;\n    const reservationWarning = reservationSnapshot && !reservationSnapshot.valid\n      ? reservationSnapshot.issues.join(" | ")\n      : null;\n\n    const existingOrder = await prisma.order.findUnique({'''
+          assert old in t
+          t=t.replace(old,new,1)
+
+          old='''          sourceOrderScope: event.order.scope,\n          sourceOrderTotal: centsToCurrencyUnits('''
+          new='''          sourceOrderScope: event.order.scope,\n          checkoutReservationId: usableReservation?.reservationId || null,\n          sourceOrderTotal: centsToCurrencyUnits('''
+          assert old in t
+          t=t.replace(old,new,1)
+
+          old='''          items: {\n            create: resolution.items.map((item) => ({\n              productId: item.productId,\n              variantId: item.variantId,\n              titleSnapshot: item.title,\n              variantSnapshot: item.variantSnapshot === null\n                ? undefined\n                : JSON.parse(JSON.stringify(item.variantSnapshot)),\n              sourceSkuIdSnapshot: item.sourceSkuId,\n              sourceUrlSnapshot: item.sourceUrl,\n              quantity: item.quantity,\n              unitPrice: centsToCurrencyUnits(item.unitPriceCents),\n              totalPrice: centsToCurrencyUnits(item.totalPriceCents),\n            })),\n          },'''
+          new='''          items: {\n            create: resolution.items.map((item) => {\n              const reserved = item.variantId\n                ? usableReservation?.itemsByCanonicalVariant.get(item.variantId)\n                : null;\n              return {\n                productId: item.productId,\n                variantId: item.variantId,\n                titleSnapshot: item.title,\n                variantSnapshot: item.variantSnapshot === null\n                  ? undefined\n                  : JSON.parse(JSON.stringify(item.variantSnapshot)),\n                sourceSkuIdSnapshot: item.sourceSkuId,\n                sourceUrlSnapshot: item.sourceUrl,\n                quantity: item.quantity,\n                unitPrice: centsToCurrencyUnits(item.unitPriceCents),\n                totalPrice: centsToCurrencyUnits(item.totalPriceCents),\n                fulfillmentSupplierProductId: reserved?.supplierProductId,\n                fulfillmentSupplierVariantId: reserved?.supplierVariantId,\n                fulfillmentProvider: reserved?.provider,\n                fulfillmentSourceProductId: reserved?.sourceProductId,\n                fulfillmentSourceSkuId: reserved?.sourceSkuId,\n                fulfillmentSourceUrl: reserved?.sourceUrl,\n                fulfillmentUnitCost: reserved?.sourceUnitCost ?? undefined,\n                fulfillmentCurrency: reserved?.sourceCurrency,\n                fulfillmentSelectionMethod: reserved ? "CHECKOUT_RESERVATION_V1" : undefined,\n                fulfillmentSelectionEvidence: reserved\n                  ? { source: "checkout_reservation", reservationId: usableReservation!.reservationId }\n                  : undefined,\n                supplierSelectedAt: reserved ? new Date() : undefined,\n              };\n            }),\n          },'''
+          assert old in t
+          t=t.replace(old,new,1)
+
+          old='''      await tx.integrationEvent.updateMany({\n        where: { storeId, externalEventId: event.eventId },'''
+          new='''      if (usableReservation) {\n        const consumed = await tx.inventoryReservation.updateMany({\n          where: {\n            storeId,\n            externalReservationId: usableReservation.reservationId,\n            status: "ACTIVE",\n            consumedOrderId: null,\n          },\n          data: {\n            status: "CONSUMED",\n            consumedOrderId: order.id,\n          },\n        });\n        if (consumed.count !== 1) {\n          throw new Error("Reserva de checkout mudou de estado antes de ser consumida pelo pedido pago.");\n        }\n      }\n\n      await tx.integrationEvent.updateMany({\n        where: { storeId, externalEventId: event.eventId },'''
+          assert old in t
+          t=t.replace(old,new,1)
+
+          old='''        fulfillmentStatus: "UNFULFILLED",\n      },\n      { status: 201 },'''
+          new='''        fulfillmentStatus: "UNFULFILLED",\n        reservationConsumed: Boolean(usableReservation),\n        reservationWarning,\n      },\n      { status: 201 },'''
+          assert old in t
+          p.write_text(t.replace(old,new,1))
+          PY
+      - name: Commit
+        run: |
+          rm .github/workflows/reconcile-paid-order-reservation-consumption-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add 'src/app/api/stores/[id]/orders/webhook/route.ts' .github/workflows/reconcile-paid-order-reservation-consumption-once.yml
+          git commit -m "feat: consume checkout reservation in paid order"
+          git push origin HEAD:feat/checkout-stock-reservations
