@@ -15,13 +15,17 @@ export type PreviewVerificationCheck = {
   detail: string;
 };
 
-export type PreviewVerificationResult = {
+export type ProductPageVerification = {
   ok: boolean;
+  pageUrl: string;
+  expectedProductionUrl: string;
+  checks: PreviewVerificationCheck[];
+};
+
+export type PreviewVerificationResult = ProductPageVerification & {
   deployment: VercelDeployment;
   previewBaseUrl: string;
   previewProductUrl: string;
-  expectedProductionUrl: string;
-  checks: PreviewVerificationCheck[];
 };
 
 function deploymentId(value: Record<string, unknown>) {
@@ -103,6 +107,10 @@ function decodeEntity(entity: string) {
   return `&${entity};`;
 }
 
+function decodeEntities(value: string) {
+  return value.replace(/&([A-Za-z0-9#]+);/g, (_match, entity: string) => decodeEntity(entity));
+}
+
 function htmlText(html: string) {
   return html
     .replace(/<!--.*?-->/gs, " ")
@@ -124,36 +132,33 @@ function exactMetaContent(html: string, attribute: string, key: string, expected
   const pattern = new RegExp(`<meta[^>]+${attribute}=["']${escapedKey}["'][^>]+content=["']([^"']*)["']`, "i");
   const reverse = new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+${attribute}=["']${escapedKey}["']`, "i");
   const match = html.match(pattern) || html.match(reverse);
-  return match?.[1] === expected;
+  return match ? decodeEntities(match[1]) === expected : false;
 }
 
 function canonicalMatches(html: string, expectedUrl: string) {
   const canonical = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i) ||
     html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
-  return canonical?.[1] === expectedUrl;
+  return canonical ? decodeEntities(canonical[1]) === expectedUrl : false;
 }
 
-export async function verifyVercelProductPreview(input: {
-  deployment: VercelDeployment;
+export async function verifyStoreProductPage(input: {
+  pageUrl: string;
   payload: StoreProductPayload;
   productionUrl: string;
   bypassSecret?: string | null;
   fetcher?: typeof fetch;
-}): Promise<PreviewVerificationResult> {
+}): Promise<ProductPageVerification> {
   const fetcher = input.fetcher || fetch;
-  const productionUrl = new URL(input.productionUrl);
-  const previewBaseUrl = `https://${input.deployment.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
-  const previewProductUrl = new URL(productionUrl.pathname + productionUrl.search, `${previewBaseUrl}/`).toString();
   const headers: Record<string, string> = {
     Accept: "text/html",
-    "User-Agent": "aliexpress-store-manager-preview-verifier",
+    "User-Agent": "aliexpress-store-manager-page-verifier",
   };
   if (input.bypassSecret?.trim()) {
     headers["x-vercel-protection-bypass"] = input.bypassSecret.trim();
     headers["x-vercel-set-bypass-cookie"] = "true";
   }
 
-  const response = await fetcher(previewProductUrl, {
+  const response = await fetcher(input.pageUrl, {
     method: "GET",
     cache: "no-store",
     redirect: "follow",
@@ -165,7 +170,7 @@ export async function verifyVercelProductPreview(input: {
   const checks: PreviewVerificationCheck[] = [];
   const add = (code: string, pass: boolean, detail: string) => checks.push({ code, pass, detail });
 
-  add("HTTP_200", response.status === 200, `Preview respondeu HTTP ${response.status}.`);
+  add("HTTP_200", response.status === 200, `Página respondeu HTTP ${response.status}.`);
   add("PRODUCT_TITLE", text.includes(product.title), `Título esperado: ${product.title}`);
   add("PRODUCT_DESCRIPTION", text.includes(product.description), "Descrição comercial presente no HTML renderizado.");
   add("PRODUCT_PRICE", text.includes(priceToken(product.price)), `Preço esperado contém ${priceToken(product.price)}.`);
@@ -174,55 +179,51 @@ export async function verifyVercelProductPreview(input: {
   }
 
   for (const variant of product.variants) {
-    add(
-      `VARIANT_${variant.sourceSkuId}_NAME`,
-      text.includes(variant.name),
-      `Variante ${variant.name} presente.`,
-    );
-    add(
-      `VARIANT_${variant.sourceSkuId}_PRICE`,
-      text.includes(priceToken(variant.price)),
-      `Preço da variante ${variant.name}: ${priceToken(variant.price)}.`,
-    );
-    add(
-      `VARIANT_${variant.sourceSkuId}_STOCK`,
-      text.includes(`${variant.stock} em estoque`),
-      `Estoque da variante ${variant.name}: ${variant.stock}.`,
-    );
+    add(`VARIANT_${variant.sourceSkuId}_NAME`, text.includes(variant.name), `Variante ${variant.name} presente.`);
+    add(`VARIANT_${variant.sourceSkuId}_PRICE`, text.includes(priceToken(variant.price)), `Preço da variante ${variant.name}: ${priceToken(variant.price)}.`);
+    add(`VARIANT_${variant.sourceSkuId}_STOCK`, text.includes(`${variant.stock} em estoque`), `Estoque da variante ${variant.name}: ${variant.stock}.`);
   }
 
-  add(
-    "SEO_TITLE",
-    html.includes(`<title>${product.seo.title} | BrinqueTEAndo</title>`),
-    `Title SEO esperado: ${product.seo.title}.`,
-  );
-  add(
-    "SEO_DESCRIPTION",
-    exactMetaContent(html, "name", "description", product.seo.description),
-    "Meta description específica do produto.",
-  );
+  add("SEO_TITLE", html.includes(`<title>${product.seo.title} | BrinqueTEAndo</title>`), `Title SEO esperado: ${product.seo.title}.`);
+  add("SEO_DESCRIPTION", exactMetaContent(html, "name", "description", product.seo.description), "Meta description específica do produto.");
   add("SEO_CANONICAL", canonicalMatches(html, input.productionUrl), `Canonical esperado: ${input.productionUrl}`);
-  add(
-    "SEO_OPEN_GRAPH_URL",
-    exactMetaContent(html, "property", "og:url", input.productionUrl),
-    `Open Graph URL esperado: ${input.productionUrl}`,
-  );
+  add("SEO_OPEN_GRAPH_URL", exactMetaContent(html, "property", "og:url", input.productionUrl), `Open Graph URL esperado: ${input.productionUrl}`);
 
   for (const asset of product.editorialAssets || []) {
     const expectedAssetPath = `/products/catalog/${product.id}/${asset.id}.png`;
-    add(
-      `EDITORIAL_${asset.id}`,
-      html.includes(expectedAssetPath),
-      `Asset editorial esperado: ${expectedAssetPath}`,
-    );
+    add(`EDITORIAL_${asset.id}`, html.includes(expectedAssetPath), `Asset editorial esperado: ${expectedAssetPath}`);
   }
 
   return {
     ok: checks.every((check) => check.pass),
+    pageUrl: input.pageUrl,
+    expectedProductionUrl: input.productionUrl,
+    checks,
+  };
+}
+
+export async function verifyVercelProductPreview(input: {
+  deployment: VercelDeployment;
+  payload: StoreProductPayload;
+  productionUrl: string;
+  bypassSecret?: string | null;
+  fetcher?: typeof fetch;
+}): Promise<PreviewVerificationResult> {
+  const productionUrl = new URL(input.productionUrl);
+  const previewBaseUrl = `https://${input.deployment.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+  const previewProductUrl = new URL(productionUrl.pathname + productionUrl.search, `${previewBaseUrl}/`).toString();
+  const verification = await verifyStoreProductPage({
+    pageUrl: previewProductUrl,
+    payload: input.payload,
+    productionUrl: input.productionUrl,
+    bypassSecret: input.bypassSecret,
+    fetcher: input.fetcher,
+  });
+
+  return {
+    ...verification,
     deployment: input.deployment,
     previewBaseUrl,
     previewProductUrl,
-    expectedProductionUrl: input.productionUrl,
-    checks,
   };
 }
