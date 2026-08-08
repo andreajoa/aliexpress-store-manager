@@ -9,6 +9,8 @@ import type {
   PublicationPlan,
 } from "@/lib/publication-plan";
 
+import { RepositoryDryRunPanel } from "./repository-dry-run-panel";
+
 type Store = {
   id: string;
   name: string;
@@ -1065,19 +1067,7 @@ export function PublicationPanel({
                 </div>
               )}
 
-              <div className="rounded-xl border border-violet-900/70 bg-violet-950/20 p-4">
-                <p className="text-sm font-semibold text-violet-300">
-                  Repository Dry-Run
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-zinc-400">
-                  {
-                    dryRunPlan.ready
-                      ? "O Publication Plan está apto. O diff de arquivos e hashes será exibido quando houver um snapshot de repositório compatível."
-                      : "Não executado porque o Publication Plan ainda possui bloqueios."
-                  }
-                </p>
-              </div>
+              <RepositoryDryRunPanel publicationId={dryRunPublicationId} plan={dryRunPlan} />
 
               <div className="rounded-xl border border-emerald-900 bg-emerald-950/20 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-400">
