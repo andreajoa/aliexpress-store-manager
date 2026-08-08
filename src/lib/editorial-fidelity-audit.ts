@@ -56,8 +56,6 @@ const auditSchema = z.object({
     z.string(),
 });
 
-type StructuredAudit =
-  z.infer<typeof auditSchema>;
 
 export type FidelityAudit = {
   score: number;

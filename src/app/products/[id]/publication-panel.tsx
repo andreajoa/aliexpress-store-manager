@@ -408,14 +408,17 @@ export function PublicationPanel({
   }
 
   useEffect(() => {
-    setCategories([]);
-    setCategory("");
-    setBrand(null);
-    setConfidence(null);
-    setCategoryReason("");
-    setPreview(null);
+    const timeoutId = window.setTimeout(() => {
+      setCategories([]);
+      setCategory("");
+      setBrand(null);
+      setConfidence(null);
+      setCategoryReason("");
+      setPreview(null);
+      void analyze();
+    }, 0);
 
-    void analyze();
+    return () => window.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     storeId,
@@ -545,8 +548,11 @@ export function PublicationPanel({
   }
 
   useEffect(() => {
-    void loadDryRun();
+    const timeoutId = window.setTimeout(() => {
+      void loadDryRun();
+    }, 0);
 
+    return () => window.clearTimeout(timeoutId);
     // A simulação reflete somente
     // o estado persistido da Publication.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -244,7 +244,6 @@ export async function planEditorialScenes({
   description,
   category,
   ageRange,
-  variants,
   brand,
   batch,
 }: {

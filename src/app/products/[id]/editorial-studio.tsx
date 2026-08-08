@@ -198,13 +198,15 @@ export function EditorialStudio({
   }
 
   useEffect(() => {
-    setAssets([]);
-    setBatch(null);
-    setError("");
-    setWarnings([]);
+    const timeoutId = window.setTimeout(() => {
+      setAssets([]);
+      setBatch(null);
+      setError("");
+      setWarnings([]);
+      void load();
+    }, 0);
 
-    void load();
-
+    return () => window.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     storeId,
