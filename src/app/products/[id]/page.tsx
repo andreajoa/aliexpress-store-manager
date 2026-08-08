@@ -8,6 +8,7 @@ import { EditorialStudio } from "./editorial-studio";
 import { ExportCenter } from "./export-center";
 import { PublicationPanel } from "./publication-panel";
 import { SupplierPanel } from "./supplier-panel";
+import { SupplierSyncButton } from "./supplier-sync-button";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -114,7 +115,7 @@ export default async function ProductPage({
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
               <p className="font-medium">Dados preservados</p>
               <p className="mt-2 text-sm text-zinc-500">
-                SKU, custo e estoque continuam vinculados ao produto comercial. O Supplier Engine mantém fornecedores alternativos separados desses SKUs canônicos.
+                SKU e custo-base permanecem ligados ao produto comercial. O estoque abaixo é a disponibilidade segura recalculada pelo Supplier Engine quando os fornecedores são sincronizados.
               </p>
 
               <div className="mt-4 space-y-3">
@@ -129,7 +130,8 @@ export default async function ProductPage({
                       <span>
                         Custo base: {variant.costPrice?.toString() || "—"} {variant.sourceCurrency}
                       </span>
-                      <span>Estoque base: {variant.stock ?? "—"}</span>
+                      <span>Estoque seguro: {variant.stock ?? "—"}</span>
+                      <span>{variant.available ? "Disponível" : "Indisponível"}</span>
                     </div>
                   </div>
                 ))}
@@ -183,6 +185,8 @@ export default async function ProductPage({
                     available: variant.available,
                   }))}
                 />
+
+                <SupplierSyncButton productId={product.id} />
 
                 <SupplierPanel
                   productId={product.id}
