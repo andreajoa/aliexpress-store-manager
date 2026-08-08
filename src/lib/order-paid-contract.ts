@@ -38,6 +38,8 @@ export const paidOrderEventSchema = z.object({
   occurredAt: z.string().datetime({ offset: true }),
   order: z.object({
     id: z.string().trim().min(1).max(255),
+    scope: z.enum(["FULL_ORDER", "MANAGED_ITEMS"]).default("FULL_ORDER"),
+    sourceOrderTotalCents: cents.optional(),
     currency: z.string().trim().regex(/^[A-Z]{3}$/),
     subtotalCents: cents,
     shippingAmountCents: cents,
@@ -69,6 +71,26 @@ export const paidOrderEventSchema = z.object({
       path: ["order", "totalCents"],
     });
   }
+
+  if (event.order.scope === "MANAGED_ITEMS" && event.order.sourceOrderTotalCents === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "sourceOrderTotalCents é obrigatório para escopo MANAGED_ITEMS.",
+      path: ["order", "sourceOrderTotalCents"],
+    });
+  }
+
+  if (
+    event.order.scope === "FULL_ORDER" &&
+    event.order.sourceOrderTotalCents !== undefined &&
+    event.order.sourceOrderTotalCents !== event.order.totalCents
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Em FULL_ORDER, sourceOrderTotalCents deve ser igual a totalCents.",
+      path: ["order", "sourceOrderTotalCents"],
+    });
+  }
 });
 
 export type PaidOrderEvent = z.infer<typeof paidOrderEventSchema>;
@@ -80,6 +102,8 @@ export function minimizedIntegrationPayload(event: PaidOrderEvent) {
     eventType: event.eventType,
     occurredAt: event.occurredAt,
     externalOrderId: event.order.id,
+    scope: event.order.scope,
+    sourceOrderTotalCents: event.order.sourceOrderTotalCents ?? event.order.totalCents,
     currency: event.order.currency,
     totalCents: event.order.totalCents,
     items: event.order.items.map((item) => ({
