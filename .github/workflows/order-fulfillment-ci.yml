@@ -1,0 +1,41 @@
+name: Order Fulfillment CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Prisma
+        run: |
+          npx prisma validate
+          npx prisma generate
+      - name: Lint
+        run: npm run lint
+      - name: Order ingestion safety
+        run: node --no-warnings --experimental-strip-types scripts/order-ingestion-smoke.ts
+      - name: Supplier selection regression
+        run: node --no-warnings --experimental-strip-types scripts/supplier-selection-smoke.ts
+      - name: Supplier mapping regression
+        run: node --no-warnings --experimental-strip-types scripts/supplier-variant-mapper-smoke.ts
+      - name: Publication regression
+        run: npm run test:github-publication
+      - name: Build
+        run: npm run build

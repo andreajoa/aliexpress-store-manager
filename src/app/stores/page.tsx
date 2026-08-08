@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { StoreForm } from "./store-form";
 import { VerifyStoreButton } from "./verify-store-button";
 import { StoreCompatibilityPanel } from "./store-compatibility-panel";
+import { StoreWebhookPanel } from "./store-webhook-panel";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -53,8 +54,7 @@ export default async function StoresPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-zinc-400">
-              Cadastre e gerencie as lojas que receberão os produtos
-              importados pelo sistema.
+              Cadastre e gerencie lojas compatíveis para publicação, recebimento de pedidos e fulfillment.
             </p>
           </div>
         </div>
@@ -157,6 +157,13 @@ export default async function StoresPage() {
                     )}
 
                     <StoreCompatibilityPanel store={store} />
+
+                    <StoreWebhookPanel
+                      storeId={store.id}
+                      enabled={store.webhookEnabled}
+                      tokenCreatedAt={store.webhookTokenCreatedAt?.toISOString() || null}
+                      lastSeenAt={store.webhookLastSeenAt?.toISOString() || null}
+                    />
 
                     <VerifyStoreButton
                       storeId={store.id}
