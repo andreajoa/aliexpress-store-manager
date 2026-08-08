@@ -84,18 +84,25 @@ try {
 assert(blocked, "Place order did not fail closed without official sku_attr");
 console.log("✅ no supplier order without official sku_attr");
 
-console.log("=== API ENVELOPE / ERROR ===");
-const goodFetch = async () => new Response(JSON.stringify({
-  aliexpress_trade_buy_placeorder_response: {
-    result: { is_success: true, order_list: { number: ["10001"] } },
-  },
-}), { status: 200, headers: { "Content-Type": "application/json" } });
-const placed = await client.placeOrder({
+console.log("=== PLACE ORDER NORMALIZATION ===");
+const placedClient = new AliExpressTopClient({ appKey: "x", appSecret: "y" });
+placedClient.execute = async () => ({
+  result: { is_success: true, order_list: { number: ["10001"] } },
+});
+const placed = await placedClient.placeOrder({
   session: "session",
   logisticsAddress: { country: "US" },
   productItems: [{ productId: "1", quantity: 1, skuAttr: "14:193", logisticsServiceName: "CAINIAO_STANDARD" }],
-}, goodFetch as typeof fetch);
+});
 assert(placed.orderIds[0] === "10001", "Place-order normalization failed");
+console.log("✅ successful order ID normalized");
+
+console.log("=== API ENVELOPE / ERROR ===");
+const goodFetch = async () => new Response(JSON.stringify({
+  aliexpress_ds_product_get_response: { result: { rsp_code: "200" } },
+}), { status: 200, headers: { "Content-Type": "application/json" } });
+const envelope = await client.execute("aliexpress.ds.product.get", "session", {}, goodFetch as typeof fetch);
+assert((envelope.result as { rsp_code?: string }).rsp_code === "200", "Success envelope was not unwrapped");
 
 let apiBlocked = false;
 const badFetch = async () => new Response(JSON.stringify({ error_response: { code: 50, sub_msg: "invalid" } }), { status: 200 });
