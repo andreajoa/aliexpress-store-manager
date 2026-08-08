@@ -1,7 +1,6 @@
-import fs from "node:fs/promises";
-
 import { NextResponse } from "next/server";
 
+import { readEditorialPersistentFile } from "@/lib/editorial-persistent-access";
 import { prisma } from "@/lib/prisma";
 import type { PublicationPlan } from "@/lib/publication-plan";
 import {
@@ -44,7 +43,7 @@ function parseSnapshot(value: unknown): RepositorySnapshot | null {
 
 export async function POST(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
 
@@ -53,7 +52,7 @@ export async function POST(
   if (contentLength > MAX_BODY_BYTES) {
     return NextResponse.json(
       { ok: false, error: "O snapshot excede o limite local de 5 MB." },
-      { status: 413 }
+      { status: 413 },
     );
   }
 
@@ -62,7 +61,7 @@ export async function POST(
   if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
     return NextResponse.json(
       { ok: false, error: "O snapshot excede o limite local de 5 MB." },
-      { status: 413 }
+      { status: 413 },
     );
   }
 
@@ -73,7 +72,7 @@ export async function POST(
   } catch {
     return NextResponse.json(
       { ok: false, error: "Snapshot JSON inválido." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -85,7 +84,7 @@ export async function POST(
         ok: false,
         error: "Informe snapshot.files com pelo menos um arquivo textual válido.",
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -103,7 +102,7 @@ export async function POST(
         ok: false,
         error: planData.error || "Não foi possível carregar o Publication Plan.",
       },
-      { status: planResponse.status || 500 }
+      { status: planResponse.status || 500 },
     );
   }
 
@@ -121,7 +120,7 @@ export async function POST(
   if (!publication) {
     return NextResponse.json(
       { ok: false, error: "Publication não encontrada." },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -139,16 +138,15 @@ export async function POST(
   const assetSources: Record<string, Uint8Array> = {};
 
   for (const asset of selectedEditorials) {
-    if (!asset.generatedPath) {
-      continue;
-    }
+    if (!asset.generatedPath) continue;
 
     try {
       assetSources[asset.generatedPath] = new Uint8Array(
-        await fs.readFile(asset.generatedPath)
+        await readEditorialPersistentFile(asset.generatedPath),
       );
     } catch {
-      continue;
+      // The dry-run engine will remain fail-closed if a planned asset source
+      // is missing; never invent bytes or silently read a server filesystem.
     }
   }
 
