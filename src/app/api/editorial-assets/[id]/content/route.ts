@@ -38,7 +38,8 @@ export async function GET(
       );
     }
 
-    return new NextResponse(binary.bytes, {
+    const body = Uint8Array.from(binary.bytes).buffer;
+    return new NextResponse(body, {
       status: 200,
       headers: {
         "Content-Type": binary.mimeType,
