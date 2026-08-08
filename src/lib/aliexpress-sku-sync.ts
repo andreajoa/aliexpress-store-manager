@@ -144,12 +144,14 @@ export async function synchronizeOfficialAliExpressSkus(input: {
     for (const pair of pairs) {
       const officialSku = officialByAttr.get(pair.orderSkuAttr);
       if (!officialSku) throw new Error(`SKU oficial não encontrado: ${pair.orderSkuAttr}`);
+      const price = officialSku.price;
+      const stock = officialSku.stock;
       await tx.supplierVariant.update({
         where: { id: pair.supplierVariantId },
         data: {
           orderSkuAttr: officialSku.orderSkuAttr,
-          ...(officialSku.price !== null ? { sourcePrice: officialSku.price } : {}),
-          ...(officialSku.stock !== null ? { stock: Math.max(0, Math.trunc(officialSku.stock)) } : {}),
+          ...(price != null ? { sourcePrice: price } : {}),
+          ...(stock != null ? { stock: Math.max(0, Math.trunc(stock)) } : {}),
         },
       });
     }
