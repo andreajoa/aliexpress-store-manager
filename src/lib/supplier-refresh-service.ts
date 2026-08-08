@@ -20,7 +20,8 @@ function reservationMap(rows: Array<{ fulfillmentSupplierVariantId: string | nul
 }
 
 export async function syncCanonicalAvailability(productId: string) {
-  const [product, reservationRows] = await Promise.all([
+  const now = new Date();
+  const [product, reservationRows, checkoutReservationRows] = await Promise.all([
     prisma.product.findUnique({
       where: { id: productId },
       include: {
@@ -42,10 +43,23 @@ export async function syncCanonicalAvailability(productId: string) {
       },
       select: { fulfillmentSupplierVariantId: true, quantity: true },
     }),
+    prisma.inventoryReservationItem.findMany({
+      where: {
+        productId,
+        reservation: { status: "ACTIVE", expiresAt: { gt: now } },
+      },
+      select: { supplierVariantId: true, quantity: true },
+    }),
   ]);
 
   if (!product) throw new Error("Produto não encontrado para sincronizar disponibilidade.");
   const reserved = reservationMap(reservationRows);
+  for (const row of checkoutReservationRows) {
+    reserved.set(
+      row.supplierVariantId,
+      (reserved.get(row.supplierVariantId) || 0) + row.quantity,
+    );
+  }
 
   const availability = deriveCanonicalAvailability({
     canonicalVariantIds: product.variants.map((variant) => variant.id),
