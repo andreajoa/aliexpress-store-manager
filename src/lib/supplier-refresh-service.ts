@@ -7,22 +7,45 @@ import {
 import { deriveCanonicalAvailability } from "./supplier-selection";
 import { suggestSupplierVariantMappings } from "./supplier-variant-mapper";
 
+function reservationMap(rows: Array<{ fulfillmentSupplierVariantId: string | null; quantity: number }>) {
+  const result = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.fulfillmentSupplierVariantId) continue;
+    result.set(
+      row.fulfillmentSupplierVariantId,
+      (result.get(row.fulfillmentSupplierVariantId) || 0) + row.quantity,
+    );
+  }
+  return result;
+}
+
 export async function syncCanonicalAvailability(productId: string) {
-  const product = await prisma.product.findUnique({
-    where: { id: productId },
-    include: {
-      variants: { select: { id: true } },
-      supplierProducts: {
-        include: {
-          mappings: {
-            include: { supplierVariant: true },
+  const [product, reservationRows] = await Promise.all([
+    prisma.product.findUnique({
+      where: { id: productId },
+      include: {
+        variants: { select: { id: true } },
+        supplierProducts: {
+          include: {
+            mappings: {
+              include: { supplierVariant: true },
+            },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.orderItem.findMany({
+      where: {
+        productId,
+        fulfillmentSupplierVariantId: { not: null },
+        fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } },
+      },
+      select: { fulfillmentSupplierVariantId: true, quantity: true },
+    }),
+  ]);
 
   if (!product) throw new Error("Produto não encontrado para sincronizar disponibilidade.");
+  const reserved = reservationMap(reservationRows);
 
   const availability = deriveCanonicalAvailability({
     canonicalVariantIds: product.variants.map((variant) => variant.id),
@@ -42,7 +65,10 @@ export async function syncCanonicalAvailability(productId: string) {
           sourcePrice: mapping.supplierVariant.sourcePrice
             ? Number(mapping.supplierVariant.sourcePrice.toString())
             : null,
-          stock: mapping.supplierVariant.stock,
+          stock: Math.max(
+            0,
+            mapping.supplierVariant.stock - (reserved.get(mapping.supplierVariant.id) || 0),
+          ),
         },
       })),
     })),
