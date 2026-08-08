@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+
 import {
   NextResponse,
 } from "next/server";
@@ -18,6 +20,25 @@ const schema =
     selected:
       z.boolean(),
   });
+
+function auditPassed(
+  value: unknown
+): boolean {
+  return Boolean(
+    value &&
+      typeof value ===
+        "object" &&
+      !Array.isArray(
+        value
+      ) &&
+      (
+        value as Record<
+          string,
+          unknown
+        >
+      ).pass === true
+  );
+}
 
 export async function PATCH(
   request: Request,
@@ -70,29 +91,17 @@ export async function PATCH(
     );
   }
 
+  /*
+   * Selecionar também é fail-closed.
+   * Desmarcar permanece sempre permitido.
+   */
   if (
-    parsed.data.selected &&
-    asset.assetType.startsWith(
-      "AI_"
-    )
+    parsed.data.selected
   ) {
-    const audit =
-      asset.audit &&
-      typeof asset.audit ===
-        "object" &&
-      !Array.isArray(
+    if (
+      !auditPassed(
         asset.audit
       )
-        ? asset.audit as
-            Record<
-              string,
-              unknown
-            >
-        : null;
-
-    if (
-      audit?.pass !==
-      true
     ) {
       return NextResponse.json(
         {
@@ -100,6 +109,56 @@ export async function PATCH(
 
           error:
             "Esta fotografia ainda não passou pela auditoria automática de fidelidade.",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    const generatedPath =
+      asset.generatedPath;
+
+    if (!generatedPath) {
+      return NextResponse.json(
+        {
+          ok: false,
+
+          error:
+            "A fotografia aprovada não possui arquivo gerado disponível.",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    try {
+      const stat =
+        await fs.stat(
+          generatedPath
+        );
+
+      if (!stat.isFile()) {
+        return NextResponse.json(
+          {
+            ok: false,
+
+            error:
+              "O arquivo da fotografia selecionada não é válido.",
+          },
+          {
+            status: 409,
+          }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        {
+          ok: false,
+
+          error:
+            "O arquivo da fotografia selecionada não existe mais no armazenamento local.",
         },
         {
           status: 409,

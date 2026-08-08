@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -95,6 +97,20 @@ function benefitsArray(
     (item): item is string =>
       typeof item === "string" &&
       item.trim().length > 0
+  );
+}
+
+
+function auditPassed(
+  value: unknown
+): boolean {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      (
+        value as Record<string, unknown>
+      ).pass === true
   );
 }
 
@@ -489,6 +505,117 @@ export async function POST(
           },
         ],
       });
+
+    /*
+     * FAIL-CLOSED:
+     * um ativo editorial selecionado nunca entra
+     * no payload apenas porque selected=true.
+     *
+     * Ele precisa:
+     * - pertencer ao produto/loja atuais
+     *   (garantido pelo findMany acima);
+     * - possuir auditoria aprovada;
+     * - possuir generatedPath;
+     * - existir fisicamente no storage local.
+     */
+    const invalidEditorialAssets:
+      Array<{
+        id: string;
+        type: string;
+        reason: string;
+      }> = [];
+
+    for (
+      const asset
+      of editorialAssets
+    ) {
+      if (
+        !auditPassed(
+          asset.audit
+        )
+      ) {
+        invalidEditorialAssets.push({
+          id:
+            asset.id,
+
+          type:
+            asset.assetType,
+
+          reason:
+            "audit_not_approved",
+        });
+
+        continue;
+      }
+
+      const generatedPath =
+        asset.generatedPath;
+
+      if (!generatedPath) {
+        invalidEditorialAssets.push({
+          id:
+            asset.id,
+
+          type:
+            asset.assetType,
+
+          reason:
+            "generated_path_missing",
+        });
+
+        continue;
+      }
+
+      try {
+        const stat =
+          await fs.stat(
+            generatedPath
+          );
+
+        if (!stat.isFile()) {
+          invalidEditorialAssets.push({
+            id:
+              asset.id,
+
+            type:
+              asset.assetType,
+
+            reason:
+              "generated_file_invalid",
+          });
+        }
+      } catch {
+        invalidEditorialAssets.push({
+          id:
+            asset.id,
+
+          type:
+            asset.assetType,
+
+          reason:
+            "generated_file_missing",
+        });
+      }
+    }
+
+    if (
+      invalidEditorialAssets.length >
+      0
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+
+          error:
+            "Há imagens editoriais selecionadas que não estão aptas para publicação.",
+
+          invalidEditorialAssets,
+        },
+        {
+          status: 422,
+        }
+      );
+    }
 
     const payload:
       StoreProductPayload =
