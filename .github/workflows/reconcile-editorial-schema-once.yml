@@ -1,0 +1,58 @@
+name: Reconcile editorial schema once
+
+on:
+  push:
+    branches:
+      - feat/persistent-editorial-storage
+    paths:
+      - .github/workflows/reconcile-editorial-schema-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/persistent-editorial-storage
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Patch Prisma schema
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'prisma/schema.prisma';
+          let s = fs.readFileSync(path, 'utf8');
+          if (!s.includes('contentSha256 String?')) {
+            const modelStart = s.indexOf('model EditorialAsset {');
+            if (modelStart < 0) throw new Error('EditorialAsset model not found');
+            const modelEnd = s.indexOf('\n}', modelStart);
+            if (modelEnd < 0) throw new Error('EditorialAsset model end not found');
+            const block = s.slice(modelStart, modelEnd);
+            const anchor = '  audit Json?';
+            if (!block.includes(anchor)) throw new Error('EditorialAsset audit anchor not found');
+            const replacement = anchor + '\n\n  content       Bytes?\n  mimeType      String?\n  contentSha256 String?\n  contentBytes  Int?';
+            s = s.slice(0, modelStart) + block.replace(anchor, replacement).replace('  @@index([productId, storeId, selected])', '  @@index([productId, storeId, selected])\n  @@index([contentSha256])') + s.slice(modelEnd);
+          }
+          fs.writeFileSync(path, s);
+          NODE
+      - run: |
+          npm ci
+          npx prisma validate
+          npx prisma generate
+      - name: Remove reconciler and commit
+        run: |
+          rm .github/workflows/reconcile-editorial-schema-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add prisma/schema.prisma prisma/migrations/20260808193000_add_editorial_persistent_content/migration.sql .github/workflows/reconcile-editorial-schema-once.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: persist editorial image content in database"
+          git push origin HEAD:feat/persistent-editorial-storage
