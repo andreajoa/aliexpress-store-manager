@@ -189,7 +189,6 @@ export async function POST(
         githubBranch: result.publicationBranch,
         githubCommitSha: result.commitSha,
         pullRequestNumber: result.pullRequestNumber,
-        pullRequestUrl: result.pullRequestUrl,
       },
     });
 
