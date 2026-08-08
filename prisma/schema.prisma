@@ -202,7 +202,8 @@ model ProductVariant {
   imageUrl   String? @db.Text
   rawPayload Json?
 
-  orderItems OrderItem[]
+  orderItems       OrderItem[]
+  supplierMappings SupplierVariantMapping[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -350,11 +351,13 @@ model SupplierVariantMapping {
   supplierVariant   SupplierVariant @relation(fields: [supplierVariantId], references: [id], onDelete: Cascade)
 
   canonicalVariantId String
-  confidence         Decimal?              @db.Decimal(5, 4)
-  method             SupplierMappingMethod @default(MANUAL)
-  evidence           Json?
-  active             Boolean               @default(true)
-  verifiedAt         DateTime?
+  canonicalVariant   ProductVariant @relation(fields: [canonicalVariantId], references: [id], onDelete: Cascade)
+
+  confidence Decimal?              @db.Decimal(5, 4)
+  method     SupplierMappingMethod @default(MANUAL)
+  evidence   Json?
+  active     Boolean               @default(true)
+  verifiedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
