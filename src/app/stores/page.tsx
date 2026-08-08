@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { StoreForm } from "./store-form";
 import { VerifyStoreButton } from "./verify-store-button";
+import { StoreCompatibilityPanel } from "./store-compatibility-panel";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -154,6 +155,8 @@ export default async function StoresPage() {
                         </span>
                       </div>
                     )}
+
+                    <StoreCompatibilityPanel store={store} />
 
                     <VerifyStoreButton
                       storeId={store.id}

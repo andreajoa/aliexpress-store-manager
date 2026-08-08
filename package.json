@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:repository-dry-run": "node --no-warnings --experimental-strip-types scripts/repository-dry-run-smoke.ts",
-    "test:publication-target": "node --no-warnings --experimental-strip-types scripts/publication-target-contract-smoke.ts"
+    "test:publication-target": "node --no-warnings --experimental-strip-types scripts/publication-target-contract-smoke.ts",
+    "test:store-compatibility": "node --no-warnings --experimental-strip-types scripts/store-compatibility-smoke.ts"
   },
   "dependencies": {
     "@google/genai": "^2.16.0",
