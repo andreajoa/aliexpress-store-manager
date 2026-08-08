@@ -1,0 +1,40 @@
+name: Editorial storage audit once
+
+on:
+  push:
+    branches:
+      - feat/persistent-editorial-storage
+    paths:
+      - .github/workflows/editorial-storage-audit-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/persistent-editorial-storage
+      - name: Build report
+        run: |
+          mkdir -p docs
+          {
+            echo '# Editorial storage audit'
+            echo
+            echo '## References'
+            grep -R -n -E 'generatedPath|editorial-storage|editorialStorage|readFile\(|writeFile\(|existsSync|\.data/editorials' src scripts 2>/dev/null || true
+            echo
+            echo '## editorial-storage.ts'
+            cat src/lib/editorial-storage.ts 2>/dev/null || true
+          } > docs/editorial-storage-audit.txt
+      - name: Commit report and remove workflow
+        run: |
+          rm .github/workflows/editorial-storage-audit-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add docs/editorial-storage-audit.txt .github/workflows/editorial-storage-audit-once.yml
+          git commit -m "chore: capture editorial storage audit"
+          git push origin HEAD:feat/persistent-editorial-storage
