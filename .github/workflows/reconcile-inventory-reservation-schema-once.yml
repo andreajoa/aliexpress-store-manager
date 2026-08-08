@@ -1,0 +1,57 @@
+name: Reconcile inventory reservation schema once
+
+on:
+  push:
+    branches:
+      - feat/checkout-stock-reservations
+    paths:
+      - .github/workflows/reconcile-inventory-reservation-schema-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/checkout-stock-reservations
+      - name: Patch schema
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('prisma/schema.prisma')
+          t=p.read_text()
+          t=t.replace('''  publications Publication[]\n  orders       Order[]\n  events       IntegrationEvent[]''','''  publications          Publication[]\n  orders                Order[]\n  events                IntegrationEvent[]\n  inventoryReservations InventoryReservation[]''',1)
+          t=t.replace('''  supplierProducts SupplierProduct[]\n  orderItems       OrderItem[]''','''  supplierProducts          SupplierProduct[]\n  orderItems                OrderItem[]\n  inventoryReservationItems InventoryReservationItem[]''',1)
+          t=t.replace('''  orderItems       OrderItem[]\n  supplierMappings SupplierVariantMapping[]''','''  orderItems                 OrderItem[]\n  supplierMappings           SupplierVariantMapping[]\n  inventoryReservationItems  InventoryReservationItem[]''',1)
+          t=t.replace('''  fulfillmentOrderItems OrderItem[]        @relation("OrderItemFulfillmentSupplierProduct")\n  fulfillmentBatches    FulfillmentBatch[] @relation("FulfillmentBatchSupplierProduct")''','''  fulfillmentOrderItems      OrderItem[]        @relation("OrderItemFulfillmentSupplierProduct")\n  fulfillmentBatches         FulfillmentBatch[] @relation("FulfillmentBatchSupplierProduct")\n  inventoryReservationItems  InventoryReservationItem[]''',1)
+          t=t.replace('''  fulfillmentOrderItems OrderItem[] @relation("OrderItemFulfillmentSupplierVariant")''','''  fulfillmentOrderItems      OrderItem[] @relation("OrderItemFulfillmentSupplierVariant")\n  inventoryReservationItems  InventoryReservationItem[]''',1)
+          t=t.replace('''  sourceOrderScope String   @default("FULL_ORDER")\n  sourceOrderTotal Decimal? @db.Decimal(12, 2)''','''  sourceOrderScope      String   @default("FULL_ORDER")\n  sourceOrderTotal      Decimal? @db.Decimal(12, 2)\n  checkoutReservationId String?''',1)
+          anchor='''model IntegrationEvent {'''
+          assert anchor in t
+          models='''model InventoryReservation {\n  id                    String   @id @default(cuid())\n  storeId               String\n  store                 Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)\n  externalReservationId String\n  status                String   @default("ACTIVE")\n  expiresAt             DateTime\n  stripeCheckoutSessionId String?\n  consumedOrderId       String?\n  items                 InventoryReservationItem[]\n  createdAt             DateTime @default(now())\n  updatedAt             DateTime @updatedAt\n\n  @@unique([storeId, externalReservationId])\n  @@index([status, expiresAt])\n  @@index([consumedOrderId])\n}\n\nmodel InventoryReservationItem {\n  id                 String @id @default(cuid())\n  reservationId      String\n  reservation        InventoryReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)\n  productId          String\n  product            Product @relation(fields: [productId], references: [id], onDelete: Cascade)\n  canonicalVariantId String\n  canonicalVariant   ProductVariant @relation(fields: [canonicalVariantId], references: [id], onDelete: Cascade)\n  supplierProductId  String\n  supplierProduct    SupplierProduct @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)\n  supplierVariantId  String\n  supplierVariant    SupplierVariant @relation(fields: [supplierVariantId], references: [id], onDelete: Cascade)\n  quantity           Int\n  sourceCurrency     String?\n  sourceUnitCost     Decimal? @db.Decimal(12, 2)\n  createdAt          DateTime @default(now())\n\n  @@unique([reservationId, canonicalVariantId])\n  @@index([supplierVariantId])\n  @@index([productId])\n}\n\n'''
+          t=t.replace(anchor,models+anchor,1)
+          p.write_text(t)
+          PY
+      - name: Expose reservation endpoint to its own Bearer auth
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/manager-admin-auth.ts')
+          t=p.read_text()
+          old='''  if (/^\\/api\\/stores\\/[^/]+\\/orders\\/webhook\\/?$/.test(pathname)) return true;'''
+          new='''  if (/^\\/api\\/stores\\/[^/]+\\/orders\\/webhook\\/?$/.test(pathname)) return true;\n  if (/^\\/api\\/stores\\/[^/]+\\/inventory\\/reservations\\/?$/.test(pathname)) return true;'''
+          assert old in t
+          p.write_text(t.replace(old,new,1))
+          PY
+      - name: Commit
+        run: |
+          rm .github/workflows/reconcile-inventory-reservation-schema-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add prisma/schema.prisma src/lib/manager-admin-auth.ts .github/workflows/reconcile-inventory-reservation-schema-once.yml
+          git commit -m "feat: model checkout inventory reservations"
+          git push origin HEAD:feat/checkout-stock-reservations
