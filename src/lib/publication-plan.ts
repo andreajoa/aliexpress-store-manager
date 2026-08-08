@@ -1,3 +1,7 @@
+import {
+  parsePublicationTargetContract,
+} from "./publication-target-contract.ts";
+
 export const PUBLICATION_PROTOCOL =
   "2026-08-01";
 
@@ -474,6 +478,11 @@ export function buildPublicationPlan(
     objectValue(
       capabilities
         .publicationTarget
+    );
+
+  const publicationTargetContract =
+    parsePublicationTargetContract(
+      capabilities
     );
 
   const targetKind =
@@ -1092,10 +1101,8 @@ export function buildPublicationPlan(
   }
 
   const contractResolved =
-    Boolean(
-      targetKind &&
-      targetAdapter
-    );
+    publicationTargetContract
+      .valid;
 
   if (
     contractResolved
@@ -1103,13 +1110,28 @@ export function buildPublicationPlan(
     pass(
       "PUBLICATION_TARGET_CONTRACT",
       "Contrato de escrita",
-      `${targetKind} / ${targetAdapter}`
+      `${targetKind} / ${targetAdapter} — contrato v1`
     );
   } else {
+    const detail =
+      publicationTargetContract
+        .issues
+        .map(
+          issue =>
+            issue.detail
+        )
+        .join(" ");
+
     block(
-      "PUBLICATION_TARGET_CONTRACT_MISSING",
+      publicationTargetContract
+        .present
+        ? "PUBLICATION_TARGET_CONTRACT_INVALID"
+        : "PUBLICATION_TARGET_CONTRACT_MISSING",
+
       "Contrato de escrita",
-      "O conector informa capabilities, mas não declara connectorCapabilities.publicationTarget com kind e adapter."
+
+      detail ||
+        "O contrato de escrita do conector é inválido."
     );
   }
 

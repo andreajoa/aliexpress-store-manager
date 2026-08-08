@@ -225,6 +225,9 @@ const plan =
           true,
 
         publicationTarget: {
+          contractVersion:
+            "1",
+
           kind:
             "github-catalog",
 
