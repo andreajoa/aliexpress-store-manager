@@ -464,25 +464,37 @@ async function prepareOnce(orderId: string, plan: FulfillmentPlan) {
       });
       const currentById = new Map(currentVariants.map((variant) => [variant.id, variant]));
 
-      const otherReservations = await tx.orderItem.findMany({
-        where: {
-          orderId: { not: orderId },
-          fulfillmentSupplierVariantId: { in: [...quantities.keys()] },
-          OR: [
-            { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },
-            {
-              fulfillmentBatchId: null,
-              order: {
-                paymentStatus: "PAID",
-                fulfillmentStatus: "UNFULFILLED",
-                status: "PAID",
+      const [otherReservations, activeCheckoutReservations] = await Promise.all([
+        tx.orderItem.findMany({
+          where: {
+            orderId: { not: orderId },
+            fulfillmentSupplierVariantId: { in: [...quantities.keys()] },
+            OR: [
+              { fulfillmentBatch: { status: { in: ["PROCESSING", "ORDERED"] } } },
+              {
+                fulfillmentBatchId: null,
+                order: {
+                  paymentStatus: "PAID",
+                  fulfillmentStatus: "UNFULFILLED",
+                  status: "PAID",
+                },
               },
-            },
-          ],
-        },
-        select: { fulfillmentSupplierVariantId: true, quantity: true },
-      });
+            ],
+          },
+          select: { fulfillmentSupplierVariantId: true, quantity: true },
+        }),
+        tx.inventoryReservationItem.findMany({
+          where: {
+            supplierVariantId: { in: [...quantities.keys()] },
+            reservation: { status: "ACTIVE", expiresAt: { gt: preparedAt } },
+          },
+          select: { supplierVariantId: true, quantity: true },
+        }),
+      ]);
       const reserved = reservationMap(otherReservations);
+      for (const row of activeCheckoutReservations) {
+        reserved.set(row.supplierVariantId, (reserved.get(row.supplierVariantId) || 0) + row.quantity);
+      }
 
       for (const [supplierVariantId, quantity] of quantities) {
         const current = currentById.get(supplierVariantId);
