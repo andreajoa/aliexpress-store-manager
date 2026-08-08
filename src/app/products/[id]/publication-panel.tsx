@@ -17,6 +17,59 @@ type Category = {
   slug: string;
 };
 
+type AgeSource =
+  | "PACKAGE_LABEL"
+  | "SUPPLIER_SPECIFICATION"
+  | "MANUFACTURER_DOCUMENTATION"
+  | "CERTIFICATION";
+
+const AGE_SOURCE_OPTIONS:
+  Array<{
+    value: AgeSource;
+    label: string;
+  }> = [
+    {
+      value:
+        "PACKAGE_LABEL",
+      label:
+        "Embalagem / rótulo do produto",
+    },
+    {
+      value:
+        "SUPPLIER_SPECIFICATION",
+      label:
+        "Especificação oficial do fornecedor",
+    },
+    {
+      value:
+        "MANUFACTURER_DOCUMENTATION",
+      label:
+        "Documentação do fabricante",
+    },
+    {
+      value:
+        "CERTIFICATION",
+      label:
+        "Certificação / documento de conformidade",
+    },
+  ];
+
+function ageSourceLabel(
+  value:
+    | string
+    | null
+    | undefined
+) {
+  return (
+    AGE_SOURCE_OPTIONS.find(
+      item =>
+        item.value === value
+    )?.label ||
+    value ||
+    "Não informada"
+  );
+}
+
 type Brand = {
   primaryColor?:
     string | null;
@@ -44,11 +97,18 @@ type Preview = {
     id: string;
     status: string;
     targetUrl: string;
+
+    ageRangeVerification: {
+      source: string | null;
+      evidence: string | null;
+      verifiedAt: string | null;
+    };
   };
 
   payload: {
     product: {
       title: string;
+      ageRange: string;
       price: number;
       gallery: string[];
       stock: number;
@@ -170,9 +230,27 @@ export function PublicationPanel({
     ageRange,
     setAgeRange,
   ] =
-    useState(
-      "Consulte a indicação do fabricante"
-    );
+    useState("");
+
+  const [
+    ageSource,
+    setAgeSource,
+  ] =
+    useState<
+      AgeSource | ""
+    >("");
+
+  const [
+    ageEvidence,
+    setAgeEvidence,
+  ] =
+    useState("");
+
+  const [
+    ageVerified,
+    setAgeVerified,
+  ] =
+    useState(false);
 
   const [
     loading,
@@ -334,6 +412,9 @@ export function PublicationPanel({
                 storeId,
                 category,
                 ageRange,
+                ageSource,
+                ageEvidence,
+                ageVerified,
               }),
           }
         );
@@ -576,9 +657,19 @@ export function PublicationPanel({
           </label>
         )}
 
+        <div className="rounded-xl border border-amber-900/70 bg-amber-950/20 p-4">
+          <p className="text-sm font-medium text-amber-300">
+            Segurança da faixa etária
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-zinc-400">
+            Não estime a idade. Preencha somente quando houver uma fonte verificável do produto.
+          </p>
+        </div>
+
         <label className="block">
           <span className="mb-2 block text-sm text-zinc-400">
-            Faixa etária / orientação
+            Faixa etária verificada
           </span>
 
           <input
@@ -587,14 +678,112 @@ export function PublicationPanel({
             }
             onChange={(
               event
-            ) =>
+            ) => {
               setAgeRange(
-                event.target
-                  .value
-              )
-            }
+                event.target.value
+              );
+              setAgeVerified(
+                false
+              );
+              setPreview(null);
+            }}
+            placeholder="Ex.: 8 anos ou mais — somente se constar na fonte"
             className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3"
           />
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-sm text-zinc-400">
+            Fonte da faixa etária
+          </span>
+
+          <select
+            value={
+              ageSource
+            }
+            onChange={(
+              event
+            ) => {
+              setAgeSource(
+                event.target.value as
+                  AgeSource | ""
+              );
+              setAgeVerified(
+                false
+              );
+              setPreview(null);
+            }}
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3"
+          >
+            <option value="">
+              Selecione uma fonte verificável
+            </option>
+
+            {AGE_SOURCE_OPTIONS.map(
+              item => (
+                <option
+                  key={
+                    item.value
+                  }
+                  value={
+                    item.value
+                  }
+                >
+                  {
+                    item.label
+                  }
+                </option>
+              )
+            )}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-sm text-zinc-400">
+            Evidência / referência
+          </span>
+
+          <textarea
+            value={
+              ageEvidence
+            }
+            onChange={(
+              event
+            ) => {
+              setAgeEvidence(
+                event.target.value
+              );
+              setAgeVerified(
+                false
+              );
+              setPreview(null);
+            }}
+            rows={3}
+            placeholder="Ex.: texto exato da embalagem, URL oficial ou identificação do documento consultado"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3"
+          />
+        </label>
+
+        <label className="flex items-start gap-3 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+          <input
+            type="checkbox"
+            checked={
+              ageVerified
+            }
+            onChange={(
+              event
+            ) => {
+              setAgeVerified(
+                event.target.checked
+              );
+              setPreview(null);
+            }}
+            className="mt-1 h-4 w-4"
+          />
+
+          <span className="text-sm leading-6 text-zinc-300">
+            Confirmo que a faixa etária acima foi copiada da fonte indicada e não foi estimada ou inferida.
+          </span>
         </label>
 
         <button
@@ -607,7 +796,10 @@ export function PublicationPanel({
             analyzing ||
             !storeId ||
             !category ||
-            !ageRange.trim()
+            !ageRange.trim() ||
+            !ageSource ||
+            !ageEvidence.trim() ||
+            !ageVerified
           }
           className="w-full rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-zinc-950 hover:bg-emerald-400 disabled:opacity-50"
         >
@@ -638,6 +830,39 @@ export function PublicationPanel({
                   .product.title
               }
             </p>
+
+            <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+              <p className="text-xs font-medium text-zinc-500">
+                Faixa etária verificada
+              </p>
+
+              <p className="mt-1 text-sm text-zinc-300">
+                {
+                  preview.payload
+                    .product.ageRange
+                }
+              </p>
+
+              <p className="mt-2 text-xs text-zinc-500">
+                Fonte:{" "}
+                {
+                  ageSourceLabel(
+                    preview.publication
+                      .ageRangeVerification
+                      .source
+                  )
+                }
+              </p>
+
+              <p className="mt-1 break-words text-xs text-zinc-500">
+                Evidência:{" "}
+                {
+                  preview.publication
+                    .ageRangeVerification
+                    .evidence
+                }
+              </p>
+            </div>
 
             <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3">
               <p className="text-xs font-medium text-zinc-500">

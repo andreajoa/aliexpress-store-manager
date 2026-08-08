@@ -57,6 +57,9 @@ const inputSchema = z.object({
           "not informed",
           "n/a",
           "na",
+          "consulte a indicacao do fabricante",
+          "consulte o fabricante",
+          "consulte a embalagem",
         ];
 
         const forbiddenPrefixes = [
@@ -82,6 +85,32 @@ const inputSchema = z.object({
       {
         message:
           "A faixa etária precisa ser uma informação real e verificada; valores provisórios não são aceitos.",
+      }
+    ),
+
+  ageSource: z.enum([
+    "PACKAGE_LABEL",
+    "SUPPLIER_SPECIFICATION",
+    "MANUFACTURER_DOCUMENTATION",
+    "CERTIFICATION",
+  ]),
+
+  ageEvidence: z
+    .string()
+    .trim()
+    .min(
+      5,
+      "Informe a evidência usada para verificar a faixa etária."
+    )
+    .max(2000),
+
+  ageVerified: z
+    .boolean()
+    .refine(
+      (value) => value === true,
+      {
+        message:
+          "Confirme que a faixa etária foi copiada de uma fonte verificável e não inferida.",
       }
     ),
 });
@@ -677,6 +706,9 @@ export async function POST(
       );
     }
 
+    const ageVerifiedAt =
+      new Date();
+
     const payload:
       StoreProductPayload =
       {
@@ -839,6 +871,17 @@ export async function POST(
             parsed.data
               .ageRange,
 
+          targetAgeSource:
+            parsed.data
+              .ageSource,
+
+          targetAgeEvidence:
+            parsed.data
+              .ageEvidence,
+
+          targetAgeVerifiedAt:
+            ageVerifiedAt,
+
           payload,
 
           status:
@@ -869,6 +912,17 @@ export async function POST(
           targetAgeRange:
             parsed.data
               .ageRange,
+
+          targetAgeSource:
+            parsed.data
+              .ageSource,
+
+          targetAgeEvidence:
+            parsed.data
+              .ageEvidence,
+
+          targetAgeVerifiedAt:
+            ageVerifiedAt,
 
           payload,
 
@@ -903,6 +957,17 @@ export async function POST(
           publication.status,
 
         targetUrl,
+
+        ageRangeVerification: {
+          source:
+            publication.targetAgeSource,
+
+          evidence:
+            publication.targetAgeEvidence,
+
+          verifiedAt:
+            publication.targetAgeVerifiedAt,
+        },
       },
 
       store: {

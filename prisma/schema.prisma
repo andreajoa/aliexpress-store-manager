@@ -247,8 +247,11 @@ model Publication {
   salePrice      Decimal? @db.Decimal(12, 2)
   compareAtPrice Decimal? @db.Decimal(12, 2)
 
-  targetCategory String?
-  targetAgeRange String?
+  targetCategory      String?
+  targetAgeRange      String?
+  targetAgeSource     String?
+  targetAgeEvidence   String?   @db.Text
+  targetAgeVerifiedAt DateTime?
 
   payload Json?
 
