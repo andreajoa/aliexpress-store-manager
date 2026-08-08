@@ -6,6 +6,7 @@ import {
   paidOrderEventSchema,
 } from "@/lib/order-paid-contract";
 import { resolvePaidOrderItems } from "@/lib/order-item-resolver";
+import { loadPaidOrderReservation } from "@/lib/paid-order-reservation";
 import { prisma } from "@/lib/prisma";
 import {
   bearerToken,
@@ -233,6 +234,17 @@ export async function POST(
       );
     }
 
+    const reservationSnapshot = await loadPaidOrderReservation({
+      storeId,
+      reservationId: event.order.reservationId,
+      occurredAt: new Date(event.occurredAt),
+      resolvedItems: resolution.items,
+    });
+    const usableReservation = reservationSnapshot?.valid ? reservationSnapshot : null;
+    const reservationWarning = reservationSnapshot && !reservationSnapshot.valid
+      ? reservationSnapshot.issues.join(" | ")
+      : null;
+
     const existingOrder = await prisma.order.findUnique({
       where: {
         storeId_externalOrderId: {
@@ -269,6 +281,7 @@ export async function POST(
           paymentStatus: "PAID",
           fulfillmentStatus: "UNFULFILLED",
           sourceOrderScope: event.order.scope,
+          checkoutReservationId: usableReservation?.reservationId || null,
           sourceOrderTotal: centsToCurrencyUnits(
             event.order.sourceOrderTotalCents ?? event.order.totalCents,
           ),
@@ -296,23 +309,59 @@ export async function POST(
             },
           },
           items: {
-            create: resolution.items.map((item) => ({
-              productId: item.productId,
-              variantId: item.variantId,
-              titleSnapshot: item.title,
-              variantSnapshot: item.variantSnapshot === null
-                ? undefined
-                : JSON.parse(JSON.stringify(item.variantSnapshot)),
-              sourceSkuIdSnapshot: item.sourceSkuId,
-              sourceUrlSnapshot: item.sourceUrl,
-              quantity: item.quantity,
-              unitPrice: centsToCurrencyUnits(item.unitPriceCents),
-              totalPrice: centsToCurrencyUnits(item.totalPriceCents),
-            })),
+            create: resolution.items.map((item) => {
+              const reserved = item.variantId
+                ? usableReservation?.itemsByCanonicalVariant.get(item.variantId)
+                : null;
+              return {
+                productId: item.productId,
+                variantId: item.variantId,
+                titleSnapshot: item.title,
+                variantSnapshot: item.variantSnapshot === null
+                  ? undefined
+                  : JSON.parse(JSON.stringify(item.variantSnapshot)),
+                sourceSkuIdSnapshot: item.sourceSkuId,
+                sourceUrlSnapshot: item.sourceUrl,
+                quantity: item.quantity,
+                unitPrice: centsToCurrencyUnits(item.unitPriceCents),
+                totalPrice: centsToCurrencyUnits(item.totalPriceCents),
+                fulfillmentSupplierProductId: reserved?.supplierProductId,
+                fulfillmentSupplierVariantId: reserved?.supplierVariantId,
+                fulfillmentProvider: reserved?.provider,
+                fulfillmentSourceProductId: reserved?.sourceProductId,
+                fulfillmentSourceSkuId: reserved?.sourceSkuId,
+                fulfillmentSourceUrl: reserved?.sourceUrl,
+                fulfillmentUnitCost: reserved?.sourceUnitCost ?? undefined,
+                fulfillmentCurrency: reserved?.sourceCurrency,
+                fulfillmentSelectionMethod: reserved ? "CHECKOUT_RESERVATION_V1" : undefined,
+                fulfillmentSelectionEvidence: reserved
+                  ? { source: "checkout_reservation", reservationId: usableReservation!.reservationId }
+                  : undefined,
+                supplierSelectedAt: reserved ? new Date() : undefined,
+              };
+            }),
           },
         },
         select: { id: true },
       });
+
+      if (usableReservation) {
+        const consumed = await tx.inventoryReservation.updateMany({
+          where: {
+            storeId,
+            externalReservationId: usableReservation.reservationId,
+            status: "ACTIVE",
+            consumedOrderId: null,
+          },
+          data: {
+            status: "CONSUMED",
+            consumedOrderId: order.id,
+          },
+        });
+        if (consumed.count !== 1) {
+          throw new Error("Reserva de checkout mudou de estado antes de ser consumida pelo pedido pago.");
+        }
+      }
 
       await tx.integrationEvent.updateMany({
         where: { storeId, externalEventId: event.eventId },
@@ -333,6 +382,8 @@ export async function POST(
         eventId: event.eventId,
         orderId: created.id,
         fulfillmentStatus: "UNFULFILLED",
+        reservationConsumed: Boolean(usableReservation),
+        reservationWarning,
       },
       { status: 201 },
     );
