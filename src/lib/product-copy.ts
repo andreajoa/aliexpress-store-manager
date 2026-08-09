@@ -29,7 +29,7 @@ const auditSchema = z.object({
   reason: z.string(),
 });
 
-type OptimizeInput = {
+export type OptimizeInput = {
   sourceTitle: string;
   sourceDescription: string | null;
   sourceCurrency: string | null;
@@ -204,6 +204,218 @@ function facts(input: OptimizeInput) {
   };
 }
 
+const riskyMarketingTerms =
+  /\b(?:autism|autistic|adhd|anxiety|anti[\s-]?stress|therapy|therapeutic|autismo|autista|tdah|ansiedade|terap[eê]utic[oa]|terapia)\b/gi;
+
+function compactText(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateText(value: string, max: number) {
+  const clean = compactText(value);
+
+  if (clean.length <= max) {
+    return clean;
+  }
+
+  return clean
+    .slice(0, max)
+    .replace(/\s+\S*$/, "")
+    .trim();
+}
+
+function neutralizeRiskyTerms(value: string) {
+  return compactText(
+    value
+      .replace(riskyMarketingTerms, " ")
+      .replace(/\s+([,.;:!?])/g, "$1")
+  );
+}
+
+function scalarText(
+  value: unknown
+): string | null {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    const text = neutralizeRiskyTerms(
+      String(value)
+    );
+
+    return text || null;
+  }
+
+  if (Array.isArray(value)) {
+    const values: string[] = value
+      .map((item) => scalarText(item))
+      .filter(
+        (item): item is string =>
+          Boolean(item)
+      );
+
+    return values.length
+      ? values.join(", ")
+      : null;
+  }
+
+  return null;
+}
+
+function catalogFacts(input: OptimizeInput) {
+  const collected = new Map<
+    string,
+    Set<string>
+  >();
+
+  const addRecord = (value: unknown) => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value)
+    ) {
+      return;
+    }
+
+    for (
+      const [rawKey, rawValue]
+      of Object.entries(
+        value as Record<string, unknown>
+      )
+    ) {
+      const key = neutralizeRiskyTerms(
+        rawKey
+      );
+      const text = scalarText(rawValue);
+
+      if (!key || !text) {
+        continue;
+      }
+
+      const values =
+        collected.get(key) ||
+        new Set<string>();
+
+      values.add(text);
+      collected.set(key, values);
+    }
+  };
+
+  addRecord(input.specifications);
+
+  for (const variant of input.variants) {
+    addRecord(variant.attributes);
+  }
+
+  const result: string[] = [];
+
+  if (input.variants.length > 0) {
+    result.push(
+      `${input.variants.length} ${
+        input.variants.length === 1
+          ? "variação cadastrada"
+          : "variações cadastradas"
+      } no anúncio.`
+    );
+  }
+
+  for (
+    const [key, values]
+    of collected
+  ) {
+    const visibleValues =
+      [...values].slice(0, 6);
+
+    const line = truncateText(
+      `${key}: ${visibleValues.join(", ")}.`,
+      140
+    );
+
+    if (line.length >= 5) {
+      result.push(line);
+    }
+  }
+
+  return result;
+}
+
+export function buildGroundedFallback(
+  input: OptimizeInput
+): ProductCopy {
+  const neutralTitle =
+    truncateText(
+      neutralizeRiskyTerms(
+        input.sourceTitle
+      ),
+      100
+    );
+
+  const optimizedTitle =
+    neutralTitle.length >= 8
+      ? neutralTitle
+      : "Produto do catálogo AliExpress";
+
+  const factualLines =
+    catalogFacts(input);
+
+  const benefits = [
+    ...factualLines,
+    "Opções apresentadas conforme os dados do anúncio original.",
+    "Escolha a variante desejada antes de finalizar o pedido.",
+    "Confira as especificações cadastradas na página do produto.",
+  ]
+    .filter(
+      (value, index, values) =>
+        values.indexOf(value) === index
+    )
+    .slice(0, 5);
+
+  const detail =
+    factualLines.length
+      ? ` ${factualLines
+          .slice(0, 2)
+          .join(" ")}`
+      : "";
+
+  const shortDescription =
+    truncateText(
+      `Informações organizadas a partir dos dados do anúncio original.${detail} Confira as opções e especificações disponíveis antes de escolher a variante.`,
+      500
+    );
+
+  const headline =
+    truncateText(
+      `Confira ${optimizedTitle}`,
+      140
+    );
+
+  const seoTitle =
+    truncateText(
+      optimizedTitle,
+      70
+    );
+
+  const seoDescription =
+    truncateText(
+      shortDescription,
+      170
+    );
+
+  return productCopySchema.parse({
+    optimizedTitle,
+    headline,
+    shortDescription,
+    benefits,
+    cta:
+      "Confira as opções e escolha a variante desejada.",
+    seoTitle,
+    seoDescription,
+  });
+}
+
 async function generate(
   ai: GoogleGenAI,
   model: string,
@@ -232,6 +444,8 @@ POR CONTER ESTAS AFIRMAÇÕES NÃO COMPROVADAS:
 ${JSON.stringify(correction)}
 
 Não repita essas afirmações.
+Se não houver dados suficientes para uma promessa comercial,
+use apenas características literais do catálogo e instruções neutras de escolha.
 `
     : ""
 }
@@ -395,7 +609,9 @@ export async function generateProductCopy(
       review.unsupportedClaims;
   }
 
-  throw new Error(
-    "A IA não conseguiu produzir uma copy totalmente sustentada pelos dados após 3 tentativas."
+  console.warn(
+    "[Gemini audit] 3 tentativas rejeitadas; usando fallback factual determinístico."
   );
+
+  return buildGroundedFallback(input);
 }

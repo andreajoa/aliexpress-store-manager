@@ -29,6 +29,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Product copy grounded fallback
+        run: npm run test:product-copy-fallback
+
       - name: Store compatibility
         run: npm run test:store-compatibility
 
