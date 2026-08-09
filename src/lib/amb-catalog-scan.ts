@@ -1,5 +1,6 @@
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
+import { parseAmbBridgeConfig } from "./amb-bridge-contract";
 import {
   inferAmbBinding,
   normalizeAmbColor,
@@ -8,7 +9,6 @@ import {
   type AmbCatalogProduct,
   type AmbSupplierVariantSnapshot,
 } from "./amb-catalog-detector";
-import { parseAmbBridgeConfig } from "./amb-backend-bridge";
 import { ambExportLineageFromCapabilities } from "./amb-export-lineage";
 import { prisma } from "./prisma";
 
