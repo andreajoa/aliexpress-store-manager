@@ -1,0 +1,211 @@
+name: Fix English USD UI once
+
+on:
+  push:
+    branches:
+      - fix/english-copy-usd-ui
+    paths:
+      - .github/workflows/fix-english-usd-ui-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/english-copy-usd-ui
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Patch English USD UI
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"anchor missing in {path}: {old[:100]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          editor = Path("src/app/products/[id]/product-editor.tsx")
+          text = editor.read_text()
+          text = text.replace(
+              "  productId: string;\n  status: string;\n  optimizedTitle: string;",
+              "  productId: string;\n  status: string;\n  storeCurrency: string;\n  optimizedTitle: string;",
+              1,
+          )
+          text = text.replace(
+              "export function ProductEditor(props: Props) {\n  const router = useRouter();",
+              "export function ProductEditor(props: Props) {\n  const router = useRouter();\n  const storeCurrency =\n    props.storeCurrency.trim().toUpperCase() || \"BRL\";",
+              1,
+          )
+          text = text.replace(
+              "  const [storeCurrency, setStoreCurrency] =\n    useState(\"BRL\");\n  const [currencyLoading, setCurrencyLoading] =\n    useState(true);\n",
+              "",
+              1,
+          )
+          pricing_effect = '''  useEffect(() => {
+            let active = true;
+
+            fetch(
+              `/api/products/${props.productId}/pricing-context`,
+              {
+                cache: "no-store",
+              }
+            )
+              .then(async (response) => {
+                const data = await response.json();
+
+                if (
+                  active &&
+                  response.ok &&
+                  typeof data.storeCurrency === "string"
+                ) {
+                  setStoreCurrency(
+                    data.storeCurrency.toUpperCase()
+                  );
+                }
+              })
+              .catch(() => {})
+              .finally(() => {
+                if (active) setCurrencyLoading(false);
+              });
+
+            return () => {
+              active = false;
+            };
+          }, [props.productId, props.optimizedTitle]);
+
+'''
+          if pricing_effect not in text:
+              raise SystemExit("pricing context effect anchor missing")
+          text = text.replace(pricing_effect, "", 1)
+          text = text.replace(
+              '''            {currencyLoading
+              ? "Carregando moeda..."
+              : `Venda em ${storeCurrency}`}''',
+              '''            {`Venda em ${storeCurrency}`}''',
+              1,
+          )
+          text = text.replace(
+              "            disabled={currencyLoading}\n",
+              "",
+              1,
+          )
+          editor.write_text(text)
+
+          page = Path("src/app/products/[id]/page.tsx")
+          text = page.read_text()
+          text = text.replace(
+              'import { prisma } from "@/lib/prisma";\n',
+              'import { copyLanguageFromVersion } from "@/lib/copy-language";\nimport { prisma } from "@/lib/prisma";\n',
+              1,
+          )
+          text = text.replace(
+              '<OptimizeButton productId={product.id} alreadyOptimized />',
+              '''<OptimizeButton
+                        key={product.aiCopyVersion || "copy-default"}
+                        productId={product.id}
+                        alreadyOptimized
+                        initialLanguage={copyLanguageFromVersion(product.aiCopyVersion)}
+                      />''',
+              1,
+          )
+          text = text.replace(
+              '                  status={product.status}\n                  optimizedTitle={product.optimizedTitle || ""}',
+              '                  status={product.status}\n                  storeCurrency={product.storeCurrency}\n                  optimizedTitle={product.optimizedTitle || ""}',
+              1,
+          )
+          page.write_text(text)
+
+          button = Path("src/app/products/[id]/optimize-button.tsx")
+          text = button.read_text()
+          text = text.replace(
+              '''export function OptimizeButton({
+            productId,
+            alreadyOptimized,
+          }: {
+            productId: string;
+            alreadyOptimized: boolean;
+          }) {''',
+              '''export function OptimizeButton({
+            productId,
+            alreadyOptimized,
+            initialLanguage,
+          }: {
+            productId: string;
+            alreadyOptimized: boolean;
+            initialLanguage: CopyLanguage;
+          }) {''',
+              1,
+          )
+          text = text.replace(
+              '''  const [language, setLanguage] =
+            useState<CopyLanguage>(
+              DEFAULT_COPY_LANGUAGE
+            );''',
+              '''  const [language, setLanguage] =
+            useState<CopyLanguage>(
+              initialLanguage || DEFAULT_COPY_LANGUAGE
+            );''',
+              1,
+          )
+          button.write_text(text)
+
+          smoke = Path("scripts/english-usd-ui-smoke.ts")
+          text = smoke.read_text()
+          text = text.replace(
+              '''assert(copyMarket.includes('case "en"') || copyMarket.includes('language === "en"'), "English deve mapear para USD");
+assert(copyMarket.includes('"USD"'), "Mapeamento de English precisa usar USD");''',
+              '''assert(copyMarket.includes('en: "USD"'), "English deve mapear para USD");''',
+              1,
+          )
+          smoke.write_text(text)
+
+          package = Path("package.json")
+          text = package.read_text()
+          anchor = '"test:web-export-currency": "node --no-warnings --experimental-strip-types scripts/web-export-currency-smoke.ts"'
+          replacement = anchor + ',\n    "test:english-usd-ui": "node --no-warnings --experimental-strip-types scripts/english-usd-ui-smoke.ts"'
+          if anchor not in text:
+              raise SystemExit("package test anchor missing")
+          package.write_text(text.replace(anchor, replacement, 1))
+
+          ci = Path(".github/workflows/publication-engine-ci.yml")
+          text = ci.read_text()
+          anchor = '''      - name: Web export and market currency
+        run: npm run test:web-export-currency
+'''
+          replacement = anchor + '''
+      - name: English copy uses USD immediately
+        run: npm run test:english-usd-ui
+'''
+          if anchor not in text:
+              raise SystemExit("CI anchor missing")
+          ci.write_text(text.replace(anchor, replacement, 1))
+          PY
+
+      - run: npm ci
+      - run: npm run test:english-usd-ui
+      - run: npm run test:web-export-currency
+      - run: npm run lint
+      - run: npm run build
+
+      - name: Commit verified fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm .github/workflows/fix-english-usd-ui-once.yml
+          git add -A
+          git commit -m "fix: show USD immediately for English copy"
+          git push origin HEAD:fix/english-copy-usd-ui
