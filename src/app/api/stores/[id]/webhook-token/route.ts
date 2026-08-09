@@ -8,6 +8,12 @@ import {
 
 export const runtime = "nodejs";
 
+function webhookPath(storeId: string) {
+  return storeId === "amb-boutique-store"
+    ? `/api/stores/${encodeURIComponent(storeId)}/amb/orders/webhook`
+    : `/api/stores/${encodeURIComponent(storeId)}/orders/webhook`;
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -35,7 +41,7 @@ export async function GET(
     enabled: store.webhookEnabled,
     tokenCreatedAt: store.webhookTokenCreatedAt?.toISOString() || null,
     lastSeenAt: store.webhookLastSeenAt?.toISOString() || null,
-    webhookPath: `/api/stores/${encodeURIComponent(store.id)}/orders/webhook`,
+    webhookPath: webhookPath(store.id),
   });
 }
 
@@ -72,7 +78,7 @@ export async function POST(
     token,
     tokenVisibleOnce: true,
     tokenCreatedAt: createdAt.toISOString(),
-    webhookPath: `/api/stores/${encodeURIComponent(store.id)}/orders/webhook`,
+    webhookPath: webhookPath(store.id),
     warning: "Guarde este token como segredo na loja conectada. O Store Manager armazena apenas o hash e não poderá exibi-lo novamente.",
   });
 }
