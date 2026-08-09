@@ -5,7 +5,7 @@ import {
   isCopyLanguage,
 } from "@/lib/copy-language";
 import { prisma } from "@/lib/prisma";
-import { generateProductCopy } from "@/lib/product-copy";
+import { generateQuotaSafeProductCopy } from "@/lib/quota-safe-product-copy";
 
 export const runtime = "nodejs";
 
@@ -102,7 +102,7 @@ export async function POST(
     }
 
     const copy =
-      await generateProductCopy({
+      await generateQuotaSafeProductCopy({
         language:
           requestedLanguage,
 
@@ -175,7 +175,7 @@ export async function POST(
             copy.seoDescription,
 
           aiCopyVersion:
-            `gemini:commerce-copy-v3-audited:${requestedLanguage}`,
+            `gemini:commerce-copy-v3-quota-safe:${requestedLanguage}`,
 
           status:
             "DRAFT",
