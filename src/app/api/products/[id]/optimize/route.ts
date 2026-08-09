@@ -157,64 +157,65 @@ export async function POST(
         ),
       });
 
-    const operations = [
-      prisma.product.update({
-        where: {
-          id: product.id,
-        },
-        data: {
-          optimizedTitle:
-            copy.optimizedTitle,
-          headline:
-            copy.headline,
-          shortDescription:
-            copy.shortDescription,
-          benefits:
-            copy.benefits,
-          cta:
-            copy.cta,
-          seoTitle:
-            copy.seoTitle,
-          seoDescription:
-            copy.seoDescription,
-          recommendedPrice:
-            convertExisting(
-              product.recommendedPrice
-            ),
-          compareAtPrice:
-            convertExisting(
-              product.compareAtPrice
-            ),
-          storeCurrency:
-            targetCurrency,
-          aiCopyVersion:
-            `gemini:commerce-copy-v4-market:${requestedLanguage}:${targetCurrency}`,
-          status: "DRAFT",
-        },
-      }),
-      ...product.variants
-        .filter(
-          (variant) =>
-            variant.salePrice !== null
-        )
-        .map((variant) =>
-          prisma.productVariant.update({
-            where: {
-              id: variant.id,
-            },
-            data: {
-              salePrice:
-                convertExisting(
-                  variant.salePrice
-                ),
-            },
-          })
-        ),
-    ];
-
-    const [updated] =
+    const updated =
       await prisma.$transaction(
-        operations
+        async (tx) => {
+          const saved =
+            await tx.product.update({
+              where: {
+                id: product.id,
+              },
+              data: {
+                optimizedTitle:
+                  copy.optimizedTitle,
+                headline:
+                  copy.headline,
+                shortDescription:
+                  copy.shortDescription,
+                benefits:
+                  copy.benefits,
+                cta:
+                  copy.cta,
+                seoTitle:
+                  copy.seoTitle,
+                seoDescription:
+                  copy.seoDescription,
+                recommendedPrice:
+                  convertExisting(
+                    product.recommendedPrice
+                  ),
+                compareAtPrice:
+                  convertExisting(
+                    product.compareAtPrice
+                  ),
+                storeCurrency:
+                  targetCurrency,
+                aiCopyVersion:
+                  `gemini:commerce-copy-v4-market:${requestedLanguage}:${targetCurrency}`,
+                status: "DRAFT",
+              },
+            });
+
+          for (const variant of product.variants) {
+            if (variant.salePrice === null) {
+              continue;
+            }
+
+            await tx.productVariant.update({
+              where: {
+                id: variant.id,
+              },
+              data: {
+                salePrice:
+                  convertExisting(
+                    variant.salePrice
+                  ),
+              },
+            });
+          }
+
+          return saved;
+        }
       );
 
     return NextResponse.json({
