@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
-type ScanState = {
+export type AmbScanState = {
   lastScannedAt: string | null;
   totalProducts: number;
   mappedProducts: number;
@@ -12,22 +12,18 @@ type ScanState = {
   registeredExports: number;
 };
 
-const emptyState: ScanState = {
-  lastScannedAt: null,
-  totalProducts: 0,
-  mappedProducts: 0,
-  pending: [],
-  removedProducts: [],
-  changedVariants: 0,
-  registeredExports: 0,
-};
-
-export function AmbCatalogPanel({ storeId }: { storeId: string }) {
+export function AmbCatalogPanel({
+  storeId,
+  initialState,
+}: {
+  storeId: string;
+  initialState: AmbScanState;
+}) {
   const [busy, setBusy] = useState(false);
-  const [state, setState] = useState<ScanState>(emptyState);
+  const [state, setState] = useState<AmbScanState>(initialState);
   const [message, setMessage] = useState<string | null>(null);
 
-  const loadStatus = useCallback(async () => {
+  async function loadStatus() {
     const response = await fetch(`/api/stores/${encodeURIComponent(storeId)}/amb/catalog/scan`, {
       cache: "no-store",
     });
@@ -42,13 +38,7 @@ export function AmbCatalogPanel({ storeId }: { storeId: string }) {
       changedVariants: Number(data.changedVariants) || 0,
       registeredExports: Number(data.registeredExports) || 0,
     });
-  }, [storeId]);
-
-  useEffect(() => {
-    loadStatus().catch((error) => {
-      setMessage(error instanceof Error ? error.message : "Status indisponível.");
-    });
-  }, [loadStatus]);
+  }
 
   async function scanNow() {
     setBusy(true);
