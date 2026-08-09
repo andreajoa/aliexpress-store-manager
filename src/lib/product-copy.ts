@@ -1,6 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 
+import {
+  DEFAULT_COPY_LANGUAGE,
+  type CopyLanguage,
+} from "./copy-language.ts";
+
 export const productCopySchema = z.object({
   optimizedTitle: z.string().min(8).max(100),
   headline: z.string().min(8).max(140),
@@ -21,15 +26,12 @@ export type ProductCopy =
 
 const auditSchema = z.object({
   approved: z.boolean(),
-
-  unsupportedClaims: z.array(
-    z.string()
-  ),
-
+  unsupportedClaims: z.array(z.string()),
   reason: z.string(),
 });
 
 export type OptimizeInput = {
+  language?: CopyLanguage;
   sourceTitle: string;
   sourceDescription: string | null;
   sourceCurrency: string | null;
@@ -48,38 +50,17 @@ export type OptimizeInput = {
 const copyResponseSchema = {
   type: "object",
   properties: {
-    optimizedTitle: {
-      type: "string",
-    },
-
-    headline: {
-      type: "string",
-    },
-
-    shortDescription: {
-      type: "string",
-    },
-
+    optimizedTitle: { type: "string" },
+    headline: { type: "string" },
+    shortDescription: { type: "string" },
     benefits: {
       type: "array",
-      items: {
-        type: "string",
-      },
+      items: { type: "string" },
     },
-
-    cta: {
-      type: "string",
-    },
-
-    seoTitle: {
-      type: "string",
-    },
-
-    seoDescription: {
-      type: "string",
-    },
+    cta: { type: "string" },
+    seoTitle: { type: "string" },
+    seoDescription: { type: "string" },
   },
-
   required: [
     "optimizedTitle",
     "headline",
@@ -89,41 +70,167 @@ const copyResponseSchema = {
     "seoTitle",
     "seoDescription",
   ],
-
   additionalProperties: false,
 };
 
 const auditResponseSchema = {
   type: "object",
-
   properties: {
-    approved: {
-      type: "boolean",
-    },
-
+    approved: { type: "boolean" },
     unsupportedClaims: {
       type: "array",
-      items: {
-        type: "string",
-      },
+      items: { type: "string" },
     },
-
-    reason: {
-      type: "string",
-    },
+    reason: { type: "string" },
   },
-
   required: [
     "approved",
     "unsupportedClaims",
     "reason",
   ],
-
   additionalProperties: false,
 };
 
+type LanguageProfile = {
+  name: string;
+  instruction: string;
+  fallbackTitle: string;
+  variantSingle: string;
+  variantPlural: string;
+  listingSuffix: string;
+  optionFact: string;
+  chooseVariant: string;
+  checkSpecs: string;
+  descriptionPrefix: string;
+  descriptionSuffix: string;
+  headlinePrefix: string;
+  cta: string;
+};
+
+const LANGUAGE_PROFILES: Record<
+  CopyLanguage,
+  LanguageProfile
+> = {
+  "pt-BR": {
+    name: "Português do Brasil",
+    instruction:
+      "Escreva todos os campos da copy em português natural do Brasil.",
+    fallbackTitle:
+      "Produto do catálogo AliExpress",
+    variantSingle:
+      "variação cadastrada",
+    variantPlural:
+      "variações cadastradas",
+    listingSuffix:
+      "no anúncio.",
+    optionFact:
+      "Opções apresentadas conforme os dados do anúncio original.",
+    chooseVariant:
+      "Escolha a variante desejada antes de finalizar o pedido.",
+    checkSpecs:
+      "Confira as especificações cadastradas na página do produto.",
+    descriptionPrefix:
+      "Informações organizadas a partir dos dados do anúncio original.",
+    descriptionSuffix:
+      "Confira as opções e especificações disponíveis antes de escolher a variante.",
+    headlinePrefix:
+      "Confira",
+    cta:
+      "Confira as opções e escolha a variante desejada.",
+  },
+  en: {
+    name: "English",
+    instruction:
+      "Write every copy field in natural, commercial English.",
+    fallbackTitle:
+      "AliExpress catalog product",
+    variantSingle:
+      "variant listed",
+    variantPlural:
+      "variants listed",
+    listingSuffix:
+      "in the original listing.",
+    optionFact:
+      "Options are presented according to the original listing data.",
+    chooseVariant:
+      "Choose the desired variant before completing your order.",
+    checkSpecs:
+      "Check the specifications shown on the product page.",
+    descriptionPrefix:
+      "Information organized from the original listing data.",
+    descriptionSuffix:
+      "Check the available options and specifications before choosing a variant.",
+    headlinePrefix:
+      "Discover",
+    cta:
+      "Check the options and choose the variant you want.",
+  },
+  fr: {
+    name: "Français",
+    instruction:
+      "Rédige tous les champs de la copy dans un français naturel et commercial.",
+    fallbackTitle:
+      "Produit du catalogue AliExpress",
+    variantSingle:
+      "variante répertoriée",
+    variantPlural:
+      "variantes répertoriées",
+    listingSuffix:
+      "dans l’annonce d’origine.",
+    optionFact:
+      "Les options sont présentées selon les données de l’annonce d’origine.",
+    chooseVariant:
+      "Choisissez la variante souhaitée avant de finaliser votre commande.",
+    checkSpecs:
+      "Consultez les caractéristiques indiquées sur la page du produit.",
+    descriptionPrefix:
+      "Informations organisées à partir des données de l’annonce d’origine.",
+    descriptionSuffix:
+      "Consultez les options et caractéristiques disponibles avant de choisir une variante.",
+    headlinePrefix:
+      "Découvrez",
+    cta:
+      "Consultez les options et choisissez la variante souhaitée.",
+  },
+  de: {
+    name: "Deutsch",
+    instruction:
+      "Schreibe alle Copy-Felder in natürlichem, verkaufsorientiertem Deutsch.",
+    fallbackTitle:
+      "Produkt aus dem AliExpress-Katalog",
+    variantSingle:
+      "Variante aufgeführt",
+    variantPlural:
+      "Varianten aufgeführt",
+    listingSuffix:
+      "im ursprünglichen Angebot.",
+    optionFact:
+      "Die Optionen entsprechen den Daten des ursprünglichen Angebots.",
+    chooseVariant:
+      "Wähle die gewünschte Variante vor Abschluss der Bestellung.",
+    checkSpecs:
+      "Prüfe die auf der Produktseite angegebenen Spezifikationen.",
+    descriptionPrefix:
+      "Informationen auf Grundlage der Daten des ursprünglichen Angebots.",
+    descriptionSuffix:
+      "Prüfe die verfügbaren Optionen und Spezifikationen, bevor du eine Variante auswählst.",
+    headlinePrefix:
+      "Entdecke",
+    cta:
+      "Prüfe die Optionen und wähle die gewünschte Variante.",
+  },
+};
+
+function languageOf(input: OptimizeInput) {
+  return input.language || DEFAULT_COPY_LANGUAGE;
+}
+
+function profileOf(input: OptimizeInput) {
+  return LANGUAGE_PROFILES[languageOf(input)];
+}
+
 const SYSTEM = `
-Você escreve páginas comerciais de produtos para uma loja brasileira.
+Você escreve páginas comerciais de produtos para uma loja online.
 
 REGRA PRINCIPAL:
 Você só pode afirmar aquilo que esteja comprovado pelos dados fornecidos.
@@ -160,52 +267,42 @@ A copy deve ser:
 - natural;
 - clara;
 - comercial;
-- em português do Brasil;
 - sem tradução robótica;
 - sem urgência falsa;
 - sem exageros.
 
+O idioma solicitado é obrigatório para todos os campos da resposta.
 Use princípios de clareza de oferta e resposta direta,
 sem imitar a voz ou frases de nenhum autor específico.
 `;
 
 function facts(input: OptimizeInput) {
   return {
+    outputLanguage:
+      profileOf(input).name,
     title: input.sourceTitle,
     description: input.sourceDescription,
-
-    currency:
-      input.sourceCurrency,
-
+    currency: input.sourceCurrency,
     priceRange: {
       min: input.costMin,
       max: input.costMax,
     },
-
     specifications:
       input.specifications,
-
     variants:
       input.variants.map(
         (variant) => ({
-          sku:
-            variant.sourceSkuId,
-
-          attributes:
-            variant.attributes,
-
-          cost:
-            variant.costPrice,
-
-          stock:
-            variant.stock,
+          sku: variant.sourceSkuId,
+          attributes: variant.attributes,
+          cost: variant.costPrice,
+          stock: variant.stock,
         })
       ),
   };
 }
 
 const riskyMarketingTerms =
-  /\b(?:autism|autistic|adhd|anxiety|anti[\s-]?stress|therapy|therapeutic|autismo|autista|tdah|ansiedade|terap[eê]utic[oa]|terapia)\b/gi;
+  /\b(?:autism|autistic|adhd|anxiety|anti[\s-]?stress|therapy|therapeutic|autismo|autista|tdah|ansiedade|terap[eê]utic[oa]|terapia|autisme|autiste|anxi[eé]t[eé]|th[eé]rapie|therapeutique|therapeutisch|therapie)\b/gi;
 
 function compactText(value: string) {
   return value
@@ -213,7 +310,10 @@ function compactText(value: string) {
     .trim();
 }
 
-function truncateText(value: string, max: number) {
+function truncateText(
+  value: string,
+  max: number
+) {
   const clean = compactText(value);
 
   if (clean.length <= max) {
@@ -226,7 +326,9 @@ function truncateText(value: string, max: number) {
     .trim();
 }
 
-function neutralizeRiskyTerms(value: string) {
+function neutralizeRiskyTerms(
+  value: string
+) {
   return compactText(
     value
       .replace(riskyMarketingTerms, " ")
@@ -266,6 +368,7 @@ function scalarText(
 }
 
 function catalogFacts(input: OptimizeInput) {
+  const profile = profileOf(input);
   const collected = new Map<
     string,
     Set<string>
@@ -316,9 +419,9 @@ function catalogFacts(input: OptimizeInput) {
     result.push(
       `${input.variants.length} ${
         input.variants.length === 1
-          ? "variação cadastrada"
-          : "variações cadastradas"
-      } no anúncio.`
+          ? profile.variantSingle
+          : profile.variantPlural
+      } ${profile.listingSuffix}`
     );
   }
 
@@ -345,27 +448,29 @@ function catalogFacts(input: OptimizeInput) {
 export function buildGroundedFallback(
   input: OptimizeInput
 ): ProductCopy {
-  const neutralTitle =
-    truncateText(
-      neutralizeRiskyTerms(
-        input.sourceTitle
-      ),
-      100
-    );
+  const profile = profileOf(input);
+  const language = languageOf(input);
+  const neutralTitle = truncateText(
+    neutralizeRiskyTerms(
+      input.sourceTitle
+    ),
+    100
+  );
 
   const optimizedTitle =
+    language === "pt-BR" &&
     neutralTitle.length >= 8
       ? neutralTitle
-      : "Produto do catálogo AliExpress";
+      : profile.fallbackTitle;
 
   const factualLines =
     catalogFacts(input);
 
   const benefits = [
     ...factualLines,
-    "Opções apresentadas conforme os dados do anúncio original.",
-    "Escolha a variante desejada antes de finalizar o pedido.",
-    "Confira as especificações cadastradas na página do produto.",
+    profile.optionFact,
+    profile.chooseVariant,
+    profile.checkSpecs,
   ]
     .filter(
       (value, index, values) =>
@@ -382,13 +487,13 @@ export function buildGroundedFallback(
 
   const shortDescription =
     truncateText(
-      `Informações organizadas a partir dos dados do anúncio original.${detail} Confira as opções e especificações disponíveis antes de escolher a variante.`,
+      `${profile.descriptionPrefix}${detail} ${profile.descriptionSuffix}`,
       500
     );
 
   const headline =
     truncateText(
-      `Confira ${optimizedTitle}`,
+      `${profile.headlinePrefix} ${optimizedTitle}`,
       140
     );
 
@@ -409,8 +514,7 @@ export function buildGroundedFallback(
     headline,
     shortDescription,
     benefits,
-    cta:
-      "Confira as opções e escolha a variante desejada.",
+    cta: profile.cta,
     seoTitle,
     seoDescription,
   });
@@ -422,11 +526,16 @@ async function generate(
   input: OptimizeInput,
   correction?: string[]
 ) {
+  const profile = profileOf(input);
+
   const response =
     await ai.models.generateContent({
       model,
-
       contents: `
+IDIOMA OBRIGATÓRIO DA COPY:
+${profile.name}
+${profile.instruction}
+
 DADOS FACTUAIS:
 
 ${JSON.stringify(
@@ -450,16 +559,13 @@ use apenas características literais do catálogo e instruções neutras de esco
     : ""
 }
 
-Crie a apresentação comercial.
+Crie a apresentação comercial inteira no idioma solicitado.
 `,
-
       config: {
         systemInstruction: SYSTEM,
         temperature: 0.25,
-
         responseMimeType:
           "application/json",
-
         responseSchema:
           copyResponseSchema,
       },
@@ -482,14 +588,17 @@ async function audit(
   input: OptimizeInput,
   copy: ProductCopy
 ) {
+  const profile = profileOf(input);
+
   const response =
     await ai.models.generateContent({
       model,
-
       contents: `
 Atue como auditor factual extremamente rigoroso.
 
 Compare a COPY com os DADOS ORIGINAIS.
+O idioma obrigatório da copy é: ${profile.name}.
+Marque approved=false se os campos comerciais não estiverem nesse idioma.
 
 DADOS ORIGINAIS:
 
@@ -527,13 +636,10 @@ Exemplos que devem ser rejeitados quando não comprovados:
 
 Se houver dúvida, rejeite.
 `,
-
       config: {
         temperature: 0,
-
         responseMimeType:
           "application/json",
-
         responseSchema:
           auditResponseSchema,
       },
@@ -562,10 +668,9 @@ export async function generateProductCopy(
     );
   }
 
-  const ai =
-    new GoogleGenAI({
-      apiKey,
-    });
+  const ai = new GoogleGenAI({
+    apiKey,
+  });
 
   const model =
     process.env.GEMINI_MODEL ||
@@ -580,21 +685,19 @@ export async function generateProductCopy(
     attempt <= 3;
     attempt++
   ) {
-    const copy =
-      await generate(
-        ai,
-        model,
-        input,
-        forbidden
-      );
+    const copy = await generate(
+      ai,
+      model,
+      input,
+      forbidden
+    );
 
-    const review =
-      await audit(
-        ai,
-        model,
-        input,
-        copy
-      );
+    const review = await audit(
+      ai,
+      model,
+      input,
+      copy
+    );
 
     if (review.approved) {
       return copy;
