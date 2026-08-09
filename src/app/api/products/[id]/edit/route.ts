@@ -9,21 +9,15 @@ const schema = z.object({
   optimizedTitle: z.string().trim().min(3).max(150),
   headline: z.string().trim().min(3).max(250),
   shortDescription: z.string().trim().min(10).max(2000),
-
   benefits: z
     .array(z.string().trim().min(2).max(300))
     .min(1)
     .max(10),
-
   cta: z.string().trim().min(2).max(150),
-
   seoTitle: z.string().trim().min(3).max(100),
   seoDescription: z.string().trim().min(10).max(300),
-
   compareAtPrice: z.string().optional().default(""),
-
   selectedImageIds: z.array(z.string()).min(1),
-
   variantPrices: z.array(
     z.object({
       id: z.string(),
@@ -35,7 +29,7 @@ const schema = z.object({
 function parseMoney(value: string): number | null {
   let text = value
     .trim()
-    .replace(/[R$\s]/g, "");
+    .replace(/[^0-9,.-]/g, "");
 
   if (!text) return null;
 
@@ -71,25 +65,22 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-
     const parsed = schema.safeParse(
       await request.json()
     );
 
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Revise os campos informados.",
-          details: parsed.error.flatten(),
-        },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        ok: false,
+        error: "Revise os campos informados.",
+        details: parsed.error.flatten(),
+      }, {
+        status: 400,
+      });
     }
 
     const product = await prisma.product.findUnique({
       where: { id },
-
       include: {
         images: true,
         variants: true,
@@ -97,13 +88,12 @@ export async function PATCH(
     });
 
     if (!product) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Produto não encontrado.",
-        },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        ok: false,
+        error: "Produto não encontrado.",
+      }, {
+        status: 404,
+      });
     }
 
     const imageIds = new Set(
@@ -112,21 +102,19 @@ export async function PATCH(
 
     for (const imageId of parsed.data.selectedImageIds) {
       if (!imageIds.has(imageId)) {
-        return NextResponse.json(
-          {
-            ok: false,
-            error:
-              "Uma das imagens selecionadas não pertence a este produto.",
-          },
-          { status: 400 }
-        );
+        return NextResponse.json({
+          ok: false,
+          error:
+            "Uma das imagens selecionadas não pertence a este produto.",
+        }, {
+          status: 400,
+        });
       }
     }
 
     const variantIds = new Set(
       product.variants.map((variant) => variant.id)
     );
-
     const prices = parsed.data.variantPrices.map(
       (item) => {
         if (!variantIds.has(item.id)) {
@@ -141,18 +129,16 @@ export async function PATCH(
         };
       }
     );
-
     const numericPrices = prices
       .map((item) => item.salePrice)
       .filter(
-        (value): value is number => value !== null
+        (value): value is number =>
+          value !== null
       );
-
     const lowestPrice =
       numericPrices.length > 0
         ? Math.min(...numericPrices)
         : null;
-
     const compareAtPrice = parseMoney(
       parsed.data.compareAtPrice
     );
@@ -160,73 +146,53 @@ export async function PATCH(
     await prisma.$transaction([
       prisma.product.update({
         where: { id },
-
         data: {
           optimizedTitle:
             parsed.data.optimizedTitle,
-
           headline:
             parsed.data.headline,
-
           shortDescription:
             parsed.data.shortDescription,
-
           benefits:
             parsed.data.benefits,
-
           cta:
             parsed.data.cta,
-
           seoTitle:
             parsed.data.seoTitle,
-
           seoDescription:
             parsed.data.seoDescription,
-
           recommendedPrice:
             lowestPrice,
-
           compareAtPrice,
-
-          storeCurrency: "BRL",
-
           status: "DRAFT",
         },
       }),
-
       prisma.productImage.updateMany({
         where: {
           productId: id,
         },
-
         data: {
           selected: false,
         },
       }),
-
       prisma.productImage.updateMany({
         where: {
           productId: id,
-
           id: {
             in: parsed.data.selectedImageIds,
           },
         },
-
         data: {
           selected: true,
         },
       }),
-
       ...prices.map((item) =>
         prisma.productVariant.update({
           where: {
             id: item.id,
           },
-
           data: {
-            salePrice:
-              item.salePrice,
+            salePrice: item.salePrice,
           },
         })
       ),
@@ -235,6 +201,8 @@ export async function PATCH(
     return NextResponse.json({
       ok: true,
       status: "DRAFT",
+      storeCurrency:
+        product.storeCurrency,
       recommendedPrice:
         lowestPrice,
     });
@@ -244,15 +212,14 @@ export async function PATCH(
       error
     );
 
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível salvar o produto.",
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar o produto.",
+    }, {
+      status: 500,
+    });
   }
 }
