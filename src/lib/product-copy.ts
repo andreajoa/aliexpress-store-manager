@@ -234,7 +234,9 @@ function neutralizeRiskyTerms(value: string) {
   );
 }
 
-function scalarText(value: unknown) {
+function scalarText(
+  value: unknown
+): string | null {
   if (
     typeof value === "string" ||
     typeof value === "number" ||
@@ -248,7 +250,7 @@ function scalarText(value: unknown) {
   }
 
   if (Array.isArray(value)) {
-    const values = value
+    const values: string[] = value
       .map((item) => scalarText(item))
       .filter(
         (item): item is string =>
