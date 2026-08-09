@@ -38,6 +38,9 @@ jobs:
       - name: Web export and market currency
         run: npm run test:web-export-currency
 
+      - name: AMB backend bridge
+        run: npm run test:amb-backend-bridge
+
       - name: Store compatibility
         run: npm run test:store-compatibility
 
