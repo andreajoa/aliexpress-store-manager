@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { AmbCatalogPanel } from "./amb-catalog-panel";
+import { AmbCatalogPanel, type AmbScanState } from "./amb-catalog-panel";
 import { StoreForm } from "./store-form";
 import { VerifyStoreButton } from "./verify-store-button";
 import { StoreCompatibilityPanel } from "./store-compatibility-panel";
@@ -8,6 +8,29 @@ import { StoreWebhookPanel } from "./store-webhook-panel";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function ambScanState(value: unknown): AmbScanState {
+  const capabilities = record(value);
+  const scan = record(capabilities.ambCatalogScan);
+  const bridge = record(capabilities.ambBridge);
+  const products = record(bridge.products);
+  const lineage = record(capabilities.ambExportLineage);
+  return {
+    lastScannedAt: typeof scan.lastScannedAt === "string" ? scan.lastScannedAt : null,
+    totalProducts: Number(scan.totalProducts) || 0,
+    mappedProducts: Object.keys(products).length,
+    pending: Array.isArray(scan.pending) ? scan.pending : [],
+    removedProducts: Array.isArray(scan.removedProducts) ? scan.removedProducts : [],
+    changedVariants: Number(scan.changedVariants) || 0,
+    registeredExports: Array.isArray(lineage.exports) ? lineage.exports.length : 0,
+  };
+}
 
 function statusLabel(status: string) {
   if (status === "ACTIVE") return "Conectada";
@@ -160,7 +183,10 @@ export default async function StoresPage() {
                     <StoreCompatibilityPanel store={store} />
 
                     {store.id === "amb-boutique-store" && (
-                      <AmbCatalogPanel storeId={store.id} />
+                      <AmbCatalogPanel
+                        storeId={store.id}
+                        initialState={ambScanState(store.connectorCapabilities)}
+                      />
                     )}
 
                     <StoreWebhookPanel
