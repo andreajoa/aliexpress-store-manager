@@ -3,6 +3,7 @@ import {
   productCopySchema,
   type OptimizeInput,
 } from "../src/lib/product-copy.ts";
+import type { CopyLanguage } from "../src/lib/copy-language.ts";
 
 function assert(
   condition: unknown,
@@ -13,7 +14,10 @@ function assert(
   }
 }
 
-const input: OptimizeInput = {
+const baseInput: Omit<
+  OptimizeInput,
+  "language"
+> = {
   sourceTitle:
     "Magnetic Autism ADHD Anti-Stress Sensory Toy Purple 6 Pieces",
   sourceDescription: null,
@@ -46,52 +50,100 @@ const input: OptimizeInput = {
   ],
 };
 
-const copy =
-  buildGroundedFallback(input);
+const expectedLanguageMarkers: Record<
+  CopyLanguage,
+  string[]
+> = {
+  "pt-BR": [
+    "opções",
+    "variante",
+  ],
+  en: [
+    "options",
+    "variant",
+  ],
+  fr: [
+    "options",
+    "variante",
+  ],
+  de: [
+    "optionen",
+    "variante",
+  ],
+};
 
-productCopySchema.parse(copy);
+for (
+  const language of [
+    "pt-BR",
+    "en",
+    "fr",
+    "de",
+  ] as const
+) {
+  const input: OptimizeInput = {
+    ...baseInput,
+    language,
+  };
 
-const serialized =
-  JSON.stringify(copy).toLowerCase();
+  const copy =
+    buildGroundedFallback(input);
 
-for (const forbidden of [
-  "autism",
-  "adhd",
-  "anti-stress",
-  "ansiedade",
-  "terapêutico",
-]) {
+  productCopySchema.parse(copy);
+
+  const serialized =
+    JSON.stringify(copy).toLowerCase();
+
+  for (const forbidden of [
+    "autism",
+    "adhd",
+    "anti-stress",
+    "ansiedade",
+    "terapêutico",
+    "autisme",
+    "therapie",
+  ]) {
+    assert(
+      !serialized.includes(forbidden),
+      `fallback ${language} manteve termo de risco: ${forbidden}`
+    );
+  }
+
   assert(
-    !serialized.includes(forbidden),
-    `fallback manteve termo de risco: ${forbidden}`
+    serialized.includes("purple") &&
+      serialized.includes("blue"),
+    `fallback ${language} deveria preservar atributos factuais de cor`
+  );
+
+  assert(
+    serialized.includes("6"),
+    `fallback ${language} deveria preservar quantidade factual`
+  );
+
+  assert(
+    copy.benefits.length >= 3,
+    `fallback ${language} precisa satisfazer o contrato mínimo de benefits`
+  );
+
+  for (
+    const marker of
+    expectedLanguageMarkers[language]
+  ) {
+    assert(
+      serialized.includes(marker),
+      `fallback ${language} não contém marcador esperado: ${marker}`
+    );
+  }
+
+  const second =
+    buildGroundedFallback(input);
+
+  assert(
+    JSON.stringify(copy) ===
+      JSON.stringify(second),
+    `fallback ${language} precisa ser determinístico`
   );
 }
 
-assert(
-  serialized.includes("purple") &&
-    serialized.includes("blue"),
-  "fallback deveria preservar atributos factuais de cor"
-);
-
-assert(
-  serialized.includes("6"),
-  "fallback deveria preservar quantidade factual"
-);
-
-assert(
-  copy.benefits.length >= 3,
-  "fallback precisa satisfazer o contrato mínimo de benefits"
-);
-
-const second =
-  buildGroundedFallback(input);
-
-assert(
-  JSON.stringify(copy) ===
-    JSON.stringify(second),
-  "fallback precisa ser determinístico"
-);
-
 console.log(
-  "PRODUCT COPY GROUNDED FALLBACK: PASS"
+  "PRODUCT COPY MULTILINGUAL GROUNDED FALLBACK: PASS"
 );
