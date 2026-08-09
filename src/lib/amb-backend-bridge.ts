@@ -1,5 +1,9 @@
-import { synchronizeOfficialAliExpressSkus } from "./aliexpress-sku-sync";
 import { placeAliExpressBatchOrder, quoteAliExpressBatch } from "./aliexpress-fulfillment";
+import {
+  chooseAliExpressFreight,
+  parseAmbBridgeConfig,
+} from "./amb-bridge-contract";
+import { synchronizeOfficialAliExpressSkus } from "./aliexpress-sku-sync";
 import { prepareOrderFulfillment } from "./order-fulfillment-service";
 import { prisma } from "./prisma";
 import { refreshSupplier, syncCanonicalAvailability } from "./supplier-refresh-service";
@@ -25,39 +29,6 @@ function normalized(value: unknown) {
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();
-}
-
-export type AmbProductBinding = {
-  sourceProductId: string;
-  color: string;
-};
-
-export type AmbBridgeConfig = {
-  version: number;
-  mode: string;
-  products: Record<string, AmbProductBinding>;
-};
-
-export function parseAmbBridgeConfig(value: unknown): AmbBridgeConfig | null {
-  const root = record(value);
-  const bridge = record(root.ambBridge);
-  const products = record(bridge.products);
-  if (Number(bridge.version) !== 1 || Object.keys(products).length === 0) return null;
-
-  const parsed: Record<string, AmbProductBinding> = {};
-  for (const [slug, raw] of Object.entries(products)) {
-    const binding = record(raw);
-    const sourceProductId = text(binding.sourceProductId);
-    const color = text(binding.color);
-    if (!slug.trim() || !sourceProductId || !color) continue;
-    parsed[slug] = { sourceProductId, color };
-  }
-  if (Object.keys(parsed).length === 0) return null;
-  return {
-    version: 1,
-    mode: text(bridge.mode) || "backend-only",
-    products: parsed,
-  };
 }
 
 export type AmbStripeProduct = {
@@ -188,28 +159,6 @@ export async function loadAmbStripeSession(sessionId: string): Promise<AmbStripe
     metadata: stringMetadata(session.metadata),
     lines,
   };
-}
-
-export type AliExpressFreightChoice = {
-  serviceName: string;
-  amount: number | null;
-  estimatedDeliveryTime: string | null;
-};
-
-export function chooseAliExpressFreight<T extends AliExpressFreightChoice>(
-  quotes: T[],
-  preferred = process.env.ALIEXPRESS_PREFERRED_LOGISTICS?.trim() || "AliExpress Standard Shipping",
-): T | null {
-  if (quotes.length === 0) return null;
-  const exact = quotes.find((quote) => normalized(quote.serviceName) === normalized(preferred));
-  if (exact) return exact;
-  const standard = quotes.find((quote) => normalized(quote.serviceName).includes("aliexpress standard"));
-  if (standard) return standard;
-  return [...quotes].sort((a, b) => {
-    const amountA = a.amount == null ? Number.POSITIVE_INFINITY : a.amount;
-    const amountB = b.amount == null ? Number.POSITIVE_INFINITY : b.amount;
-    return amountA - amountB || a.serviceName.localeCompare(b.serviceName);
-  })[0] || null;
 }
 
 function cents(value: number) {
@@ -374,7 +323,10 @@ async function autoCreateAliExpressUnpaidOrders(orderId: string, countryCode: st
         throw new Error(skuSync.issues.join(" | ") || "SKU oficial exige revisão manual.");
       }
       const quote = await quoteAliExpressBatch(orderId, batch.id);
-      const selected = chooseAliExpressFreight(quote.quotes);
+      const selected = chooseAliExpressFreight(
+        quote.quotes,
+        process.env.ALIEXPRESS_PREFERRED_LOGISTICS?.trim() || "AliExpress Standard Shipping",
+      );
       if (!selected) throw new Error("AliExpress não retornou frete utilizável.");
       const placed = await placeAliExpressBatchOrder({
         orderId,
@@ -460,11 +412,15 @@ export async function ambInventorySnapshot(storeId: string) {
       slug,
       sourceProductId: binding.sourceProductId,
       supplierColor: binding.color,
-      stock: variants.reduce((sum, variant) => sum + Math.max(0, variant.stock), 0),
-      available: variants.some((variant) => variant.available && variant.stock > 0),
+      stock: variants.reduce((sum, variant) => sum + Math.max(0, variant.stock || 0), 0),
+      available: variants.some((variant) => variant.available && (variant.stock || 0) > 0),
       sizes: variants.map((variant) => {
         const attributes = record(variant.attributes);
-        return { size: text(attributes.Size), stock: Math.max(0, variant.stock), available: variant.available };
+        return {
+          size: text(attributes.Size),
+          stock: Math.max(0, variant.stock || 0),
+          available: variant.available,
+        };
       }).filter((variant) => variant.size),
     };
   });
