@@ -78,6 +78,14 @@ const editRoute = readFileSync(
   "src/app/api/products/[id]/edit/route.ts",
   "utf8"
 );
+const optimizeRoute = readFileSync(
+  "src/app/api/products/[id]/optimize/route.ts",
+  "utf8"
+);
+const pricingContextRoute = readFileSync(
+  "src/app/api/products/[id]/pricing-context/route.ts",
+  "utf8"
+);
 const productEditor = readFileSync(
   "src/app/products/[id]/product-editor.tsx",
   "utf8"
@@ -106,8 +114,18 @@ assert(
   "salvar edição não pode forçar BRL"
 );
 assert(
-  productEditor.includes("props.storeCurrency"),
-  "editor de preços deve respeitar storeCurrency"
+  optimizeRoute.includes(
+    "storeCurrencyForCopyLanguage"
+  ) &&
+    optimizeRoute.includes("fetchFxRate") &&
+    optimizeRoute.includes("targetCurrency"),
+  "otimização deve mapear idioma para moeda e converter preços"
+);
+assert(
+  pricingContextRoute.includes("storeCurrency") &&
+    productEditor.includes("pricing-context") &&
+    productEditor.includes("Venda {storeCurrency}"),
+  "editor deve carregar e exibir a moeda real do produto"
 );
 assert(
   !productEditor.includes("Venda BRL"),
