@@ -60,18 +60,44 @@ export async function synchronizeOfficialAliExpressSkus(input: {
     }
     pairs = input.manualMappings;
   } else {
-    if (!report.readyForAutomaticConfirmation) {
-      return {
-        ready: false,
-        written: false,
-        official,
-        report,
-        issues: ["Correspondência de variantes exige revisão manual antes de habilitar compra automática."],
-      };
+    const exactBySourceSku = new Map<string, typeof official.skus[number]>();
+    for (const sku of official.skus) {
+      for (const key of [sku.sourceSkuId, sku.orderSkuAttr]) {
+        const normalized = key.trim();
+        if (!normalized || exactBySourceSku.has(normalized)) continue;
+        exactBySourceSku.set(normalized, sku);
+      }
     }
-    pairs = report.suggestions.flatMap((suggestion) => suggestion.selected
-      ? [{ supplierVariantId: suggestion.canonicalVariantId, orderSkuAttr: suggestion.selected.supplierVariantId }]
-      : []);
+
+    const exactPairs = canonicalVariants.flatMap((variant) => {
+      const sourceSkuId = variant.sourceSkuId?.trim();
+      if (!sourceSkuId) return [];
+      const exact = exactBySourceSku.get(sourceSkuId);
+      return exact
+        ? [{ supplierVariantId: variant.id, orderSkuAttr: exact.orderSkuAttr }]
+        : [];
+    });
+    const exactOrderAttrs = new Set(exactPairs.map((pair) => pair.orderSkuAttr));
+    const exactReady =
+      exactPairs.length === canonicalVariants.length &&
+      exactOrderAttrs.size === exactPairs.length;
+
+    if (exactReady) {
+      pairs = exactPairs;
+    } else {
+      if (!report.readyForAutomaticConfirmation) {
+        return {
+          ready: false,
+          written: false,
+          official,
+          report,
+          issues: ["Correspondência de variantes exige revisão manual antes de habilitar compra automática."],
+        };
+      }
+      pairs = report.suggestions.flatMap((suggestion) => suggestion.selected
+        ? [{ supplierVariantId: suggestion.canonicalVariantId, orderSkuAttr: suggestion.selected.supplierVariantId }]
+        : []);
+    }
   }
 
   const officialByAttr = new Map(official.skus.map((sku) => [sku.orderSkuAttr, sku]));

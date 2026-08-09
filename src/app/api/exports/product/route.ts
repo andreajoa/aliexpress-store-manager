@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { recordAmbProductExport } from "@/lib/amb-export-lineage";
 import { prisma } from "@/lib/prisma";
 import { buildProductWebExport } from "@/lib/web-export-package";
 import {
@@ -90,6 +91,17 @@ export async function POST(request: Request) {
       publication,
     });
     const zip = buildZipArchive(exported.entries);
+
+    if (store.id === "amb-boutique-store") {
+      await recordAmbProductExport({
+        storeId: store.id,
+        productId: product.id,
+        sourceProductId: product.sourceProductId,
+        sourceUrl: product.sourceUrl,
+        variants: product.variants,
+      });
+    }
+
     const filename =
       `${safeExportName(store.name)}-${safeExportName(
         product.optimizedTitle || product.sourceTitle

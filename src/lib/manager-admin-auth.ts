@@ -8,7 +8,7 @@ function safeEqual(a: string, b: string) {
   const right = new TextEncoder().encode(b);
   const max = Math.max(left.length, right.length);
   let diff = left.length ^ right.length;
-  for (let index = 0; index < max; index += 1) {
+  for (let index = 0; index < max; index++) {
     diff |= (left[index] || 0) ^ (right[index] || 0);
   }
   return diff === 0;
@@ -54,6 +54,7 @@ export function isPublicManagerPath(pathname: string) {
   if (pathname === "/api/aliexpress/oauth/callback") return true;
   if (pathname === "/api/cron/maintenance") return true;
   if (/^\/api\/stores\/[^/]+\/orders\/webhook\/?$/.test(pathname)) return true;
+  if (/^\/api\/stores\/[^/]+\/amb\/orders\/webhook\/?$/.test(pathname)) return true;
   if (/^\/api\/stores\/[^/]+\/inventory\/reservations\/?$/.test(pathname)) return true;
   if (pathname.startsWith("/_next/static/") || pathname.startsWith("/_next/image/")) return true;
   if (pathname === "/favicon.ico" || pathname === "/robots.txt") return true;
