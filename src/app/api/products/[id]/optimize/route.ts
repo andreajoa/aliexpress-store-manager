@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 
+import {
+  DEFAULT_COPY_LANGUAGE,
+  isCopyLanguage,
+} from "@/lib/copy-language";
 import { prisma } from "@/lib/prisma";
 import { generateProductCopy } from "@/lib/product-copy";
 
 export const runtime = "nodejs";
 
 export async function POST(
-  _request: Request,
+  request: Request,
 
   context: {
     params:
@@ -18,6 +22,32 @@ export async function POST(
   try {
     const { id } =
       await context.params;
+
+    const body = await request
+      .json()
+      .catch(() => ({}));
+
+    const requestedLanguage =
+      body &&
+      typeof body === "object" &&
+      "language" in body
+        ? (body as {
+            language?: unknown;
+          }).language
+        : DEFAULT_COPY_LANGUAGE;
+
+    if (!isCopyLanguage(requestedLanguage)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Idioma de copy inválido. Escolha Português (Brasil), English, Français ou Deutsch.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
     const product =
       await prisma.product.findUnique({
@@ -73,6 +103,9 @@ export async function POST(
 
     const copy =
       await generateProductCopy({
+        language:
+          requestedLanguage,
+
         sourceTitle:
           product.sourceTitle,
 
@@ -142,7 +175,7 @@ export async function POST(
             copy.seoDescription,
 
           aiCopyVersion:
-            "gemini:commerce-copy-v2-audited",
+            `gemini:commerce-copy-v3-audited:${requestedLanguage}`,
 
           status:
             "DRAFT",
@@ -151,6 +184,8 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
+      language:
+        requestedLanguage,
 
       copy: {
         optimizedTitle:
