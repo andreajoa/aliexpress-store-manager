@@ -180,22 +180,26 @@ export function ProductEditor(props: Props) {
     useState("");
 
   useEffect(() => {
-    setOptimizedTitle(props.optimizedTitle);
-    setHeadline(props.headline);
-    setShortDescription(props.shortDescription);
-    setBenefits(props.benefits.join("\n"));
-    setCta(props.cta);
-    setSeoTitle(props.seoTitle);
-    setSeoDescription(props.seoDescription);
-    setCompareAtPrice(props.compareAtPrice || "");
-    setPrices(initialPrices(props.variants));
-    setSelectedImages(
-      new Set(
-        props.images
-          .filter((image) => image.selected)
-          .map((image) => image.id)
-      )
-    );
+    const timer = window.setTimeout(() => {
+      setOptimizedTitle(props.optimizedTitle);
+      setHeadline(props.headline);
+      setShortDescription(props.shortDescription);
+      setBenefits(props.benefits.join("\n"));
+      setCta(props.cta);
+      setSeoTitle(props.seoTitle);
+      setSeoDescription(props.seoDescription);
+      setCompareAtPrice(props.compareAtPrice || "");
+      setPrices(initialPrices(props.variants));
+      setSelectedImages(
+        new Set(
+          props.images
+            .filter((image) => image.selected)
+            .map((image) => image.id)
+        )
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [
     props.optimizedTitle,
     props.headline,
@@ -211,7 +215,6 @@ export function ProductEditor(props: Props) {
 
   useEffect(() => {
     let active = true;
-    setCurrencyLoading(true);
 
     fetch(
       `/api/products/${props.productId}/pricing-context`,
@@ -244,8 +247,6 @@ export function ProductEditor(props: Props) {
 
   useEffect(() => {
     let active = true;
-    setFxRate(null);
-    setFxDate(null);
 
     fetch(
       `/api/fx/rate?from=USD&to=${encodeURIComponent(
