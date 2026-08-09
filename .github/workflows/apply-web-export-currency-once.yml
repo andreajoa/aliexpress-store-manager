@@ -1,0 +1,387 @@
+name: Apply web export and currency wiring once
+
+on:
+  push:
+    branches:
+      - agent/web-export-and-market-currency
+    paths:
+      - .github/workflows/apply-web-export-currency-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/web-export-and-market-currency
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Patch existing UI and CI files
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text()
+
+          def write(path, text):
+              Path(path).write_text(text)
+
+          def replace_once(path, old, new):
+              text = read(path)
+              if old not in text:
+                  raise SystemExit(f"anchor not found in {path}: {old[:80]!r}")
+              write(path, text.replace(old, new, 1))
+
+          editor = "src/app/products/[id]/product-editor.tsx"
+          text = read(editor)
+
+          text = text.replace(
+              "  status: string;\n\n  optimizedTitle: string;",
+              "  status: string;\n  storeCurrency: string;\n\n  optimizedTitle: string;",
+              1,
+          )
+
+          old_money = '''function formatBRL(value: number) {
+            return new Intl.NumberFormat(
+              "pt-BR",
+              {
+                style: "currency",
+                currency: "BRL",
+              }
+            ).format(value);
+          }
+
+          function inputMoney(value: number) {
+            return value
+              .toFixed(2)
+              .replace(".", ",");
+          }'''
+          new_money = '''function currencyLocale(currency: string) {
+            if (currency === "BRL") return "pt-BR";
+            if (currency === "EUR") return "de-DE";
+            return "en-US";
+          }
+
+          function formatCurrency(
+            value: number,
+            currency: string
+          ) {
+            return new Intl.NumberFormat(
+              currencyLocale(currency),
+              {
+                style: "currency",
+                currency,
+              }
+            ).format(value);
+          }
+
+          function inputMoney(
+            value: number,
+            currency: string
+          ) {
+            const fixed = value.toFixed(2);
+            return currency === "USD"
+              ? fixed
+              : fixed.replace(".", ",");
+          }
+
+          function parseInputMoney(
+            value: string,
+            currency: string
+          ) {
+            const clean = value.trim();
+            if (!clean) return null;
+
+            const normalized =
+              currency === "USD"
+                ? clean.replace(/,/g, "")
+                : clean
+                    .replace(/\\./g, "")
+                    .replace(",", ".");
+            const number = Number(normalized);
+
+            return Number.isFinite(number)
+              ? number
+              : null;
+          }'''
+          if old_money not in text:
+              raise SystemExit("money helper anchor not found")
+          text = text.replace(old_money, new_money, 1)
+
+          effect_pattern = re.compile(
+              r'  useEffect\(\(\) => \{\n    fetch\(\n      "/api/fx/usd-brl",.*?\n  \}, \[\]\);',
+              re.S,
+          )
+          new_effect = '''  useEffect(() => {
+            setFxRate(null);
+            setFxDate(null);
+
+            fetch(
+              `/api/fx/rate?from=USD&to=${encodeURIComponent(
+                props.storeCurrency
+              )}`,
+              {
+                cache: "no-store",
+              }
+            )
+              .then(async (response) => {
+                const data = await response.json();
+
+                if (response.ok && data.rate) {
+                  setFxRate(Number(data.rate));
+                  setFxDate(data.date || null);
+                }
+              })
+              .catch(() => {});
+          }, [props.storeCurrency]);'''
+          text, count = effect_pattern.subn(new_effect, text, count=1)
+          if count != 1:
+              raise SystemExit("FX effect anchor not found")
+
+          minimum_pattern = re.compile(
+              r'  const selectedCount =\n    selectedImages\.size;\n\n  const minimumSale =\n    useMemo\(\(\) => \{.*?\n    \}, \[prices\]\);',
+              re.S,
+          )
+          new_minimum = '''  const selectedCount =
+            selectedImages.size;
+
+          const minimumSale =
+            useMemo(() => {
+              const values = Object.values(prices)
+                .map((value) =>
+                  parseInputMoney(
+                    value,
+                    props.storeCurrency
+                  )
+                )
+                .filter(
+                  (value): value is number =>
+                    value !== null &&
+                    Number.isFinite(value) &&
+                    value > 0
+                );
+
+              return values.length
+                ? Math.min(...values)
+                : null;
+            }, [prices, props.storeCurrency]);'''
+          text, count = minimum_pattern.subn(new_minimum, text, count=1)
+          if count != 1:
+              raise SystemExit("minimumSale anchor not found")
+
+          text = text.replace(
+              '"A cotação USD/BRL ainda não foi carregada."',
+              '`A cotação USD/${props.storeCurrency} ainda não foi carregada.`',
+              1,
+          )
+          text = text.replace("costBRL", "costSelling")
+
+          old_same_currency = '''      } else if (
+                variant.sourceCurrency ===
+                "BRL"
+              ) {
+                costSelling =
+                  cost;
+              }'''
+          new_same_currency = '''      } else if (
+                variant.sourceCurrency ===
+                props.storeCurrency
+              ) {
+                costSelling =
+                  cost;
+              }'''
+          if old_same_currency not in text:
+              raise SystemExit("calculate same-currency anchor not found")
+          text = text.replace(old_same_currency, new_same_currency, 1)
+
+          text = text.replace(
+              '''        inputMoney(
+                  suggested
+                );''',
+              '''        inputMoney(
+                  suggested,
+                  props.storeCurrency
+                );''',
+              1,
+          )
+
+          text = text.replace(
+              "              Referência USD → BRL",
+              "              Referência USD → {props.storeCurrency}",
+              1,
+          )
+          text = text.replace(
+              '''              {formatBRL(
+                        fxRate
+                      )}''',
+              '''              {formatCurrency(
+                        fxRate,
+                        props.storeCurrency
+                      )}''',
+              1,
+          )
+          text = text.replace(
+              "                  Custo BRL",
+              "                  Custo {props.storeCurrency}",
+              1,
+          )
+          text = text.replace(
+              "                  Venda BRL",
+              "                  Venda {props.storeCurrency}",
+              1,
+          )
+
+          table_same_currency = '''                      : variant.sourceCurrency ===
+                                  "BRL"
+                                ? cost
+                                : null;'''
+          table_same_currency_new = '''                      : variant.sourceCurrency ===
+                                  props.storeCurrency
+                                ? cost
+                                : null;'''
+          if table_same_currency not in text:
+              raise SystemExit("table same-currency anchor not found")
+          text = text.replace(
+              table_same_currency,
+              table_same_currency_new,
+              1,
+          )
+          text = text.replace(
+              '''                          ? formatBRL(
+                                      costSelling
+                                    )''',
+              '''                          ? formatCurrency(
+                                      costSelling,
+                                      props.storeCurrency
+                                    )''',
+              1,
+          )
+          text = text.replace(
+              '                          placeholder="0,00"',
+              '''                          placeholder={
+                            props.storeCurrency === "USD"
+                              ? "0.00"
+                              : "0,00"
+                          }''',
+              1,
+          )
+          text = text.replace(
+              '''              {formatBRL(
+                        minimumSale
+                      )}''',
+              '''              {formatCurrency(
+                        minimumSale,
+                        props.storeCurrency
+                      )}''',
+              1,
+          )
+          text = text.replace(
+              '''              <option value="90">
+                        ,90
+                      </option>''',
+              '''              <option value="90">
+                        {props.storeCurrency === "USD" ? ".90" : ",90"}
+                      </option>''',
+              1,
+          )
+          text = text.replace(
+              '''              <option value="99">
+                        ,99
+                      </option>''',
+              '''              <option value="99">
+                        {props.storeCurrency === "USD" ? ".99" : ",99"}
+                      </option>''',
+              1,
+          )
+
+          write(editor, text)
+
+          replace_once(
+              "src/app/products/[id]/page.tsx",
+              '''                  status={product.status}
+                  optimizedTitle={product.optimizedTitle || ""}''',
+              '''                  status={product.status}
+                  storeCurrency={product.storeCurrency}
+                  optimizedTitle={product.optimizedTitle || ""}''',
+          )
+
+          language_path = "src/lib/copy-language.ts"
+          language = read(language_path)
+          labels = {
+              'label: "Português (Brasil)",': 'label: "Português (Brasil) — BRL",',
+              'label: "English",': 'label: "English — USD",',
+              'label: "Français",': 'label: "Français — EUR",',
+              'label: "Deutsch",': 'label: "Deutsch — EUR",',
+          }
+          for old, new in labels.items():
+              if old not in language:
+                  raise SystemExit(f"language label anchor missing: {old}")
+              language = language.replace(old, new, 1)
+          write(language_path, language)
+
+          package_path = "package.json"
+          package_text = read(package_path)
+          old_script = '"test:gemini-quota-fallback": "node --no-warnings --experimental-strip-types scripts/gemini-quota-fallback-smoke.ts"'
+          new_script = old_script + ',\n    "test:web-export-currency": "node --no-warnings --experimental-strip-types scripts/web-export-currency-smoke.ts"'
+          if old_script not in package_text:
+              raise SystemExit("package script anchor missing")
+          write(package_path, package_text.replace(old_script, new_script, 1))
+
+          ci_path = ".github/workflows/publication-engine-ci.yml"
+          ci = read(ci_path)
+          old_ci = '''      - name: Gemini quota fallback
+                run: npm run test:gemini-quota-fallback
+          '''
+          new_ci = '''      - name: Gemini quota fallback
+                run: npm run test:gemini-quota-fallback
+
+              - name: Web export and market currency
+                run: npm run test:web-export-currency
+          '''
+          if old_ci not in ci:
+              raise SystemExit("publication CI anchor missing")
+          write(ci_path, ci.replace(old_ci, new_ci, 1))
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Verify web export and currency
+        run: npm run test:web-export-currency
+
+      - name: Verify copy fallbacks
+        run: |
+          npm run test:product-copy-fallback
+          npm run test:gemini-quota-fallback
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Commit verified changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm .github/workflows/apply-web-export-currency-once.yml
+          git add -A
+          git commit -m "feat: enable online exports and market currencies"
+          git push origin HEAD:agent/web-export-and-market-currency
