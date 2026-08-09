@@ -22,12 +22,6 @@ function text(value: unknown) {
   return value === null || value === undefined ? "" : String(value).trim();
 }
 
-function numberOrNull(value: unknown) {
-  if (value === null || value === undefined || value === "") return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function base64Decode(value: string) {
   return Buffer.from(value.replace(/\n/g, ""), "base64").toString("utf8");
 }
@@ -77,7 +71,7 @@ function supplierRowsFromProducts(products: Array<{
   sourceProductId: string;
   variants: Array<{
     attributes: unknown;
-    stock: number;
+    stock: number | null;
     costPrice: { toString(): string } | null;
   }>;
 }>): AmbSupplierVariantSnapshot[] {
@@ -91,7 +85,7 @@ function supplierRowsFromProducts(products: Array<{
       sourceProductId: product.sourceProductId,
       color,
       size,
-      stock: Math.max(0, variant.stock),
+      stock: Math.max(0, variant.stock || 0),
       cost: rawCost != null && Number.isFinite(rawCost) ? rawCost : null,
     }];
   }));
