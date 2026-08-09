@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { AmbCatalogPanel } from "./amb-catalog-panel";
 import { StoreForm } from "./store-form";
 import { VerifyStoreButton } from "./verify-store-button";
 import { StoreCompatibilityPanel } from "./store-compatibility-panel";
@@ -157,6 +158,10 @@ export default async function StoresPage() {
                     )}
 
                     <StoreCompatibilityPanel store={store} />
+
+                    {store.id === "amb-boutique-store" && (
+                      <AmbCatalogPanel storeId={store.id} />
+                    )}
 
                     <StoreWebhookPanel
                       storeId={store.id}
