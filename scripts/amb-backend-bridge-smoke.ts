@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 
 import {
+  chooseAliExpressFreight,
+  parseAmbBridgeConfig,
+} from "../src/lib/amb-bridge-contract.ts";
+import {
   inferAmbBinding,
   parseAmbGeneratedProductsSource,
 } from "../src/lib/amb-catalog-detector.ts";
-import {
-  chooseAliExpressFreight,
-  parseAmbBridgeConfig,
-} from "../src/lib/amb-backend-bridge.ts";
-import { buildAmbExportLineageEntry } from "../src/lib/amb-export-lineage.ts";
+import { buildAmbExportLineageEntry } from "../src/lib/amb-export-lineage-core.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
