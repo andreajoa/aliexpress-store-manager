@@ -16,7 +16,8 @@
     "test:aliexpress-open-platform": "node --no-warnings --experimental-strip-types scripts/aliexpress-open-platform-smoke.ts",
     "test:inventory-reservation": "node --no-warnings --experimental-strip-types scripts/inventory-reservation-smoke.ts",
     "test:product-copy-fallback": "node --no-warnings --experimental-strip-types scripts/product-copy-fallback-smoke.ts",
-    "test:gemini-quota-fallback": "node --no-warnings --experimental-strip-types scripts/gemini-quota-fallback-smoke.ts"
+    "test:gemini-quota-fallback": "node --no-warnings --experimental-strip-types scripts/gemini-quota-fallback-smoke.ts",
+    "test:web-export-currency": "node --no-warnings --experimental-strip-types scripts/web-export-currency-smoke.ts"
   },
   "dependencies": {
     "@google/genai": "^2.16.0",

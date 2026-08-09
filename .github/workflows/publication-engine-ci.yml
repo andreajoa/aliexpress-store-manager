@@ -35,6 +35,9 @@ jobs:
       - name: Gemini quota fallback
         run: npm run test:gemini-quota-fallback
 
+      - name: Web export and market currency
+        run: npm run test:web-export-currency
+
       - name: Store compatibility
         run: npm run test:store-compatibility
 

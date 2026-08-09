@@ -17,19 +17,19 @@ export const COPY_LANGUAGE_OPTIONS: Array<{
 }> = [
   {
     value: "pt-BR",
-    label: "Português (Brasil)",
+    label: "Português (Brasil) — BRL",
   },
   {
     value: "en",
-    label: "English",
+    label: "English — USD",
   },
   {
     value: "fr",
-    label: "Français",
+    label: "Français — EUR",
   },
   {
     value: "de",
-    label: "Deutsch",
+    label: "Deutsch — EUR",
   },
 ];
 
