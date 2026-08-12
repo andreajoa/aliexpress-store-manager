@@ -1,9 +1,9 @@
-import { officialSkusFromProductResponse } from "./aliexpress-sku-parser";
+import { officialSkusFromProductResponse } from "./aliexpress-sku-parser.ts";
 import type {
   OmkarProduct,
   OmkarSkuPricing,
   OmkarVariantGroup,
-} from "./omkar";
+} from "./omkar.ts";
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
