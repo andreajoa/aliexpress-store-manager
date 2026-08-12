@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Live AliExpress MTOP diagnostic
+        run: node --no-warnings --experimental-strip-types scripts/aliexpress-mtop-live-smoke.ts
+
       - name: Lint
         run: npm run lint
 
