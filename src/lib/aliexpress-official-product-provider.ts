@@ -37,6 +37,16 @@ function uniqueUrls(values: unknown[]) {
   return Array.from(new Set(values.map(normalizeUrl).filter((value): value is string => Boolean(value))));
 }
 
+function stringAttributes(value: unknown): Record<string, string> {
+  const source = record(value);
+  const result: Record<string, string> = {};
+  for (const [key, rawValue] of Object.entries(source)) {
+    const normalized = text(rawValue);
+    if (normalized) result[key] = normalized;
+  }
+  return result;
+}
+
 function optionKey(attributeName: string, optionValue: string) {
   return `${attributeName}:${optionValue}`;
 }
@@ -47,8 +57,8 @@ function variantGroupsFromOfficialSkus(
   const groups = new Map<string, Map<string, { valueId: string; name: string; imageUrl: string | null }>>();
 
   for (const sku of skus) {
-    for (const [attributeName, optionName] of Object.entries(sku.attributes)) {
-      if (!optionName) continue;
+    const attributes = stringAttributes(sku.attributes);
+    for (const [attributeName, optionName] of Object.entries(attributes)) {
       const options = groups.get(attributeName) || new Map();
       const valueId = optionKey(attributeName, optionName);
       if (!options.has(optionName)) {
@@ -102,23 +112,25 @@ export function officialDropshipProductToOperationalProduct(
   const images = uniqueUrls(imageUrls);
 
   const skuPricing: OmkarSkuPricing[] = official.skus.map((sku) => {
-    if (sku.price === null || sku.stock === null) {
+    const price = sku.price ?? null;
+    const stock = sku.stock ?? null;
+    if (price === null || stock === null) {
       throw new Error(`SKU oficial ${sku.orderSkuAttr} sem preço ou estoque verificável.`);
     }
-    const variantIds = Object.entries(sku.attributes)
-      .filter(([, value]) => Boolean(value))
+
+    const attributes = stringAttributes(sku.attributes);
+    const variantIds = Object.entries(attributes)
       .map(([name, value]) => optionKey(name, value))
       .join(",");
 
     return {
       sku_id: sku.sourceSkuId,
       variant_ids: variantIds,
-      list_price: sku.price,
-      sale_price: sku.price,
+      list_price: price,
+      sale_price: price,
       formatted_sale_price: null,
       discount_label: null,
-      available_quantity: Math.max(0, Math.trunc(sku.stock)),
-      order_sku_attr: sku.orderSkuAttr,
+      available_quantity: Math.max(0, Math.trunc(stock)),
     };
   });
 
@@ -155,6 +167,9 @@ export function officialDropshipProductToOperationalProduct(
     has_welcome_deal: null,
     operational_provider: "ALIEXPRESS_OPEN_PLATFORM",
     official_product_status: official.productStatus,
+    official_sku_attrs: Object.fromEntries(
+      official.skus.map((sku) => [sku.sourceSkuId, sku.orderSkuAttr]),
+    ),
     official_response: envelope,
   };
 }
