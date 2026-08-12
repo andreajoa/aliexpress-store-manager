@@ -1,0 +1,116 @@
+name: Patch import timeout on PR
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'fix/import-timeout-bundled-chromium'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Patch bounded import path
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # 1) Remove nonessential ScrapingBee enrichment from synchronous import.
+          p = Path('src/app/api/import/aliexpress/route.ts')
+          s = p.read_text()
+          s = s.replace('import { scrapeAliExpressProduct } from "@/lib/aliexpress";\n', '', 1)
+          old = '''    // ScrapingBee é somente enriquecimento editorial. Nunca é fonte de SKU/estoque.\n    let enrichment:\n      | Awaited<ReturnType<typeof scrapeAliExpressProduct>>\n      | null = null;\n\n    try {\n      enrichment = await scrapeAliExpressProduct(requestedUrl);\n    } catch (error) {\n      console.warn("ScrapingBee enrichment skipped:", error);\n    }\n\n'''
+          if old not in s:
+              raise SystemExit('Synchronous ScrapingBee block not found')
+          s = s.replace(old, '    // Enriquecimento editorial é posterior; nunca bloqueia o import operacional.\n\n', 1)
+          s = s.replace('      ...(enrichment?.images || []),\n', '', 1)
+          s = s.replace('      sourceProduct.currency || enrichment?.currency || "USD"\n', '      sourceProduct.currency || "USD"\n', 1)
+          s = s.replace('    const description = enrichment?.description || null;', '    const description = null;', 1)
+          s = s.replace('            enrichmentSpecifications: enrichment?.specifications || [],', '            enrichmentSpecifications: [],', 1)
+          s = s.replace('            shippingInfo: enrichment?.shippingInfo || "",', '            shippingInfo: "",', 1)
+          s = s.replace('            stockInfo: enrichment?.stockInfo || "",', '            stockInfo: "",', 1)
+          s = s.replace('''            scrapingBee: enrichment\n              ? JSON.parse(JSON.stringify(enrichment.raw))\n              : null,\n''', '            scrapingBee: null,\n', 1)
+          if 'scrapeAliExpressProduct' in s or 'enrichment?.' in s:
+              raise SystemExit('Enrichment still blocks import')
+          p.write_text(s)
+
+          # 2) Omkar is a genuinely fast path.
+          p = Path('src/lib/aliexpress-operational-provider.ts')
+          s = p.read_text()
+          if 'const OMKAR_FAST_TIMEOUT_MS = 8000;' not in s:
+              raise SystemExit('Omkar timeout marker not found')
+          s = s.replace('const OMKAR_FAST_TIMEOUT_MS = 8000;', 'const OMKAR_FAST_TIMEOUT_MS = 5000;', 1)
+          p.write_text(s)
+
+          # 3) Bound browser work well below route maxDuration; skip heavy assets.
+          p = Path('src/lib/aliexpress-browser-provider.ts')
+          s = p.read_text()
+          marker = '    await page.setExtraHTTPHeaders({ "Accept-Language": "en-US,en;q=0.9" });'
+          replacement = '''    await page.setUserAgent(\n      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",\n    );\n    await page.setExtraHTTPHeaders({ "Accept-Language": "en-US,en;q=0.9" });\n    page.setDefaultNavigationTimeout(25000);\n    page.setDefaultTimeout(10000);\n    await page.setRequestInterception(true);\n    page.on("request", (request) => {\n      const type = request.resourceType();\n      if (type === "image" || type === "media" || type === "font") {\n        void request.abort();\n      } else {\n        void request.continue();\n      }\n    });'''
+          if marker not in s:
+              raise SystemExit('Browser header marker not found')
+          s = s.replace(marker, replacement, 1)
+          if 'timeout: 45000,' not in s:
+              raise SystemExit('Browser 45s timeout marker not found')
+          s = s.replace('timeout: 45000,', 'timeout: 25000,', 1)
+          old_wait = '''for (let tick = 0; tick < 20 && !captured; tick += 1) {\n      await new Promise((resolve) => setTimeout(resolve, 500));'''
+          new_wait = '''for (let tick = 0; tick < 24 && !captured; tick += 1) {\n      await new Promise((resolve) => setTimeout(resolve, 250));'''
+          if old_wait not in s:
+              raise SystemExit('Browser capture wait marker not found')
+          s = s.replace(old_wait, new_wait, 1)
+          p.write_text(s)
+
+          # 4) Never JSON.parse a Vercel plain-text 504 response blindly.
+          p = Path('src/app/products/import-form.tsx')
+          s = p.read_text()
+          old = '''      const data =\n        await response.json();\n'''
+          new = '''      const rawBody = await response.text();\n      let data: { error?: string; product?: ImportedProduct } = {};\n\n      if (rawBody) {\n        try {\n          data = JSON.parse(rawBody) as typeof data;\n        } catch {\n          if (response.status === 504) {\n            throw new Error(\n              "O AliExpress excedeu o tempo máximo de resposta. O produto não foi salvo. Tente novamente.",\n            );\n          }\n          throw new Error(\n            `O servidor retornou uma resposta inválida (HTTP ${response.status}). O produto não foi salvo.`,\n          );\n        }\n      }\n'''
+          if old not in s:
+              raise SystemExit('response.json marker not found')
+          s = s.replace(old, new, 1)
+          old_set = '''      setProduct(\n        data.product\n      );\n'''
+          new_set = '''      if (!data.product) {\n        throw new Error("A importação terminou sem retornar os dados do produto.");\n      }\n\n      setProduct(data.product);\n'''
+          if old_set not in s:
+              raise SystemExit('setProduct marker not found')
+          s = s.replace(old_set, new_set, 1)
+          p.write_text(s)
+
+          Path('scripts/import-timeout-regression-smoke.ts').write_text('''import { readFileSync } from "node:fs";\nfunction assert(v: unknown, m: string): asserts v { if (!v) throw new Error(m); }\nconst route = readFileSync("src/app/api/import/aliexpress/route.ts", "utf8");\nconst provider = readFileSync("src/lib/aliexpress-operational-provider.ts", "utf8");\nconst browser = readFileSync("src/lib/aliexpress-browser-provider.ts", "utf8");\nconst form = readFileSync("src/app/products/import-form.tsx", "utf8");\nassert(!route.includes("scrapeAliExpressProduct"), "ScrapingBee cannot block import");\nassert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "Omkar fast path must be 5s");\nassert(browser.includes("timeout: 25000"), "AliExpress navigation must be bounded to 25s");\nassert(browser.includes("setRequestInterception(true)"), "Heavy browser assets must be blocked");\nassert(!form.includes("await response.json()"), "Client cannot blindly parse 504 as JSON");\nassert(form.includes("response.status === 504"), "Client must handle Vercel 504");\nconsole.log("IMPORT TIMEOUT REGRESSION: PASS");\n''')
+
+          Path('scripts/aliexpress-live-time-budget-smoke.ts').write_text('''process.env.VERCEL_ENV = "production";\nconst { getAliExpressBrowserProduct } = await import("../src/lib/aliexpress-browser-provider.ts");\nfunction assert(v: unknown, m: string): asserts v { if (!v) throw new Error(m); }\nconst started = Date.now();\nconst product = await Promise.race([\n  getAliExpressBrowserProduct("3256811750293175"),\n  new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AliExpress live browser exceeded 50 seconds")), 50000)),\n]);\nconst elapsedMs = Date.now() - started;\nconst skus = product.sku_pricing || [];\nassert(String(product.id) === "3256811750293175", "Wrong product ID");\nassert(skus.length > 0, "No operational SKUs returned");\nassert(skus.every((sku) => Number.isFinite(sku.available_quantity)), "Missing exact stock");\nassert(skus.every((sku) => Number.isFinite(sku.sale_price)), "Missing exact price");\nconsole.log(JSON.stringify({ ok: true, elapsedMs, productId: product.id, skuCount: skus.length, totalStock: skus.reduce((n, sku) => n + (sku.available_quantity || 0), 0) }));\n''')
+          PY
+
+      - run: npm ci
+      - name: Regression gate
+        run: node --no-warnings --experimental-strip-types scripts/import-timeout-regression-smoke.ts
+      - name: Exact AliExpress product live gate
+        timeout-minutes: 1
+        run: node --no-warnings --experimental-strip-types scripts/aliexpress-live-time-budget-smoke.ts
+      - run: npm run lint
+      - name: Production build
+        env:
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build
+          DIRECT_URL: postgresql://build:build@127.0.0.1:5432/build
+        run: npm run build
+
+      - name: Commit validated fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/patch-import-timeout-pr.yml .github/workflows/fix-import-timeout-once.yml
+          git add src/app/api/import/aliexpress/route.ts src/lib/aliexpress-operational-provider.ts src/lib/aliexpress-browser-provider.ts src/app/products/import-form.tsx scripts/import-timeout-regression-smoke.ts scripts/aliexpress-live-time-budget-smoke.ts
+          git commit -m "fix: prevent AliExpress import gateway timeout"
+          git push origin HEAD:${{ github.head_ref }}
