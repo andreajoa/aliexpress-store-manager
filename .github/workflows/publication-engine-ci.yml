@@ -26,8 +26,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Live AliExpress MTOP diagnostic
-        run: node --no-warnings --experimental-strip-types scripts/aliexpress-mtop-live-smoke.ts
+      - name: Install temporary browser diagnostic
+        run: npm install --no-save --package-lock=false puppeteer
+
+      - name: Live AliExpress browser diagnostic
+        run: node scripts/aliexpress-browser-live-diagnostic.mjs
 
       - name: Lint
         run: npm run lint
