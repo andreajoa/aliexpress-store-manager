@@ -57,6 +57,9 @@ export type OmkarProduct = {
   [key: string]: unknown;
 };
 
+const RETRYABLE_OMKAR_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+const OMKAR_MAX_ATTEMPTS = 3;
+
 function validateProductId(value: string) {
   if (!/^\d{10,}$/.test(value)) {
     throw new Error(
@@ -103,6 +106,42 @@ export function extractAliExpressProductId(rawUrl: string) {
   );
 }
 
+export function isRetryableOmkarStatus(status: number) {
+  return RETRYABLE_OMKAR_STATUS.has(status);
+}
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function retryDelayMs(attempt: number) {
+  return Math.min(6000, 1200 * 2 ** Math.max(0, attempt - 1));
+}
+
+function userFacingOmkarError(status: number, body: string) {
+  if (status === 401 || status === 403) {
+    return new Error(
+      "A credencial do provedor de dados do AliExpress foi recusada. Verifique a OMKAR_API_KEY."
+    );
+  }
+
+  if (status === 429) {
+    return new Error(
+      "O provedor de dados do AliExpress atingiu o limite temporário de consultas. Aguarde alguns instantes e tente novamente."
+    );
+  }
+
+  if (status >= 500) {
+    return new Error(
+      "O provedor de dados do AliExpress está temporariamente indisponível. O produto não foi salvo. Tente novamente em alguns instantes."
+    );
+  }
+
+  return new Error(
+    `Omkar respondeu HTTP ${status}: ${body.slice(0, 300)}`
+  );
+}
+
 export async function getOmkarProduct(
   productId: string
 ): Promise<OmkarProduct> {
@@ -123,49 +162,107 @@ export async function getOmkarProduct(
     productId
   );
 
-  const response = await fetch(endpoint, {
-    method: "GET",
+  let lastStatus = 0;
+  let lastBody = "";
+  let lastNetworkError: unknown = null;
 
-    headers: {
-      "API-Key": apiKey,
-      Accept: "application/json",
-    },
+  for (let attempt = 1; attempt <= OMKAR_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "GET",
 
-    cache: "no-store",
+        headers: {
+          "API-Key": apiKey,
+          Accept: "application/json",
+        },
 
-    signal: AbortSignal.timeout(60000),
-  });
+        cache: "no-store",
 
-  const text = await response.text();
+        signal: AbortSignal.timeout(45000),
+      });
 
-  if (!response.ok) {
-    throw new Error(
-      `Omkar respondeu HTTP ${response.status}: ${text.slice(
-        0,
-        300
-      )}`
-    );
+      const text = await response.text();
+      lastStatus = response.status;
+      lastBody = text;
+
+      if (!response.ok) {
+        if (isRetryableOmkarStatus(response.status) && attempt < OMKAR_MAX_ATTEMPTS) {
+          console.warn(
+            `[Omkar] product ${productId} attempt ${attempt}/${OMKAR_MAX_ATTEMPTS} returned HTTP ${response.status}; retrying.`
+          );
+          await delay(retryDelayMs(attempt));
+          continue;
+        }
+
+        throw userFacingOmkarError(response.status, text);
+      }
+
+      let data: OmkarProduct;
+
+      try {
+        data = JSON.parse(text) as OmkarProduct;
+      } catch {
+        if (attempt < OMKAR_MAX_ATTEMPTS) {
+          console.warn(
+            `[Omkar] product ${productId} returned invalid JSON on attempt ${attempt}; retrying.`
+          );
+          await delay(retryDelayMs(attempt));
+          continue;
+        }
+        throw new Error(
+          "A Omkar não retornou JSON válido após novas tentativas."
+        );
+      }
+
+      if (
+        !data ||
+        !data.id ||
+        !data.title
+      ) {
+        if (attempt < OMKAR_MAX_ATTEMPTS) {
+          console.warn(
+            `[Omkar] product ${productId} returned incomplete essential fields on attempt ${attempt}; retrying.`
+          );
+          await delay(retryDelayMs(attempt));
+          continue;
+        }
+        throw new Error(
+          "A Omkar respondeu, mas os dados essenciais do produto estão incompletos."
+        );
+      }
+
+      return data;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (
+          error.message.startsWith("O provedor de dados") ||
+          error.message.startsWith("A credencial do provedor") ||
+          error.message.startsWith("Omkar respondeu HTTP") ||
+          error.message.startsWith("A Omkar")
+        )
+      ) {
+        throw error;
+      }
+
+      lastNetworkError = error;
+      if (attempt < OMKAR_MAX_ATTEMPTS) {
+        console.warn(
+          `[Omkar] product ${productId} network failure on attempt ${attempt}/${OMKAR_MAX_ATTEMPTS}; retrying.`,
+          error
+        );
+        await delay(retryDelayMs(attempt));
+        continue;
+      }
+    }
   }
 
-  let data: OmkarProduct;
-
-  try {
-    data = JSON.parse(text) as OmkarProduct;
-  } catch {
-    throw new Error(
-      "A Omkar não retornou JSON válido."
-    );
+  if (lastStatus > 0) {
+    throw userFacingOmkarError(lastStatus, lastBody);
   }
 
-  if (
-    !data ||
-    !data.id ||
-    !data.title
-  ) {
-    throw new Error(
-      "A Omkar respondeu, mas os dados essenciais do produto estão incompletos."
-    );
-  }
-
-  return data;
+  console.error("Omkar product request failed after retries:", lastNetworkError);
+  throw new Error(
+    "Não foi possível conectar ao provedor de dados do AliExpress após novas tentativas. O produto não foi salvo."
+  );
 }

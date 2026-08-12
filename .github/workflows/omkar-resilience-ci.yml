@@ -1,0 +1,29 @@
+name: Omkar Resilience CI
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/omkar.ts"
+      - "scripts/omkar-resilience-smoke.ts"
+      - ".github/workflows/omkar-resilience-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Omkar resilience smoke
+        run: node --no-warnings --experimental-strip-types scripts/omkar-resilience-smoke.ts
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        env:
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build
+          DIRECT_URL: postgresql://build:build@127.0.0.1:5432/build
+        run: npm run build
