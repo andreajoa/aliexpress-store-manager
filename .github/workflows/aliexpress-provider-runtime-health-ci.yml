@@ -14,6 +14,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Official Chromium remote pack smoke
+        run: node --no-warnings --experimental-strip-types scripts/chromium-official-remote-pack-smoke.ts
       - name: Runtime health smoke
         run: node --no-warnings --experimental-strip-types scripts/aliexpress-provider-runtime-health-smoke.ts
       - name: Lint
