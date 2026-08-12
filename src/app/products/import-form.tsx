@@ -96,8 +96,23 @@ export function ImportForm() {
           }
         );
 
-      const data =
-        await response.json();
+      const rawBody = await response.text();
+      let data: { error?: string; product?: ImportedProduct } = {};
+
+      if (rawBody) {
+        try {
+          data = JSON.parse(rawBody) as typeof data;
+        } catch {
+          if (response.status === 504) {
+            throw new Error(
+              "A consulta ao fornecedor excedeu o tempo máximo. O produto não foi salvo.",
+            );
+          }
+          throw new Error(
+            `O servidor retornou uma resposta inválida (HTTP ${response.status}). O produto não foi salvo.`,
+          );
+        }
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -106,9 +121,11 @@ export function ImportForm() {
         );
       }
 
-      setProduct(
-        data.product
-      );
+      if (!data.product) {
+        throw new Error("A importação terminou sem retornar os dados do produto.");
+      }
+
+      setProduct(data.product);
 
       formElement.reset();
 

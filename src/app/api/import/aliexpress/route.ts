@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { scrapeAliExpressProduct } from "@/lib/aliexpress";
 import { getAliExpressOperationalProduct } from "@/lib/aliexpress-operational-provider";
 import {
   extractAliExpressProductId,
@@ -152,16 +151,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // ScrapingBee é somente enriquecimento editorial. Nunca é fonte de SKU/estoque.
-    let enrichment:
-      | Awaited<ReturnType<typeof scrapeAliExpressProduct>>
-      | null = null;
-
-    try {
-      enrichment = await scrapeAliExpressProduct(requestedUrl);
-    } catch (error) {
-      console.warn("ScrapingBee enrichment skipped:", error);
-    }
+    // Enriquecimento editorial é posterior e nunca bloqueia SKU/estoque.
 
     const skuPrices = validPrices(sourceProduct);
     if (skuPrices.length === 0) {
@@ -175,7 +165,6 @@ export async function POST(request: Request) {
     const images = uniqueUrls([
       ...(sourceProduct.images_hd || []),
       ...(sourceProduct.images || []),
-      ...(enrichment?.images || []),
     ]);
 
     if (images.length === 0) {
@@ -187,9 +176,9 @@ export async function POST(request: Request) {
     const skuPricing = sourceProduct.sku_pricing || [];
     const sourceUrl = sourceProduct.listing_url || requestedUrl;
     const currency = (
-      sourceProduct.currency || enrichment?.currency || "USD"
+      sourceProduct.currency || "USD"
     ).toUpperCase();
-    const description = enrichment?.description || null;
+    const description = null;
     const importedAt = new Date();
 
     const product = await prisma.$transaction(async (tx) => {
@@ -217,18 +206,16 @@ export async function POST(request: Request) {
             videoUrl: sourceProduct.video_url || null,
             baseCurrency: sourceProduct.base_currency || null,
             hasWelcomeDeal: sourceProduct.has_welcome_deal ?? null,
-            enrichmentSpecifications: enrichment?.specifications || [],
-            shippingInfo: enrichment?.shippingInfo || "",
-            stockInfo: enrichment?.stockInfo || "",
+            enrichmentSpecifications: [],
+            shippingInfo: "",
+            stockInfo: "",
             operationalProvider: operational.provider,
           },
           rawPayload: {
             operationalProvider: operational.provider,
             operationalWarnings: operational.warnings,
             operationalProduct: JSON.parse(JSON.stringify(sourceProduct)),
-            scrapingBee: enrichment
-              ? JSON.parse(JSON.stringify(enrichment.raw))
-              : null,
+            scrapingBee: null,
           },
           status: "IMPORTED",
           images: {
@@ -297,6 +284,11 @@ export async function POST(request: Request) {
       const skuById = new Map(
         skuPricing.map((sku) => [String(sku.sku_id), sku]),
       );
+      const officialSkuAttrs = sourceProduct.official_sku_attrs &&
+        typeof sourceProduct.official_sku_attrs === "object" &&
+        !Array.isArray(sourceProduct.official_sku_attrs)
+        ? sourceProduct.official_sku_attrs as Record<string, string>
+        : {};
 
       for (const canonicalVariant of created.variants) {
         const sku = skuById.get(canonicalVariant.sourceSkuId);
@@ -311,6 +303,7 @@ export async function POST(request: Request) {
           data: {
             supplierProductId: supplier.id,
             sourceSkuId: canonicalVariant.sourceSkuId,
+            orderSkuAttr: officialSkuAttrs[canonicalVariant.sourceSkuId] || null,
             name: supplierVariantName(attributes, canonicalVariant.sourceSkuId),
             sourcePrice: canonicalVariant.costPrice,
             stock: canonicalVariant.stock ?? 0,
