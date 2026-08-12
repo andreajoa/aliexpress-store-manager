@@ -16,6 +16,7 @@
     "test:github-pr-lifecycle": "node --no-warnings --experimental-strip-types scripts/github-pr-lifecycle-smoke.ts",
     "test:aliexpress-open-platform": "node --no-warnings --experimental-strip-types scripts/aliexpress-open-platform-smoke.ts",
     "test:aliexpress-provider-failover": "node --no-warnings --experimental-strip-types scripts/aliexpress-provider-failover-smoke.ts",
+    "test:serverless-browser-runtime": "node --no-warnings --experimental-strip-types scripts/serverless-browser-runtime-smoke.ts",
     "test:inventory-reservation": "node --no-warnings --experimental-strip-types scripts/inventory-reservation-smoke.ts",
     "test:product-copy-fallback": "node --no-warnings --experimental-strip-types scripts/product-copy-fallback-smoke.ts",
     "test:gemini-quota-fallback": "node --no-warnings --experimental-strip-types scripts/gemini-quota-fallback-smoke.ts",
