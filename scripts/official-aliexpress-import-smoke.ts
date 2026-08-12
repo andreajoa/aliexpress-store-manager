@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { officialDropshipProductToOperationalProduct } from "../src/lib/aliexpress-official-product-provider.ts";
 
+// Final regression gate for the official AliExpress import path.
 function assert(v: unknown, m: string): asserts v { if (!v) throw new Error(m); }
 
 const envelope = {
