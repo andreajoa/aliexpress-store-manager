@@ -167,9 +167,6 @@ export function officialDropshipProductToOperationalProduct(
     has_welcome_deal: null,
     operational_provider: "ALIEXPRESS_OPEN_PLATFORM",
     official_product_status: official.productStatus,
-    official_sku_attrs: Object.fromEntries(
-      official.skus.map((sku) => [sku.sourceSkuId, sku.orderSkuAttr]),
-    ),
     official_response: envelope,
   };
 }
