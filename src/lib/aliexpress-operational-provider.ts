@@ -1,7 +1,8 @@
-import { getAliExpressBrowserProduct } from "./aliexpress-browser-provider";
+import { requireAliExpressSession } from "./aliexpress-connection";
+import { officialDropshipProductToOperationalProduct } from "./aliexpress-official-product-provider";
 import type { OmkarProduct } from "./omkar";
 
-export type AliExpressOperationalProvider = "OMKAR" | "ALIEXPRESS_BROWSER";
+export type AliExpressOperationalProvider = "ALIEXPRESS_OPEN_PLATFORM" | "OMKAR";
 
 export type AliExpressOperationalProduct = {
   product: OmkarProduct;
@@ -9,14 +10,11 @@ export type AliExpressOperationalProduct = {
   warnings: string[];
 };
 
-const OMKAR_FAST_TIMEOUT_MS = 8000;
+const OMKAR_FAST_TIMEOUT_MS = 5000;
 const OMKAR_CIRCUIT_MS = 2 * 60 * 1000;
-
-export const OFFICIAL_CHROMIUM_PACK_URL =
-  "https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.x64.tar";
-
 let omkarCircuitOpenUntil = 0;
 let omkarLastFailure = "";
+let officialLastFailure = "";
 
 function compactError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -36,6 +34,22 @@ function validOperationalProduct(value: unknown): value is OmkarProduct {
     Number.isFinite(sku.sale_price) &&
     sku.sale_price >= 0,
   );
+}
+
+async function getOfficialProduct(productId: string): Promise<OmkarProduct> {
+  const { session, client } = await requireAliExpressSession();
+  const envelope = await client.getDropshipProduct({
+    session,
+    productId,
+    shipToCountry: "US",
+    targetCurrency: "USD",
+    targetLanguage: "EN",
+  });
+  const product = officialDropshipProductToOperationalProduct(envelope, productId);
+  if (!validOperationalProduct(product)) {
+    throw new Error("AliExpress Open Platform retornou produto sem SKU/preço/estoque operacional completo.");
+  }
+  return product;
 }
 
 async function getOmkarProductFast(productId: string): Promise<OmkarProduct> {
@@ -73,29 +87,19 @@ async function getOmkarProductFast(productId: string): Promise<OmkarProduct> {
   return parsed;
 }
 
-function ensureVercelChromiumPack() {
-  if (!process.env.VERCEL_ENV) return;
-
-  const configured = process.env.CHROMIUM_PACK_URL?.trim();
-  const pointsToSelfHostedBrokenPack = Boolean(
-    configured && /(?:^|\/)chromium-pack\.tar(?:\?.*)?$/i.test(configured),
-  );
-
-  if (!configured || pointsToSelfHostedBrokenPack) {
-    process.env.CHROMIUM_PACK_URL = OFFICIAL_CHROMIUM_PACK_URL;
-  }
-}
-
 export function getAliExpressProviderHealth() {
   return {
+    officialConfigured: Boolean(
+      process.env.ALIEXPRESS_APP_KEY?.trim() &&
+      process.env.ALIEXPRESS_APP_SECRET?.trim() &&
+      process.env.ALIEXPRESS_TOKEN_ENCRYPTION_KEY?.trim(),
+    ),
+    officialLastFailure: officialLastFailure || null,
     omkarCircuitOpen: Date.now() < omkarCircuitOpenUntil,
     omkarCircuitOpenUntil: omkarCircuitOpenUntil > 0
       ? new Date(omkarCircuitOpenUntil).toISOString()
       : null,
     omkarLastFailure: omkarLastFailure || null,
-    chromiumPackUrl: process.env.VERCEL_ENV
-      ? process.env.CHROMIUM_PACK_URL || OFFICIAL_CHROMIUM_PACK_URL
-      : null,
   };
 }
 
@@ -107,8 +111,18 @@ export async function getAliExpressOperationalProduct(
   }
 
   const warnings: string[] = [];
-  const now = Date.now();
 
+  try {
+    const product = await getOfficialProduct(productId);
+    officialLastFailure = "";
+    return { product, provider: "ALIEXPRESS_OPEN_PLATFORM", warnings };
+  } catch (error) {
+    officialLastFailure = compactError(error);
+    warnings.push(`API oficial indisponível: ${officialLastFailure}`);
+    console.warn("[AliExpress provider] Official dropship API unavailable; trying Omkar fallback.", error);
+  }
+
+  const now = Date.now();
   if (now >= omkarCircuitOpenUntil) {
     try {
       const product = await getOmkarProductFast(productId);
@@ -119,26 +133,16 @@ export async function getAliExpressOperationalProduct(
       omkarLastFailure = compactError(error);
       omkarCircuitOpenUntil = Date.now() + OMKAR_CIRCUIT_MS;
       warnings.push(`Omkar indisponível: ${omkarLastFailure}`);
-      console.warn("[AliExpress provider] Omkar failed; opening circuit and using browser fallback.", error);
+      console.warn("[AliExpress provider] Omkar fallback unavailable.", error);
     }
   } else {
     warnings.push("Omkar temporariamente ignorado pelo circuit breaker após falha recente.");
   }
 
-  try {
-    ensureVercelChromiumPack();
-    const product = await getAliExpressBrowserProduct(productId);
-    if (!validOperationalProduct(product)) {
-      throw new Error("Browser retornou produto sem SKU/preço/estoque operacional completo.");
-    }
-    return { product, provider: "ALIEXPRESS_BROWSER", warnings };
-  } catch (browserError) {
-    const browserMessage = compactError(browserError);
-    console.error("[AliExpress provider] Browser fallback failed.", browserError);
-    throw new Error(
-      `Não foi possível obter dados operacionais verificáveis do AliExpress. ` +
-      `Fonte rápida: ${omkarLastFailure || "indisponível"}. ` +
-      `Browser: ${browserMessage}`,
-    );
-  }
+  throw new Error(
+    "Não foi possível consultar SKU/estoque do produto. " +
+    `API oficial: ${officialLastFailure || "não autorizada"}. ` +
+    `Omkar: ${omkarLastFailure || "indisponível"}. ` +
+    "Abra Configurações → AliExpress e autorize sua conta para usar a API oficial de dropshipping.",
+  );
 }
