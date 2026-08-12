@@ -341,7 +341,7 @@ export async function getAliExpressBrowserProduct(productId: string): Promise<Om
       const [pageUrl, title, body] = await Promise.all([
         Promise.resolve(page.url()),
         page.title().catch(() => ""),
-        page.evaluate(() => document.body?.innerText?.slice(0, 1200) || "").catch(() => ""),
+        page.content().then((html) => html.slice(0, 5000)).catch(() => ""),
       ]);
       if (looksLikeChallenge(pageUrl, title, body)) {
         throw new Error("AliExpress exigiu verificação humana no browser. Nenhum dado operacional foi salvo.");
