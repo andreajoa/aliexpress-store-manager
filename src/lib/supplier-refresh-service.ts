@@ -1,4 +1,4 @@
-import { getOmkarProduct } from "./omkar";
+import { getAliExpressOperationalProduct } from "./aliexpress-operational-provider";
 import { prisma } from "./prisma";
 import {
   canonicalVariantsForMapping,
@@ -139,8 +139,13 @@ export async function refreshSupplier(input: {
     throw new Error(`Refresh automático ainda não disponível para ${supplier.provider}.`);
   }
 
-  const omkar = await getOmkarProduct(supplier.sourceProductId);
-  const snapshot = normalizeSupplierProduct(omkar);
+  /*
+   * A atualização de estoque usa a mesma cadeia redundante do import.
+   * Se todas as fontes externas falharem, esta função lança antes da transação:
+   * o último estoque conhecido permanece intacto em vez de ser zerado por engano.
+   */
+  const operational = await getAliExpressOperationalProduct(supplier.sourceProductId);
+  const snapshot = normalizeSupplierProduct(operational.product);
   const canonicalVariants = canonicalVariantsForMapping(product.variants);
   const report = suggestSupplierVariantMappings({
     canonicalVariants,
@@ -162,7 +167,11 @@ export async function refreshSupplier(input: {
         sourceCurrency: snapshot.sourceCurrency,
         costMin: snapshot.costMin,
         costMax: snapshot.costMax,
-        rawPayload: JSON.parse(JSON.stringify(snapshot.rawPayload)),
+        rawPayload: JSON.parse(JSON.stringify({
+          operationalProvider: operational.provider,
+          operationalWarnings: operational.warnings,
+          product: snapshot.rawPayload,
+        })),
         lastCheckedAt: refreshedAt,
       },
     });
@@ -228,6 +237,7 @@ export async function refreshSupplier(input: {
               source: "supplier-refresh",
               reasons: selected.reasons,
               sourceSkuId: selected.supplierSourceSkuId,
+              operationalProvider: operational.provider,
             },
             active: true,
             verifiedAt: refreshedAt,
@@ -249,6 +259,8 @@ export async function refreshSupplier(input: {
 
   return {
     supplierId: supplier.id,
+    operationalProvider: operational.provider,
+    warnings: operational.warnings,
     refreshedAt: result.lastCheckedAt || refreshedAt,
     variants: result.variants.length,
     activeMappings,
