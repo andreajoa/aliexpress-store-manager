@@ -1,0 +1,96 @@
+name: ScrapingBee AliExpress Probe
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: github.head_ref == 'fix/import-timeout-bundled-chromium'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      SCRAPINGBEE_API_KEY: ${{ secrets.SCRAPINGBEE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Confirm ScrapingBee secret and probe exact AliExpress product
+        run: |
+          node <<'NODE'
+          const apiKey = process.env.SCRAPINGBEE_API_KEY?.trim();
+          if (!apiKey) {
+            console.error('SCRAPINGBEE_API_KEY_PRESENT=false');
+            process.exit(2);
+          }
+          console.log('SCRAPINGBEE_API_KEY_PRESENT=true');
+
+          const target = 'https://www.aliexpress.com/item/3256811750293175.html';
+          const endpoint = new URL('https://app.scrapingbee.com/api/v1');
+          endpoint.searchParams.set('url', target);
+          endpoint.searchParams.set('mode', 'auto');
+          endpoint.searchParams.set('max_cost', '75');
+          endpoint.searchParams.set('json_response', 'true');
+          endpoint.searchParams.set('wait', '5000');
+          endpoint.searchParams.set('timeout', '25000');
+          endpoint.searchParams.set('block_resources', 'true');
+          endpoint.searchParams.set('country_code', 'us');
+
+          const started = Date.now();
+          const response = await fetch(endpoint, {
+            headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
+            signal: AbortSignal.timeout(35000),
+          });
+          const bodyText = await response.text();
+          console.log(`SCRAPINGBEE_HTTP=${response.status}`);
+          console.log(`SCRAPINGBEE_ELAPSED_MS=${Date.now() - started}`);
+          console.log(`SCRAPINGBEE_AUTO_COST=${response.headers.get('spb-auto-cost') || ''}`);
+          if (!response.ok) {
+            console.error(`SCRAPINGBEE_ERROR=${bodyText.slice(0, 250).replaceAll('\n',' ')}`);
+            process.exit(3);
+          }
+
+          const payload = JSON.parse(bodyText);
+          const xhr = Array.isArray(payload.xhr) ? payload.xhr : [];
+          const candidates = xhr.filter((entry) => {
+            const url = String(entry?.url || '').toLowerCase();
+            return url.includes('mtop') && (url.includes('pdp') || url.includes('detail'));
+          });
+          console.log(`XHR_TOTAL=${xhr.length}`);
+          console.log(`PDP_CANDIDATES=${candidates.length}`);
+
+          let verified = null;
+          for (const entry of candidates) {
+            const raw = typeof entry?.body === 'string' ? entry.body.trim() : '';
+            if (!raw) continue;
+            let json = raw;
+            const open = raw.indexOf('(');
+            if (/^[a-zA-Z_$][\w$]*\(/.test(raw) && open >= 0 && raw.endsWith(')')) json = raw.slice(open + 1, -1);
+            try {
+              const parsed = JSON.parse(json);
+              const result = parsed?.data?.result;
+              const sku = result?.SKU;
+              const price = result?.PRICE;
+              if (sku && price) {
+                verified = { url: entry.url, skuKeys: Object.keys(sku), priceKeys: Object.keys(price) };
+                break;
+              }
+            } catch {}
+          }
+          if (!verified) {
+            const html = typeof payload.body === 'string' ? payload.body : '';
+            console.log(`BODY_BYTES=${Buffer.byteLength(html)}`);
+            console.log(`BODY_HAS_PRODUCT_ID=${html.includes('3256811750293175')}`);
+            console.log(`BODY_HAS_SKU=${/skuPaths|skuIdStr|skuProperties/.test(html)}`);
+            console.error('VERIFIED_PDP_XHR=false');
+            process.exit(4);
+          }
+          console.log('VERIFIED_PDP_XHR=true');
+          console.log(`PDP_URL=${String(verified.url).slice(0,180)}`);
+          console.log(`SKU_KEYS=${verified.skuKeys.join(',')}`);
+          console.log(`PRICE_KEYS=${verified.priceKeys.join(',')}`);
+          NODE
