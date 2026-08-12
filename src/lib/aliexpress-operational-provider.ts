@@ -11,6 +11,10 @@ export type AliExpressOperationalProduct = {
 
 const OMKAR_FAST_TIMEOUT_MS = 8000;
 const OMKAR_CIRCUIT_MS = 2 * 60 * 1000;
+
+export const OFFICIAL_CHROMIUM_PACK_URL =
+  "https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.x64.tar";
+
 let omkarCircuitOpenUntil = 0;
 let omkarLastFailure = "";
 
@@ -69,6 +73,19 @@ async function getOmkarProductFast(productId: string): Promise<OmkarProduct> {
   return parsed;
 }
 
+function ensureVercelChromiumPack() {
+  if (!process.env.VERCEL_ENV) return;
+
+  const configured = process.env.CHROMIUM_PACK_URL?.trim();
+  const pointsToSelfHostedBrokenPack = Boolean(
+    configured && /(?:^|\/)chromium-pack\.tar(?:\?.*)?$/i.test(configured),
+  );
+
+  if (!configured || pointsToSelfHostedBrokenPack) {
+    process.env.CHROMIUM_PACK_URL = OFFICIAL_CHROMIUM_PACK_URL;
+  }
+}
+
 export function getAliExpressProviderHealth() {
   return {
     omkarCircuitOpen: Date.now() < omkarCircuitOpenUntil,
@@ -76,6 +93,9 @@ export function getAliExpressProviderHealth() {
       ? new Date(omkarCircuitOpenUntil).toISOString()
       : null,
     omkarLastFailure: omkarLastFailure || null,
+    chromiumPackUrl: process.env.VERCEL_ENV
+      ? process.env.CHROMIUM_PACK_URL || OFFICIAL_CHROMIUM_PACK_URL
+      : null,
   };
 }
 
@@ -106,6 +126,7 @@ export async function getAliExpressOperationalProduct(
   }
 
   try {
+    ensureVercelChromiumPack();
     const product = await getAliExpressBrowserProduct(productId);
     if (!validOperationalProduct(product)) {
       throw new Error("Browser retornou produto sem SKU/preço/estoque operacional completo.");
