@@ -1,9 +1,8 @@
 name: Fix import timeout once
 
 on:
-  push:
-    branches:
-      - fix/import-timeout-bundled-chromium
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -13,12 +12,13 @@ env:
 
 jobs:
   fix-and-validate:
+    if: github.head_ref == 'fix/import-timeout-bundled-chromium'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/import-timeout-bundled-chromium
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
@@ -26,7 +26,7 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Apply bounded import patch
+      - name: Apply bundled Chromium import fix
         run: |
           python - <<'PY'
           import json
@@ -42,7 +42,6 @@ jobs:
                   raise SystemExit(f"Expected {count} matches in {path}, got {found}: {old[:100]!r}")
               p.write_text(text.replace(old, new))
 
-          # Production dependency: bundle Chromium inside the function instead of downloading it per request.
           package_path = Path("package.json")
           package = json.loads(package_path.read_text())
           package.get("scripts", {}).pop("postinstall", None)
@@ -51,15 +50,13 @@ jobs:
           package.setdefault("devDependencies", {}).pop("@sparticuz/chromium", None)
           package_path.write_text(json.dumps(package, indent=2, ensure_ascii=False) + "\n")
 
-          # Next must trace the full Chromium package as a server dependency.
           must_replace(
               "next.config.ts",
               'serverExternalPackages: ["@sparticuz/chromium-min", "puppeteer-core"],',
-              'serverExternalPackages: ["@sparticuz/chromium", "@sparticuz/chromium-min", "puppeteer-core"],',
+              'serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],',
               1,
           )
 
-          # Browser: no remote pack; use bundled Brotli assets, block heavy resources and bound navigation.
           browser_path = Path("src/lib/aliexpress-browser-provider.ts")
           browser = browser_path.read_text()
           start = browser.index("function currentChromiumPackUrl()")
@@ -90,7 +87,6 @@ jobs:
               raise SystemExit("Browser provider still depends on remote Chromium pack")
           browser_path.write_text(browser)
 
-          # Provider budget: Omkar is only the quick path; browser still has enough budget before Vercel timeout.
           provider_path = Path("src/lib/aliexpress-operational-provider.ts")
           provider = provider_path.read_text()
           provider = provider.replace("const OMKAR_FAST_TIMEOUT_MS = 8000;", "const OMKAR_FAST_TIMEOUT_MS = 5000;", 1)
@@ -108,44 +104,33 @@ jobs:
           )
           provider = provider.replace("    ensureVercelChromiumPack();\n", "")
           if "CHROMIUM_PACK_URL" in provider or "OFFICIAL_CHROMIUM_PACK_URL" in provider:
-              raise SystemExit("Operational provider still mutates/depends on remote Chromium pack")
+              raise SystemExit("Operational provider still depends on remote Chromium pack")
           provider_path.write_text(provider)
 
-          # Import is operational first. ScrapingBee enrichment is not allowed to hold the request for 120s.
           import_path = Path("src/app/api/import/aliexpress/route.ts")
           route = import_path.read_text()
           route = route.replace('import { scrapeAliExpressProduct } from "@/lib/aliexpress";\n', "", 1)
           enrichment_block = '''    // ScrapingBee é somente enriquecimento editorial. Nunca é fonte de SKU/estoque.\n    let enrichment:\n      | Awaited<ReturnType<typeof scrapeAliExpressProduct>>\n      | null = null;\n\n    try {\n      enrichment = await scrapeAliExpressProduct(requestedUrl);\n    } catch (error) {\n      console.warn("ScrapingBee enrichment skipped:", error);\n    }\n\n'''
           if enrichment_block not in route:
               raise SystemExit("Expected synchronous ScrapingBee enrichment block not found")
-          route = route.replace(
-              enrichment_block,
-              '    // Enriquecimento editorial é deliberadamente adiado: nunca pode bloquear a importação operacional.\n\n',
-              1,
-          )
+          route = route.replace(enrichment_block, '    // Enriquecimento editorial é posterior; nunca bloqueia o import operacional.\n\n', 1)
           route = route.replace("      ...(enrichment?.images || []),\n", "", 1)
-          route = route.replace(
-              '      sourceProduct.currency || enrichment?.currency || "USD"\n',
-              '      sourceProduct.currency || "USD"\n',
-              1,
-          )
+          route = route.replace('      sourceProduct.currency || enrichment?.currency || "USD"\n', '      sourceProduct.currency || "USD"\n', 1)
           route = route.replace("    const description = enrichment?.description || null;", "    const description = null;", 1)
           route = route.replace("            enrichmentSpecifications: enrichment?.specifications || [],", "            enrichmentSpecifications: [],", 1)
           route = route.replace("            shippingInfo: enrichment?.shippingInfo || \"\",", "            shippingInfo: \"\",", 1)
           route = route.replace("            stockInfo: enrichment?.stockInfo || \"\",", "            stockInfo: \"\",", 1)
-          scraping_payload = '''            scrapingBee: enrichment\n              ? JSON.parse(JSON.stringify(enrichment.raw))\n              : null,\n'''
-          route = route.replace(scraping_payload, "            scrapingBee: null,\n", 1)
+          route = route.replace('''            scrapingBee: enrichment\n              ? JSON.parse(JSON.stringify(enrichment.raw))\n              : null,\n''', "            scrapingBee: null,\n", 1)
           if "scrapeAliExpressProduct" in route or "enrichment?." in route:
               raise SystemExit("Synchronous enrichment remains in import route")
           import_path.write_text(route)
 
-          # Client must never blindly JSON.parse a Vercel 504/plain-text body.
           form_path = Path("src/app/products/import-form.tsx")
           form = form_path.read_text()
           old_json = '''      const data =\n        await response.json();\n'''
-          new_json = '''      const rawBody = await response.text();\n      let data: { error?: string; product?: ImportedProduct } = {};\n\n      if (rawBody) {\n        try {\n          data = JSON.parse(rawBody) as typeof data;\n        } catch {\n          if (response.status === 504) {\n            throw new Error(\n              "O provedor do AliExpress excedeu o tempo de resposta. O produto não foi salvo. Tente novamente.",\n            );\n          }\n          throw new Error(\n            `O servidor retornou uma resposta inválida (HTTP ${response.status}). O produto não foi salvo.`,\n          );\n        }\n      }\n'''
+          new_json = '''      const rawBody = await response.text();\n      let data: { error?: string; product?: ImportedProduct } = {};\n\n      if (rawBody) {\n        try {\n          data = JSON.parse(rawBody) as typeof data;\n        } catch {\n          if (response.status === 504) {\n            throw new Error(\n              "O AliExpress excedeu o tempo máximo de resposta. O produto não foi salvo. Tente novamente.",\n            );\n          }\n          throw new Error(\n            `O servidor retornou uma resposta inválida (HTTP ${response.status}). O produto não foi salvo.`,\n          );\n        }\n      }\n'''
           if old_json not in form:
-              raise SystemExit("Expected response.json block not found in import form")
+              raise SystemExit("Expected response.json block not found")
           form = form.replace(old_json, new_json, 1)
           old_set = '''      setProduct(\n        data.product\n      );\n'''
           new_set = '''      if (!data.product) {\n        throw new Error("A importação terminou sem retornar os dados do produto.");\n      }\n\n      setProduct(data.product);\n'''
@@ -154,44 +139,36 @@ jobs:
           form = form.replace(old_set, new_set, 1)
           form_path.write_text(form)
 
-          # Permanent runtime smoke now validates the bundled production Chromium path.
-          Path("scripts/serverless-browser-runtime-smoke.ts").write_text('''import chromium from "@sparticuz/chromium";\nimport puppeteer from "puppeteer-core";\n\nfunction assert(condition: unknown, message: string): asserts condition {\n  if (!condition) throw new Error(message);\n}\n\nconst executablePath = await chromium.executablePath();\nassert(Boolean(executablePath), "Chromium empacotado não resolveu o executável");\n\nconst browser = await puppeteer.launch({\n  headless: true,\n  executablePath,\n  args: chromium.args,\n  timeout: 10000,\n});\n\ntry {\n  const page = await browser.newPage();\n  await page.setContent("<!doctype html><html><body><h1 id='marker'>BUNDLED_CHROMIUM_OK</h1></body></html>");\n  const marker = await page.$eval("#marker", (element) => element.textContent);\n  assert(marker === "BUNDLED_CHROMIUM_OK", "Chromium empacotado abriu, mas não renderizou corretamente");\n  console.log(JSON.stringify({ ok: true, executablePath: Boolean(executablePath), rendered: marker }));\n} finally {\n  await browser.close().catch(() => undefined);\n}\n''')
+          Path("scripts/serverless-browser-runtime-smoke.ts").write_text('''import chromium from "@sparticuz/chromium";\nimport puppeteer from "puppeteer-core";\nfunction assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }\nconst executablePath = await chromium.executablePath();\nassert(Boolean(executablePath), "Bundled Chromium executable was not resolved");\nconst browser = await puppeteer.launch({ headless: true, executablePath, args: chromium.args, timeout: 10000 });\ntry {\n  const page = await browser.newPage();\n  await page.setContent("<!doctype html><html><body><h1 id='marker'>BUNDLED_CHROMIUM_OK</h1></body></html>");\n  const marker = await page.$eval("#marker", (element) => element.textContent);\n  assert(marker === "BUNDLED_CHROMIUM_OK", "Bundled Chromium failed to render");\n  console.log(JSON.stringify({ ok: true, rendered: marker }));\n} finally { await browser.close().catch(() => undefined); }\n''')
 
-          Path("scripts/import-time-budget-smoke.ts").write_text('''import { readFileSync } from "node:fs";\n\nfunction assert(condition: unknown, message: string): asserts condition {\n  if (!condition) throw new Error(message);\n}\n\nconst route = readFileSync("src/app/api/import/aliexpress/route.ts", "utf8");\nconst provider = readFileSync("src/lib/aliexpress-operational-provider.ts", "utf8");\nconst browser = readFileSync("src/lib/aliexpress-browser-provider.ts", "utf8");\nconst form = readFileSync("src/app/products/import-form.tsx", "utf8");\nconst nextConfig = readFileSync("next.config.ts", "utf8");\nconst packageJson = JSON.parse(readFileSync("package.json", "utf8")) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string>; scripts?: Record<string, string> };\n\nassert(!route.includes("scrapeAliExpressProduct"), "ScrapingBee não pode bloquear o import operacional");\nassert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "Omkar quick path precisa ser limitado a 5s");\nassert(browser.includes('@sparticuz/chromium"'), "Vercel deve usar Chromium empacotado");\nassert(!browser.includes("chromium-min"), "browser não pode baixar Chromium remoto");\nassert(!browser.includes("CHROMIUM_PACK_URL"), "browser não pode depender de pack remoto");\nassert(browser.includes("timeout: 22000"), "navegação AliExpress precisa de timeout menor que o limite do request");\nassert(browser.includes("setRequestInterception(true)"), "browser deve bloquear assets pesados");\nassert(!form.includes("await response.json()"), "front não pode presumir JSON em respostas 504");\nassert(form.includes("response.status === 504"), "front deve tratar timeout 504 explicitamente");\nassert(packageJson.dependencies?.["@sparticuz/chromium"], "Chromium completo precisa ser dependência de produção");\nassert(!packageJson.devDependencies?.["@sparticuz/chromium"], "Chromium não pode ficar apenas em devDependencies");\nassert(!packageJson.scripts?.postinstall, "build não deve gerar tar público de Chromium");\nassert(nextConfig.includes('"@sparticuz/chromium"'), "Next deve rastrear o Chromium completo");\nconsole.log("IMPORT TIME BUDGET: PASS");\n''')
+          Path("scripts/import-time-budget-smoke.ts").write_text('''import { readFileSync } from "node:fs";\nfunction assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }\nconst route = readFileSync("src/app/api/import/aliexpress/route.ts", "utf8");\nconst provider = readFileSync("src/lib/aliexpress-operational-provider.ts", "utf8");\nconst browser = readFileSync("src/lib/aliexpress-browser-provider.ts", "utf8");\nconst form = readFileSync("src/app/products/import-form.tsx", "utf8");\nconst nextConfig = readFileSync("next.config.ts", "utf8");\nconst packageJson = JSON.parse(readFileSync("package.json", "utf8")) as { dependencies?: Record<string,string>; devDependencies?: Record<string,string>; scripts?: Record<string,string> };\nassert(!route.includes("scrapeAliExpressProduct"), "ScrapingBee cannot block import");\nassert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "Omkar fast path must be 5s");\nassert(browser.includes('@sparticuz/chromium"'), "Vercel must use bundled Chromium");\nassert(!browser.includes("chromium-min"), "Browser cannot download chromium-min pack");\nassert(!browser.includes("CHROMIUM_PACK_URL"), "Browser cannot depend on remote pack URL");\nassert(browser.includes("timeout: 22000"), "AliExpress navigation must be 22s");\nassert(browser.includes("setRequestInterception(true)"), "Heavy assets must be blocked");\nassert(!form.includes("await response.json()"), "Client cannot blindly parse 504 as JSON");\nassert(form.includes("response.status === 504"), "Client must handle 504");\nassert(packageJson.dependencies?.["@sparticuz/chromium"], "Chromium must be production dependency");\nassert(!packageJson.devDependencies?.["@sparticuz/chromium"], "Chromium cannot be dev-only");\nassert(!packageJson.scripts?.postinstall, "Build cannot generate public chromium tar");\nassert(nextConfig.includes('"@sparticuz/chromium"'), "Next must trace bundled Chromium");\nconsole.log("IMPORT TIME BUDGET: PASS");\n''')
 
-          Path("scripts/aliexpress-live-bundled-browser-smoke.ts").write_text('''process.env.VERCEL_ENV = "production";\n\nconst { getAliExpressBrowserProduct } = await import("../src/lib/aliexpress-browser-provider.ts");\n\nfunction assert(condition: unknown, message: string): asserts condition {\n  if (!condition) throw new Error(message);\n}\n\nconst product = await Promise.race([\n  getAliExpressBrowserProduct("3256811750293175"),\n  new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Live AliExpress browser exceeded 45 seconds")), 45000)),\n]);\nconst skus = product.sku_pricing || [];\nassert(String(product.id) === "3256811750293175", "Live browser returned the wrong Product ID");\nassert(skus.length > 0, "Live browser returned no SKUs");\nassert(skus.every((sku) => typeof sku.available_quantity === "number" && Number.isFinite(sku.available_quantity)), "Live browser returned SKU without exact stock");\nassert(skus.every((sku) => typeof sku.sale_price === "number" && Number.isFinite(sku.sale_price)), "Live browser returned SKU without exact price");\nconsole.log(JSON.stringify({ ok: true, productId: product.id, skuCount: skus.length, totalStock: skus.reduce((sum, sku) => sum + (sku.available_quantity || 0), 0), imageCount: (product.images_hd || product.images || []).length }));\n''')
+          Path("scripts/aliexpress-live-bundled-browser-smoke.ts").write_text('''process.env.VERCEL_ENV = "production";\nconst { getAliExpressBrowserProduct } = await import("../src/lib/aliexpress-browser-provider.ts");\nfunction assert(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }\nconst started = Date.now();\nconst product = await Promise.race([\n  getAliExpressBrowserProduct("3256811750293175"),\n  new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Bundled AliExpress browser exceeded 45 seconds")), 45000)),\n]);\nconst elapsedMs = Date.now() - started;\nconst skus = product.sku_pricing || [];\nassert(String(product.id) === "3256811750293175", "Wrong Product ID");\nassert(skus.length > 0, "No operational SKUs");\nassert(skus.every((sku) => typeof sku.available_quantity === "number" && Number.isFinite(sku.available_quantity)), "Missing exact stock");\nassert(skus.every((sku) => typeof sku.sale_price === "number" && Number.isFinite(sku.sale_price)), "Missing exact price");\nconsole.log(JSON.stringify({ ok: true, elapsedMs, productId: product.id, skuCount: skus.length, totalStock: skus.reduce((sum, sku) => sum + (sku.available_quantity || 0), 0) }));\n''')
           PY
 
       - name: Synchronize lockfile
         run: npm install --package-lock-only --ignore-scripts
-
       - name: Install dependencies
         run: npm ci --ignore-scripts
-
-      - name: Import time-budget smoke
+      - name: Time budget regression
         run: node --no-warnings --experimental-strip-types scripts/import-time-budget-smoke.ts
-
-      - name: Bundled Chromium runtime smoke
+      - name: Bundled Chromium runtime
         run: node --no-warnings --experimental-strip-types scripts/serverless-browser-runtime-smoke.ts
-
-      - name: Live AliExpress product through bundled browser
+      - name: Exact AliExpress product live gate
         timeout-minutes: 1
         run: node --no-warnings --experimental-strip-types scripts/aliexpress-live-bundled-browser-smoke.ts
-
       - name: Lint
         run: npm run lint
-
       - name: Production build
         env:
           DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build
           DIRECT_URL: postgresql://build:build@127.0.0.1:5432/build
         run: npm run build
-
-      - name: Commit validated patch
+      - name: Commit validated fix
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/fix-import-timeout-once.yml
+          git rm .github/workflows/fix-import-timeout-once.yml .github/workflows/patch-import-timeout-pr.yml 2>/dev/null || true
           git add package.json package-lock.json next.config.ts src/lib/aliexpress-browser-provider.ts src/lib/aliexpress-operational-provider.ts src/app/api/import/aliexpress/route.ts src/app/products/import-form.tsx scripts/serverless-browser-runtime-smoke.ts scripts/import-time-budget-smoke.ts scripts/aliexpress-live-bundled-browser-smoke.ts
-          git commit -m "fix: keep AliExpress import below request timeout"
-          git push origin HEAD:fix/import-timeout-bundled-chromium
+          git commit -m "fix: bundle Chromium and bound AliExpress import time"
+          git push origin HEAD:${{ github.head_ref }}
