@@ -28,7 +28,6 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          # 1) Remove nonessential ScrapingBee enrichment from synchronous import.
           p = Path('src/app/api/import/aliexpress/route.ts')
           s = p.read_text()
           s = s.replace('import { scrapeAliExpressProduct } from "@/lib/aliexpress";\n', '', 1)
@@ -47,7 +46,6 @@ jobs:
               raise SystemExit('Enrichment still blocks import')
           p.write_text(s)
 
-          # 2) Omkar is a genuinely fast path.
           p = Path('src/lib/aliexpress-operational-provider.ts')
           s = p.read_text()
           if 'const OMKAR_FAST_TIMEOUT_MS = 8000;' not in s:
@@ -55,7 +53,6 @@ jobs:
           s = s.replace('const OMKAR_FAST_TIMEOUT_MS = 8000;', 'const OMKAR_FAST_TIMEOUT_MS = 5000;', 1)
           p.write_text(s)
 
-          # 3) Bound browser work well below route maxDuration; skip heavy assets.
           p = Path('src/lib/aliexpress-browser-provider.ts')
           s = p.read_text()
           marker = '    await page.setExtraHTTPHeaders({ "Accept-Language": "en-US,en;q=0.9" });'
@@ -73,7 +70,6 @@ jobs:
           s = s.replace(old_wait, new_wait, 1)
           p.write_text(s)
 
-          # 4) Never JSON.parse a Vercel plain-text 504 response blindly.
           p = Path('src/app/products/import-form.tsx')
           s = p.read_text()
           old = '''      const data =\n        await response.json();\n'''
@@ -90,7 +86,7 @@ jobs:
 
           Path('scripts/import-timeout-regression-smoke.ts').write_text('''import { readFileSync } from "node:fs";\nfunction assert(v: unknown, m: string): asserts v { if (!v) throw new Error(m); }\nconst route = readFileSync("src/app/api/import/aliexpress/route.ts", "utf8");\nconst provider = readFileSync("src/lib/aliexpress-operational-provider.ts", "utf8");\nconst browser = readFileSync("src/lib/aliexpress-browser-provider.ts", "utf8");\nconst form = readFileSync("src/app/products/import-form.tsx", "utf8");\nassert(!route.includes("scrapeAliExpressProduct"), "ScrapingBee cannot block import");\nassert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "Omkar fast path must be 5s");\nassert(browser.includes("timeout: 25000"), "AliExpress navigation must be bounded to 25s");\nassert(browser.includes("setRequestInterception(true)"), "Heavy browser assets must be blocked");\nassert(!form.includes("await response.json()"), "Client cannot blindly parse 504 as JSON");\nassert(form.includes("response.status === 504"), "Client must handle Vercel 504");\nconsole.log("IMPORT TIMEOUT REGRESSION: PASS");\n''')
 
-          Path('scripts/aliexpress-live-time-budget-smoke.ts').write_text('''process.env.VERCEL_ENV = "production";\nconst { getAliExpressBrowserProduct } = await import("../src/lib/aliexpress-browser-provider.ts");\nfunction assert(v: unknown, m: string): asserts v { if (!v) throw new Error(m); }\nconst started = Date.now();\nconst product = await Promise.race([\n  getAliExpressBrowserProduct("3256811750293175"),\n  new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AliExpress live browser exceeded 50 seconds")), 50000)),\n]);\nconst elapsedMs = Date.now() - started;\nconst skus = product.sku_pricing || [];\nassert(String(product.id) === "3256811750293175", "Wrong product ID");\nassert(skus.length > 0, "No operational SKUs returned");\nassert(skus.every((sku) => Number.isFinite(sku.available_quantity)), "Missing exact stock");\nassert(skus.every((sku) => Number.isFinite(sku.sale_price)), "Missing exact price");\nconsole.log(JSON.stringify({ ok: true, elapsedMs, productId: product.id, skuCount: skus.length, totalStock: skus.reduce((n, sku) => n + (sku.available_quantity || 0), 0) }));\n''')
+          Path('scripts/aliexpress-live-time-budget-smoke.ts').write_text('''process.env.VERCEL_ENV = "production";\nprocess.env.CHROMIUM_PACK_URL = "https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.x64.tar";\nconst { getAliExpressBrowserProduct } = await import("../src/lib/aliexpress-browser-provider.ts");\nfunction assert(v: unknown, m: string): asserts v { if (!v) throw new Error(m); }\nconst started = Date.now();\nconst product = await Promise.race([\n  getAliExpressBrowserProduct("3256811750293175"),\n  new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AliExpress live browser exceeded 50 seconds")), 50000)),\n]);\nconst elapsedMs = Date.now() - started;\nconst skus = product.sku_pricing || [];\nassert(String(product.id) === "3256811750293175", "Wrong product ID");\nassert(skus.length > 0, "No operational SKUs returned");\nassert(skus.every((sku) => Number.isFinite(sku.available_quantity)), "Missing exact stock");\nassert(skus.every((sku) => Number.isFinite(sku.sale_price)), "Missing exact price");\nconsole.log(JSON.stringify({ ok: true, elapsedMs, productId: product.id, skuCount: skus.length, totalStock: skus.reduce((n, sku) => n + (sku.available_quantity || 0), 0) }));\n''')
           PY
 
       - run: npm ci
