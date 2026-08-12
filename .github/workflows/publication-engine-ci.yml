@@ -32,6 +32,9 @@ jobs:
       - name: AliExpress operational provider failover
         run: npm run test:aliexpress-provider-failover
 
+      - name: Serverless Chromium runtime
+        run: npm run test:serverless-browser-runtime
+
       - name: Product copy grounded fallback
         run: npm run test:product-copy-fallback
 
