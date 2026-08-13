@@ -415,7 +415,6 @@ export async function POST(request: Request) {
         ok: false,
         code: providerUnavailable ? error.code : "ALIEXPRESS_IMPORT_FAILED",
         retryable: providerUnavailable ? error.retryable : false,
-        actionUrl: providerUnavailable ? "/settings/aliexpress" : null,
         error:
           error instanceof Error
             ? error.message
