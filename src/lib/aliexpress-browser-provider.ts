@@ -242,13 +242,8 @@ function currentChromiumPackUrl() {
   const configured = process.env.CHROMIUM_PACK_URL?.trim();
   if (configured) return configured;
 
-  const currentHost = process.env.VERCEL_URL?.trim();
-  if (currentHost) return `https://${currentHost}/chromium-pack.tar`;
-
-  const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
-  if (productionHost) return `https://${productionHost}/chromium-pack.tar`;
-
-  return null;
+  // Pack oficial do @sparticuz/chromium, compatível com chromium-min@141.
+  return "https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.tar";
 }
 
 async function getVercelChromiumPath() {

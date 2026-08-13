@@ -120,6 +120,8 @@ assert(provider.includes('provider: "ALIEXPRESS_OPEN_PLATFORM"'), "API oficial d
 assert(provider.includes("OMKAR_CIRCUIT_MS"), "fallback Omkar deve manter circuit breaker");
 assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "fallback Omkar deve falhar rápido");
 assert(provider.includes("getOmkarProductFast"), "Omkar deve existir apenas como fallback rápido");
-assert(!provider.includes("getAliExpressBrowserProduct"), "browser não pode estar no caminho operacional síncrono");
+assert(provider.includes("getAliExpressBrowserProduct"), "browser deve ser o terceiro fallback operacional quando Official e Omkar falham");
+assert(provider.includes("BROWSER_CIRCUIT_MS"), "fallback browser deve manter circuit breaker");
+assert(provider.includes('"ALIEXPRESS_BROWSER"'), "browser deve reportar provider correto");
 
 console.log("ALIEXPRESS OPERATIONAL PROVIDER FAILOVER: PASS");
