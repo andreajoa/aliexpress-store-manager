@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { browserEnvelopeToProduct } from "../src/lib/aliexpress-browser-provider.ts";
 import { globalAliExpressProductId } from "../src/lib/aliexpress-catalog-id.ts";
 import {
+  buildScrapingBeeEndpoint,
   getAliExpressScrapingBeeProduct,
   scrapingBeeResponseToProduct,
 } from "../src/lib/aliexpress-scrapingbee-provider.ts";
@@ -88,12 +89,27 @@ const scrapingBeeParsed = scrapingBeeResponseToProduct("3256811750293175", {
 });
 assert(scrapingBeeParsed.sku_pricing?.length === 2, "ScrapingBee deve reutilizar o payload PDP operacional");
 
+const configuredEndpoint = buildScrapingBeeEndpoint("3256811750293175");
+assert(configuredEndpoint.searchParams.get("stealth_proxy") === "true", "ScrapingBee deve usar stealth proxy para AliExpress");
+assert(configuredEndpoint.searchParams.get("premium_proxy") === null, "ScrapingBee não deve usar o proxy comum no AliExpress");
+assert(configuredEndpoint.searchParams.get("country_code") === "us", "ScrapingBee deve consultar preço operacional dos EUA");
+
 let requestedScrapingBeeUrl = "";
+let scrapingBeeFetchAttempts = 0;
 const fetchedThroughScrapingBee = await getAliExpressScrapingBeeProduct("3256811750293175", {
   apiKey: "test-key",
-  timeoutMs: 5_000,
+  timeoutMs: 20_000,
   fetchImpl: async (input) => {
+    scrapingBeeFetchAttempts += 1;
     requestedScrapingBeeUrl = String(input);
+    if (scrapingBeeFetchAttempts === 1) {
+      return new Response(JSON.stringify({
+        body: "<html><body>product shell without PDP XHR</body></html>",
+        "initial-status-code": 200,
+        "resolved-url": "https://www.aliexpress.com/item/3256811750293175.html",
+        xhr: [],
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     return new Response(JSON.stringify({
       xhr: [{
         url: "https://acs.aliexpress.com/h5/mtop.aliexpress.pdp.pc.query/1.0/",
@@ -104,8 +120,25 @@ const fetchedThroughScrapingBee = await getAliExpressScrapingBeeProduct("3256811
   },
 });
 assert(fetchedThroughScrapingBee.id === "3256811750293175", "ScrapingBee deve retornar o produto consultado");
+assert(scrapingBeeFetchAttempts === 2, "ScrapingBee deve tentar a página mobile quando o desktop não entrega PDP");
+assert(requestedScrapingBeeUrl.includes("m.aliexpress.com"), "segunda tentativa do ScrapingBee deve usar o domínio mobile");
 assert(requestedScrapingBeeUrl.includes("json_response=true"), "ScrapingBee deve capturar XHRs da página");
-assert(requestedScrapingBeeUrl.includes("premium_proxy=true"), "ScrapingBee deve usar proxy anti-bloqueio");
+assert(requestedScrapingBeeUrl.includes("stealth_proxy=true"), "ScrapingBee deve usar proxy anti-bloqueio");
+
+let rejectedCredentialAttempts = 0;
+try {
+  await getAliExpressScrapingBeeProduct("3256811750293175", {
+    apiKey: "rejected-key",
+    maxAttempts: 2,
+    fetchImpl: async () => {
+      rejectedCredentialAttempts += 1;
+      return new Response("invalid api key", { status: 401 });
+    },
+  });
+} catch {
+  // A credencial recusada deve falhar imediatamente, sem gastar nova tentativa.
+}
+assert(rejectedCredentialAttempts === 1, "ScrapingBee não deve repetir erro de credencial");
 
 let missingStockBlocked = false;
 try {
@@ -164,11 +197,24 @@ assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "fallback Omkar deve f
 assert(provider.includes("OMKAR_FAST_MAX_ATTEMPTS = 3"), "fallback Omkar deve repetir falhas transitórias");
 assert(provider.includes("getOmkarProductFast"), "Omkar deve existir apenas como fallback rápido");
 assert(provider.includes("getAliExpressScrapingBeeProduct"), "ScrapingBee deve contornar bloqueio do browser sem login AliExpress");
-assert(provider.indexOf("getAliExpressScrapingBeeProduct(automaticProductId)") < provider.indexOf("getAliExpressBrowserProduct(automaticProductId)"), "browser local deve ser apenas o último fallback");
+const scrapingBeeIndex = provider.indexOf("getAliExpressScrapingBeeProduct(automaticProductId,");
+const browserIndex = provider.indexOf("getAliExpressBrowserProduct(automaticProductId)");
+assert(scrapingBeeIndex >= 0, "provider deve chamar ScrapingBee com o ID operacional");
+assert(browserIndex > scrapingBeeIndex, "browser local deve ser apenas o último fallback");
+assert(provider.includes("getOmkarProductFast(automaticProductId)"), "Omkar deve começar pelo ID global conhecido");
 assert(provider.includes("resolvedProductId"), "provider deve informar o ID canônico realmente consultado");
 assert(importRoute.includes("existingResolved"), "import deve impedir duplicata após converter ID regional");
 assert(importRoute.includes("sourceProductId: resolvedProductId"), "import deve persistir o ID canônico do fornecedor");
 assert(!importRoute.includes("actionUrl"), "falha automática não pode obrigar autorização AliExpress");
 assert(!form.includes("Conectar AliExpress"), "formulário de importação não pode exigir login AliExpress");
+
+const browserProvider = readFileSync("src/lib/aliexpress-browser-provider.ts", "utf8");
+const packageJson = readFileSync("package.json", "utf8");
+const nextConfig = readFileSync("next.config.ts", "utf8");
+assert(browserProvider.includes('import("@sparticuz/chromium")'), "browser Vercel deve usar Chromium empacotado");
+assert(!browserProvider.includes("chromium-min"), "browser Vercel não pode baixar pack remoto durante a importação");
+assert(packageJson.includes('\"@sparticuz/chromium\": \"^141.0.0\"'), "Chromium deve ser dependência de produção");
+assert(!packageJson.includes('\"@sparticuz/chromium-min\"'), "chromium-min remoto não deve permanecer instalado");
+assert(nextConfig.includes("outputFileTracingIncludes"), "build deve incluir os binários Chromium nas rotas operacionais");
 
 console.log("ALIEXPRESS OPERATIONAL PROVIDER FAILOVER: PASS");

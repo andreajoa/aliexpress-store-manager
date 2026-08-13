@@ -143,6 +143,8 @@ export async function POST(request: Request) {
      * CAMADA OPERACIONAL REDUNDANTE
      * 1. API oficial AliExpress, quando a conta está autorizada.
      * 2. Omkar com novas tentativas curtas para falhas transitórias.
+     * 3. ScrapingBee stealth com páginas desktop e mobile.
+     * 4. Chromium empacotado no deploy como último fallback.
      * Nenhum produto é persistido sem SKU, preço e estoque verificáveis.
      */
     const operational = await getAliExpressOperationalProduct(productId);
