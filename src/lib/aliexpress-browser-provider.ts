@@ -242,8 +242,10 @@ function currentChromiumPackUrl() {
   const configured = process.env.CHROMIUM_PACK_URL?.trim();
   if (configured) return configured;
 
-  // Pack oficial do @sparticuz/chromium, compatível com chromium-min@141.
-  return "https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.tar";
+  // Pack oficial do @sparticuz/chromium v141, servido diretamente do GitHub Releases.
+  // Vercel serverless usa x64 por padrão; arm64 pode ser selecionado via env override.
+  const arch = process.arch === "arm64" ? "arm64" : "x64";
+  return `https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.${arch}.tar`;
 }
 
 async function getVercelChromiumPath() {
