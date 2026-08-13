@@ -18,6 +18,7 @@ export type ScrapingBeeRequestOptions = {
   apiKey?: string;
   fetchImpl?: typeof fetch;
   maxAttempts?: number;
+  signal?: AbortSignal;
   timeoutMs?: number;
 };
 
@@ -91,11 +92,50 @@ export function buildScrapingBeeEndpoint(productId: string, mobile = false) {
   endpoint.searchParams.set("country_code", "us");
   endpoint.searchParams.set("stealth_proxy", "true");
   endpoint.searchParams.set("block_ads", "true");
-  endpoint.searchParams.set("wait", mobile ? "7000" : "6000");
+  endpoint.searchParams.set("block_resources", "true");
+  endpoint.searchParams.set("wait_browser", "domcontentloaded");
+  endpoint.searchParams.set("wait", mobile ? "9000" : "8000");
   endpoint.searchParams.set("forward_headers", "true");
   endpoint.searchParams.set("window_width", mobile ? "430" : "1440");
   endpoint.searchParams.set("window_height", mobile ? "932" : "1000");
   return endpoint;
+}
+
+export function scrapingBeeAttemptTimeouts(totalTimeoutMs: number, maxAttempts: number) {
+  const attempts = Math.max(1, Math.min(2, Math.floor(maxAttempts)));
+  const total = Math.max(attempts * 10_000, Math.floor(totalTimeoutMs));
+  if (attempts === 1) return [total];
+
+  // A página desktop recebe mais tempo porque é a que expõe o payload PDP PC
+  // usado para obter estoque e preço exatos. A tentativa mobile preserva uma
+  // segunda rota sem reduzir a primeira a um timeout artificial de 25 segundos.
+  const desktop = Math.floor(total * 0.58);
+  return [desktop, total - desktop];
+}
+
+function requestSignal(timeoutMs: number, parent?: AbortSignal) {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  return parent ? AbortSignal.any([parent, timeoutSignal]) : timeoutSignal;
+}
+
+function normalizedRequestError(
+  error: unknown,
+  label: "desktop" | "mobile",
+  timeoutMs: number,
+  parent?: AbortSignal,
+) {
+  if (parent?.aborted) {
+    return new Error("ScrapingBee cancelado porque outro provedor respondeu primeiro.");
+  }
+  if (
+    error instanceof Error &&
+    (error.name === "TimeoutError" || /aborted due to timeout/i.test(error.message))
+  ) {
+    return new Error(
+      `ScrapingBee ${label} excedeu ${Math.ceil(timeoutMs / 1000)} segundos sem concluir.`,
+    );
+  }
+  return error instanceof Error ? error : new Error(String(error));
 }
 
 export function scrapingBeeResponseToProduct(
@@ -142,14 +182,19 @@ export async function getAliExpressScrapingBeeProduct(
 
   const fetchImpl = options.fetchImpl ?? fetch;
   const maxAttempts = Math.max(1, Math.min(2, Math.floor(options.maxAttempts ?? 2)));
-  const totalTimeoutMs = Math.max(10_000, options.timeoutMs ?? 50_000);
-  const attemptTimeoutMs = Math.max(8_000, Math.floor(totalTimeoutMs / maxAttempts));
+  const totalTimeoutMs = Math.max(10_000, options.timeoutMs ?? 82_000);
+  const attemptTimeouts = scrapingBeeAttemptTimeouts(totalTimeoutMs, maxAttempts);
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const endpoint = buildScrapingBeeEndpoint(productId, attempt > 0);
+    const mobile = attempt > 0;
+    const endpoint = buildScrapingBeeEndpoint(productId, mobile);
+    const attemptTimeoutMs = attemptTimeouts[attempt];
 
     try {
+      if (options.signal?.aborted) {
+        throw new Error("ScrapingBee cancelado porque outro provedor respondeu primeiro.");
+      }
       const response = await fetchImpl(endpoint, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -157,7 +202,7 @@ export async function getAliExpressScrapingBeeProduct(
           "Spb-Accept-Language": "en-US,en;q=0.9",
         },
         cache: "no-store",
-        signal: AbortSignal.timeout(attemptTimeoutMs),
+        signal: requestSignal(attemptTimeoutMs, options.signal),
       });
       const raw = await response.text();
 
@@ -180,8 +225,17 @@ export async function getAliExpressScrapingBeeProduct(
         throw error;
       }
     } catch (error) {
-      lastError = error;
-      if (attempt + 1 >= maxAttempts || !retryableFailure(error)) break;
+      lastError = normalizedRequestError(
+        error,
+        mobile ? "mobile" : "desktop",
+        attemptTimeoutMs,
+        options.signal,
+      );
+      if (
+        options.signal?.aborted ||
+        attempt + 1 >= maxAttempts ||
+        !retryableFailure(lastError)
+      ) break;
     }
   }
 

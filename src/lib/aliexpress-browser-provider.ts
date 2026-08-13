@@ -4,6 +4,16 @@ import type {
   OmkarVariantGroup,
 } from "./omkar";
 
+type BrowserResponse = {
+  text(): Promise<string>;
+  url(): string;
+};
+
+type BrowserResponsePage = {
+  off(event: "response", handler: (response: BrowserResponse) => void): unknown;
+  on(event: "response", handler: (response: BrowserResponse) => void): unknown;
+};
+
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -235,18 +245,32 @@ export function browserEnvelopeToProduct(
   };
 }
 
+async function puppeteerWithStealth(base: unknown) {
+  const [{ addExtra }, stealthModule] = await Promise.all([
+    import("puppeteer-extra"),
+    import("puppeteer-extra-plugin-stealth"),
+  ]);
+  const puppeteer = addExtra(
+    base as Parameters<typeof addExtra>[0],
+  );
+  puppeteer.use(stealthModule.default());
+  return puppeteer;
+}
+
 async function launchBrowser() {
   if (process.env.VERCEL_ENV) {
     const chromium = (await import("@sparticuz/chromium")).default;
-    const puppeteer = await import("puppeteer-core");
+    const core = (await import("puppeteer-core")).default;
+    const puppeteer = await puppeteerWithStealth(core);
     return puppeteer.launch({
       headless: true,
       executablePath: await chromium.executablePath(),
-      args: chromium.args,
+      args: [...chromium.args, "--disable-dev-shm-usage"],
     });
   }
 
-  const puppeteer = await import("puppeteer");
+  const local = (await import("puppeteer")).default;
+  const puppeteer = await puppeteerWithStealth(local);
   return puppeteer.launch({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -265,12 +289,128 @@ function looksLikeChallenge(url: string, title: string, body: string) {
   );
 }
 
-export async function getAliExpressBrowserProduct(productId: string): Promise<OmkarProduct> {
+export type AliExpressBrowserOptions = {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+};
+
+type CaptureAfterNavigationResult<T> = {
+  value: T | null;
+  navigationError: string | null;
+};
+
+function compactError(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function waitForValue<T>(promise: Promise<T>, timeoutMs: number, signal?: AbortSignal) {
+  return new Promise<T | null>((resolve, reject) => {
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      callback();
+    };
+    const onAbort = () => finish(() => reject(new Error("Browser AliExpress cancelado.")));
+    const timer = setTimeout(() => finish(() => resolve(null)), timeoutMs);
+
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
+    signal?.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => finish(() => resolve(value)),
+      (error) => finish(() => reject(error)),
+    );
+  });
+}
+
+export async function waitForCaptureAfterNavigation<T>(
+  navigation: Promise<unknown>,
+  capture: Promise<T>,
+  waitAfterNavigationMs: number,
+  signal?: AbortSignal,
+): Promise<CaptureAfterNavigationResult<T>> {
+  const first = await Promise.race([
+    capture.then((value) => ({ kind: "capture" as const, value })),
+    navigation.then(
+      () => ({ kind: "navigation" as const, error: null }),
+      (error) => ({ kind: "navigation" as const, error: compactError(error) }),
+    ),
+  ]);
+
+  if (first.kind === "capture") {
+    return { value: first.value, navigationError: null };
+  }
+
+  // Um timeout de navegação não significa que a resposta XHR parou. O
+  // AliExpress pode continuar enviando o payload PDP depois desse timeout.
+  const value = await waitForValue(capture, waitAfterNavigationMs, signal);
+  return { value, navigationError: first.error };
+}
+
+function operationalEnvelope(raw: string) {
+  const envelope = parseEnvelope(raw);
+  const result = record(record(envelope.data).result);
+  return Object.keys(record(result.SKU)).length > 0 &&
+    Object.keys(record(result.PRICE)).length > 0
+    ? envelope
+    : null;
+}
+
+function createEnvelopeCapture(page: BrowserResponsePage) {
+  let captured: Record<string, unknown> | null = null;
+  let resolveCapture: (value: Record<string, unknown>) => void = () => undefined;
+  const promise = new Promise<Record<string, unknown>>((resolve) => {
+    resolveCapture = resolve;
+  });
+
+  const onResponse = async (response: BrowserResponse) => {
+    if (captured) return;
+    const url = response.url().toLowerCase();
+    if (!url.includes("mtop.aliexpress") || !url.includes("pdp")) return;
+    try {
+      const envelope = operationalEnvelope(await response.text());
+      if (envelope && !captured) {
+        captured = envelope;
+        resolveCapture(envelope);
+      }
+    } catch {
+      // Nem toda resposta MTOP da página contém os módulos de SKU e preço.
+    }
+  };
+
+  page.on("response", onResponse);
+  return {
+    current: () => captured,
+    promise,
+    dispose: () => page.off("response", onResponse),
+  };
+}
+
+export async function getAliExpressBrowserProduct(
+  productId: string,
+  options: AliExpressBrowserOptions = {},
+): Promise<OmkarProduct> {
   if (!/^\d{10,}$/.test(productId)) {
     throw new Error("Product ID inválido para consulta via browser AliExpress.");
   }
 
+  if (options.signal?.aborted) {
+    throw new Error("Browser AliExpress cancelado.");
+  }
+
+  const totalTimeoutMs = Math.max(30_000, options.timeoutMs ?? 72_000);
+  const deadline = Date.now() + totalTimeoutMs;
   const browser = await launchBrowser();
+  const closeOnAbort = () => {
+    void browser.close().catch(() => undefined);
+  };
+  options.signal?.addEventListener("abort", closeOnAbort, { once: true });
+
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 1000 });
@@ -279,48 +419,53 @@ export async function getAliExpressBrowserProduct(productId: string): Promise<Om
       "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
     );
     await page.setExtraHTTPHeaders({ "Accept-Language": "en-US,en;q=0.9" });
-
-    let captured: Record<string, unknown> | null = null;
-    page.on("response", async (response) => {
-      if (captured) return;
-      const url = response.url();
-      if (!url.includes("mtop.aliexpress") || !url.includes("pdp")) return;
-      try {
-        const raw = await response.text();
-        const envelope = parseEnvelope(raw);
-        const result = record(record(envelope.data).result);
-        if (Object.keys(record(result.SKU)).length > 0 && Object.keys(record(result.PRICE)).length > 0) {
-          captured = envelope;
-        }
-      } catch {
-        // Not every MTOP response on the page is the product-detail payload.
-      }
+    await page.setCookie({
+      name: "aep_usuc_f",
+      value: "site=glo&c_tp=USD&region=US&b_locale=en_US",
+      domain: ".aliexpress.com",
+      path: "/",
+      secure: true,
     });
 
-    // O domínio russo costuma entregar o mesmo payload PDP sem o desafio que
-    // aparece no domínio global. O mobile global fica como segunda tentativa.
+    const capture = createEnvelopeCapture(page as unknown as BrowserResponsePage);
+
+    // A página global desktop é a fonte do endpoint pdp.pc.query. O domínio
+    // russo permanece como rota alternativa caso a página global seja bloqueada.
     const productUrls = [
+      `https://www.aliexpress.com/item/${productId}.html?gatewayAdapt=glo2usa4itemAdapt`,
       `https://aliexpress.ru/item/${productId}.html`,
-      `https://m.aliexpress.com/item/${productId}.html`,
     ];
     let challengeCount = 0;
+    let attemptedUrls = 0;
     const navigationErrors: string[] = [];
 
     for (const productUrl of productUrls) {
-      try {
-        await page.goto(productUrl, {
-          waitUntil: "domcontentloaded",
-          timeout: 18_000,
-        });
-      } catch (error) {
-        navigationErrors.push(error instanceof Error ? error.message : String(error));
-        continue;
-      }
+      if (capture.current()) break;
+      if (options.signal?.aborted) throw new Error("Browser AliExpress cancelado.");
 
-      for (let tick = 0; tick < 8 && !captured; tick += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      const remainingMs = deadline - Date.now();
+      if (remainingMs < 8_000) break;
+      attemptedUrls += 1;
+      const navigationTimeoutMs = Math.min(28_000, Math.max(10_000, remainingMs - 14_000));
+      const waitAfterNavigationMs = Math.min(
+        14_000,
+        Math.max(5_000, remainingMs - navigationTimeoutMs),
+      );
+      const result = await waitForCaptureAfterNavigation(
+        page.goto(productUrl, {
+          waitUntil: "domcontentloaded",
+          timeout: navigationTimeoutMs,
+        }),
+        capture.promise,
+        waitAfterNavigationMs,
+        options.signal,
+      );
+      if (result.value) break;
+      if (result.navigationError) {
+        navigationErrors.push(
+          `${new URL(productUrl).hostname}: ${result.navigationError}`,
+        );
       }
-      if (captured) break;
 
       const [pageUrl, title, body] = await Promise.all([
         Promise.resolve(page.url()),
@@ -334,8 +479,10 @@ export async function getAliExpressBrowserProduct(productId: string): Promise<Om
       }
     }
 
+    const captured = capture.current();
+    capture.dispose();
     if (!captured) {
-      if (challengeCount === productUrls.length) {
+      if (attemptedUrls > 0 && challengeCount === attemptedUrls) {
         throw new Error("AliExpress exigiu verificação humana nos browsers automáticos.");
       }
       throw new Error(
@@ -346,6 +493,7 @@ export async function getAliExpressBrowserProduct(productId: string): Promise<Om
 
     return browserEnvelopeToProduct(productId, captured);
   } finally {
+    options.signal?.removeEventListener("abort", closeOnAbort);
     await browser.close().catch(() => undefined);
   }
 }

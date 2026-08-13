@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       {
         ok: true,
         buildSha,
-        providerVersion: "automatic-failover-v4",
+        providerVersion: "automatic-failover-v5",
       },
       {
         headers: { "Cache-Control": "private, no-store" },
