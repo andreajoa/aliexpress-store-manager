@@ -305,6 +305,10 @@ export async function getAliExpressBrowserProduct(productId: string): Promise<Om
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 1000 });
+    await page.setUserAgent(
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 " +
+      "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+    );
     await page.setExtraHTTPHeaders({ "Accept-Language": "en-US,en;q=0.9" });
 
     let captured: Record<string, unknown> | null = null;
@@ -324,26 +328,51 @@ export async function getAliExpressBrowserProduct(productId: string): Promise<Om
       }
     });
 
-    const productUrl = `https://www.aliexpress.com/item/${productId}.html`;
-    await page.goto(productUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: 45000,
-    });
+    // O domínio russo costuma entregar o mesmo payload PDP sem o desafio que
+    // aparece no domínio global. O mobile global fica como segunda tentativa.
+    const productUrls = [
+      `https://aliexpress.ru/item/${productId}.html`,
+      `https://m.aliexpress.com/item/${productId}.html`,
+    ];
+    let challengeCount = 0;
+    const navigationErrors: string[] = [];
 
-    for (let tick = 0; tick < 20 && !captured; tick += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
+    for (const productUrl of productUrls) {
+      try {
+        await page.goto(productUrl, {
+          waitUntil: "domcontentloaded",
+          timeout: 18_000,
+        });
+      } catch (error) {
+        navigationErrors.push(error instanceof Error ? error.message : String(error));
+        continue;
+      }
 
-    if (!captured) {
+      for (let tick = 0; tick < 8 && !captured; tick += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      if (captured) break;
+
       const [pageUrl, title, body] = await Promise.all([
         Promise.resolve(page.url()),
         page.title().catch(() => ""),
         page.content().then((html) => html.slice(0, 5000)).catch(() => ""),
       ]);
       if (looksLikeChallenge(pageUrl, title, body)) {
-        throw new Error("AliExpress exigiu verificação humana no browser. Nenhum dado operacional foi salvo.");
+        challengeCount += 1;
+      } else {
+        navigationErrors.push(`Nenhum payload PDP recebido em ${new URL(productUrl).hostname}.`);
       }
-      throw new Error("O browser abriu o AliExpress, mas não recebeu o payload operacional do produto.");
+    }
+
+    if (!captured) {
+      if (challengeCount === productUrls.length) {
+        throw new Error("AliExpress exigiu verificação humana nos browsers automáticos.");
+      }
+      throw new Error(
+        "O browser abriu o AliExpress, mas não recebeu o payload operacional do produto. " +
+        (navigationErrors.at(-1) || ""),
+      );
     }
 
     return browserEnvelopeToProduct(productId, captured);

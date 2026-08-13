@@ -35,10 +35,16 @@ assert(
   "official provider must be first path",
 );
 assert(provider.includes("ALIEXPRESS_OPEN_PLATFORM"), "official provider label missing");
-assert(!provider.includes("getAliExpressBrowserProduct"), "browser cannot be synchronous operational fallback");
+assert(provider.includes("getAliExpressScrapingBeeProduct"), "automatic managed-browser fallback missing");
+assert(
+  provider.indexOf("getAliExpressScrapingBeeProduct(automaticProductId)") <
+    provider.indexOf("getAliExpressBrowserProduct(automaticProductId)"),
+  "local browser must remain the final fallback",
+);
 assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "Omkar fallback must fail fast");
 assert(!route.includes("scrapeAliExpressProduct"), "editorial ScrapingBee cannot block import");
 assert(route.includes("orderSkuAttr: officialSkuAttrs"), "supplier variant must persist official orderSkuAttr");
 assert(!form.includes("await response.json()"), "client cannot blindly parse gateway errors as JSON");
 assert(form.includes("response.status === 504"), "client must handle 504 explicitly");
+assert(!form.includes("Conectar AliExpress"), "official account connection must remain optional");
 console.log("OFFICIAL ALIEXPRESS IMPORT: PASS");

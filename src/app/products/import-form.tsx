@@ -48,9 +48,6 @@ export function ImportForm() {
   const [error, setError] =
     useState("");
 
-  const [actionUrl, setActionUrl] =
-    useState<string | null>(null);
-
   const [
     product,
     setProduct,
@@ -75,7 +72,6 @@ export function ImportForm() {
 
     setLoading(true);
     setError("");
-    setActionUrl(null);
     setProduct(null);
 
     try {
@@ -101,7 +97,7 @@ export function ImportForm() {
         );
 
       const rawBody = await response.text();
-      let data: { error?: string; actionUrl?: string | null; product?: ImportedProduct } = {};
+      let data: { error?: string; product?: ImportedProduct } = {};
 
       if (rawBody) {
         try {
@@ -119,7 +115,6 @@ export function ImportForm() {
       }
 
       if (!response.ok) {
-        setActionUrl(data.actionUrl || null);
         throw new Error(
           data.error ||
             "Não foi possível importar o produto."
@@ -197,15 +192,7 @@ export function ImportForm() {
 
         {error && (
           <div className="mt-4 rounded-xl border border-red-900 bg-red-950/40 p-4 text-sm text-red-300">
-            <p>{error}</p>
-            {actionUrl && (
-              <a
-                href={actionUrl}
-                className="mt-3 inline-flex rounded-lg bg-red-200 px-3 py-2 font-semibold text-red-950 hover:bg-white"
-              >
-                Conectar AliExpress
-              </a>
-            )}
+            {error}
           </div>
         )}
       </form>
