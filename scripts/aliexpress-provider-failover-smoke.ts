@@ -1,10 +1,14 @@
 import { readFileSync } from "node:fs";
 
-import { browserEnvelopeToProduct } from "../src/lib/aliexpress-browser-provider.ts";
+import {
+  browserEnvelopeToProduct,
+  waitForCaptureAfterNavigation,
+} from "../src/lib/aliexpress-browser-provider.ts";
 import { globalAliExpressProductId } from "../src/lib/aliexpress-catalog-id.ts";
 import {
   buildScrapingBeeEndpoint,
   getAliExpressScrapingBeeProduct,
+  scrapingBeeAttemptTimeouts,
   scrapingBeeResponseToProduct,
 } from "../src/lib/aliexpress-scrapingbee-provider.ts";
 
@@ -93,6 +97,19 @@ const configuredEndpoint = buildScrapingBeeEndpoint("3256811750293175");
 assert(configuredEndpoint.searchParams.get("stealth_proxy") === "true", "ScrapingBee deve usar stealth proxy para AliExpress");
 assert(configuredEndpoint.searchParams.get("premium_proxy") === null, "ScrapingBee não deve usar o proxy comum no AliExpress");
 assert(configuredEndpoint.searchParams.get("country_code") === "us", "ScrapingBee deve consultar preço operacional dos EUA");
+assert(configuredEndpoint.searchParams.get("wait_browser") === "domcontentloaded", "ScrapingBee não deve esperar o carregamento total da página");
+assert(configuredEndpoint.searchParams.get("block_resources") === "true", "ScrapingBee deve bloquear recursos visuais desnecessários");
+const managedTimeouts = scrapingBeeAttemptTimeouts(82_000, 2);
+assert(managedTimeouts[0] >= 45_000, "tentativa desktop do ScrapingBee precisa de orçamento realista");
+assert(managedTimeouts[1] >= 30_000, "tentativa mobile do ScrapingBee precisa preservar tempo útil");
+
+const capturedAfterTimeout = await waitForCaptureAfterNavigation(
+  Promise.reject(new Error("Navigation timeout of 18000 ms exceeded")),
+  new Promise<string>((resolve) => setTimeout(() => resolve("PDP_CAPTURED"), 5)),
+  100,
+);
+assert(capturedAfterTimeout.value === "PDP_CAPTURED", "browser deve aceitar o payload que chega após timeout de navegação");
+assert(capturedAfterTimeout.navigationError?.includes("Navigation timeout"), "browser deve preservar o diagnóstico de navegação");
 
 let requestedScrapingBeeUrl = "";
 let scrapingBeeFetchAttempts = 0;
@@ -193,14 +210,16 @@ assert(provider.includes("requireAliExpressSession"), "provider deve usar sessã
 assert(provider.includes("getDropshipProduct"), "provider deve consultar aliexpress.ds.product.get");
 assert(provider.includes('provider: "ALIEXPRESS_OPEN_PLATFORM"'), "API oficial deve ser o caminho primário");
 assert(!provider.includes("OMKAR_CIRCUIT_MS"), "falha anterior do Omkar não pode bloquear uma nova tentativa do usuário");
-assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "fallback Omkar deve falhar rápido");
-assert(provider.includes("OMKAR_FAST_MAX_ATTEMPTS = 3"), "fallback Omkar deve repetir falhas transitórias");
+assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 4000"), "fallback Omkar deve falhar rápido");
+assert(provider.includes("OMKAR_FAST_MAX_ATTEMPTS = 2"), "fallback Omkar não deve consumir o orçamento dos browsers");
 assert(provider.includes("getOmkarProductFast"), "Omkar deve existir apenas como fallback rápido");
 assert(provider.includes("getAliExpressScrapingBeeProduct"), "ScrapingBee deve contornar bloqueio do browser sem login AliExpress");
 const scrapingBeeIndex = provider.indexOf("getAliExpressScrapingBeeProduct(automaticProductId,");
-const browserIndex = provider.indexOf("getAliExpressBrowserProduct(automaticProductId)");
+const browserIndex = provider.indexOf("getAliExpressBrowserProduct(automaticProductId,");
 assert(scrapingBeeIndex >= 0, "provider deve chamar ScrapingBee com o ID operacional");
-assert(browserIndex > scrapingBeeIndex, "browser local deve ser apenas o último fallback");
+assert(browserIndex > scrapingBeeIndex, "provider deve iniciar os dois browsers automáticos");
+assert(provider.includes("Promise.any([scrapingBeeAttempt, browserAttempt])"), "browsers lentos devem disputar o mesmo orçamento em paralelo");
+assert(provider.includes("aliExpressConnectionStatus"), "API oficial deve ser ignorada quando não existe sessão ativa");
 assert(provider.includes("getOmkarProductFast(automaticProductId)"), "Omkar deve começar pelo ID global conhecido");
 assert(provider.includes("resolvedProductId"), "provider deve informar o ID canônico realmente consultado");
 assert(importRoute.includes("existingResolved"), "import deve impedir duplicata após converter ID regional");
@@ -212,8 +231,11 @@ const browserProvider = readFileSync("src/lib/aliexpress-browser-provider.ts", "
 const packageJson = readFileSync("package.json", "utf8");
 const nextConfig = readFileSync("next.config.ts", "utf8");
 assert(browserProvider.includes('import("@sparticuz/chromium")'), "browser Vercel deve usar Chromium empacotado");
+assert(browserProvider.includes('import("puppeteer-extra-plugin-stealth")'), "browser deve aplicar proteção antirrobô");
+assert(browserProvider.includes("www.aliexpress.com/item/"), "browser deve consultar a página global que dispara o PDP PC");
 assert(!browserProvider.includes("chromium-min"), "browser Vercel não pode baixar pack remoto durante a importação");
 assert(packageJson.includes('\"@sparticuz/chromium\": \"^141.0.0\"'), "Chromium deve ser dependência de produção");
+assert(packageJson.includes('\"puppeteer-extra-plugin-stealth\"'), "plugin stealth deve ser dependência de produção");
 assert(!packageJson.includes('\"@sparticuz/chromium-min\"'), "chromium-min remoto não deve permanecer instalado");
 assert(nextConfig.includes("outputFileTracingIncludes"), "build deve incluir os binários Chromium nas rotas operacionais");
 

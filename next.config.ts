@@ -4,7 +4,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
-  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
+  serverExternalPackages: [
+    "@sparticuz/chromium",
+    "puppeteer-core",
+    "puppeteer-extra",
+    "puppeteer-extra-plugin-stealth",
+  ],
   outputFileTracingIncludes: {
     "/api/import/aliexpress": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     "/api/health/aliexpress-provider": ["./node_modules/@sparticuz/chromium/bin/**/*"],
