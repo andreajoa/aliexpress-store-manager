@@ -1,9 +1,15 @@
+import { getAliExpressBrowserProduct } from "./aliexpress-browser-provider";
 import { globalAliExpressProductId } from "./aliexpress-catalog-id";
 import { requireAliExpressSession } from "./aliexpress-connection";
 import { officialDropshipProductToOperationalProduct } from "./aliexpress-official-product-provider";
+import { getAliExpressScrapingBeeProduct } from "./aliexpress-scrapingbee-provider";
 import { getOmkarProduct, type OmkarProduct } from "./omkar";
 
-export type AliExpressOperationalProvider = "ALIEXPRESS_OPEN_PLATFORM" | "OMKAR";
+export type AliExpressOperationalProvider =
+  | "ALIEXPRESS_OPEN_PLATFORM"
+  | "OMKAR"
+  | "SCRAPINGBEE_BROWSER"
+  | "ALIEXPRESS_BROWSER";
 
 export type AliExpressOperationalProduct = {
   product: OmkarProduct;
@@ -25,10 +31,10 @@ export class AliExpressProviderUnavailableError extends Error {
 
 const OMKAR_FAST_TIMEOUT_MS = 5000;
 const OMKAR_FAST_MAX_ATTEMPTS = 3;
-const OMKAR_CIRCUIT_MS = 2 * 60 * 1000;
-let omkarCircuitOpenUntil = 0;
 let omkarLastFailure = "";
 let officialLastFailure = "";
+let scrapingBeeLastFailure = "";
+let browserLastFailure = "";
 
 function compactError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -87,13 +93,12 @@ export function getAliExpressProviderHealth() {
     ),
     officialLastFailure: officialLastFailure || null,
     omkarConfigured: Boolean(process.env.OMKAR_API_KEY?.trim()),
-    omkarCircuitOpen: Date.now() < omkarCircuitOpenUntil,
-    omkarCircuitOpenUntil: omkarCircuitOpenUntil > 0
-      ? new Date(omkarCircuitOpenUntil).toISOString()
-      : null,
     omkarLastFailure: omkarLastFailure || null,
     omkarMaxAttempts: OMKAR_FAST_MAX_ATTEMPTS,
     omkarTimeoutMs: OMKAR_FAST_TIMEOUT_MS,
+    scrapingBeeConfigured: Boolean(process.env.SCRAPINGBEE_API_KEY?.trim()),
+    scrapingBeeLastFailure: scrapingBeeLastFailure || null,
+    browserLastFailure: browserLastFailure || null,
   };
 }
 
@@ -139,49 +144,98 @@ export async function getAliExpressOperationalProduct(
     }
   }
 
-  if (Date.now() < omkarCircuitOpenUntil) {
-    warnings.push("Omkar temporariamente ignorado após uma falha recente.");
-  } else {
-    for (const candidate of candidates) {
-      const converted = candidate !== productId;
+  for (const candidate of candidates) {
+    const converted = candidate !== productId;
 
-      try {
-        const product = await getOmkarProductFast(candidate);
-        if (String(product.id) !== candidate) {
-          throw new Error(
-            `Omkar retornou Product ID ${product.id}, diferente do consultado ${candidate}.`,
-          );
-        }
-        omkarCircuitOpenUntil = 0;
-        omkarLastFailure = "";
-        if (converted) {
-          warnings.push(`ID regional ${productId} convertido para o catálogo global ${candidate}.`);
-        }
-        return {
-          product,
-          provider: "OMKAR",
-          requestedProductId: productId,
-          resolvedProductId: candidate,
-          warnings,
-        };
-      } catch (error) {
-        omkarLastFailure = compactError(error);
-        console.warn("[AliExpress provider] Omkar fallback unavailable.", error);
+    try {
+      const product = await getOmkarProductFast(candidate);
+      if (String(product.id) !== candidate) {
+        throw new Error(
+          `Omkar retornou Product ID ${product.id}, diferente do consultado ${candidate}.`,
+        );
       }
+      omkarLastFailure = "";
+      if (converted) {
+        warnings.push(`ID regional ${productId} convertido para o catálogo global ${candidate}.`);
+      }
+      return {
+        product,
+        provider: "OMKAR",
+        requestedProductId: productId,
+        resolvedProductId: candidate,
+        warnings,
+      };
+    } catch (error) {
+      omkarLastFailure = compactError(error);
+      console.warn("[AliExpress provider] Omkar fallback unavailable.", error);
     }
+  }
+  warnings.push(`Omkar indisponível: ${omkarLastFailure}`);
 
-    omkarCircuitOpenUntil = Date.now() + OMKAR_CIRCUIT_MS;
-    warnings.push(`Omkar indisponível: ${omkarLastFailure}`);
+  // Provedores automáticos não exigem login do usuário. Links aliexpress.us
+  // usam o ID global porque é o identificador aceito pelo payload PDP.
+  const automaticProductId = globalId || productId;
+
+  try {
+    const product = await getAliExpressScrapingBeeProduct(automaticProductId, {
+      timeoutMs: 40_000,
+    });
+    if (String(product.id) !== automaticProductId) {
+      throw new Error(
+        `ScrapingBee retornou Product ID ${product.id}, diferente do consultado ${automaticProductId}.`,
+      );
+    }
+    scrapingBeeLastFailure = "";
+    if (automaticProductId !== productId) {
+      warnings.push(`ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`);
+    }
+    return {
+      product,
+      provider: "SCRAPINGBEE_BROWSER",
+      requestedProductId: productId,
+      resolvedProductId: String(product.id),
+      warnings,
+    };
+  } catch (error) {
+    scrapingBeeLastFailure = compactError(error);
+    console.warn("[AliExpress provider] ScrapingBee fallback unavailable.", error);
+  }
+
+  try {
+    const product = await getAliExpressBrowserProduct(automaticProductId);
+    if (String(product.id) !== automaticProductId) {
+      throw new Error(
+        `Browser retornou Product ID ${product.id}, diferente do consultado ${automaticProductId}.`,
+      );
+    }
+    browserLastFailure = "";
+    if (automaticProductId !== productId) {
+      warnings.push(`ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`);
+    }
+    return {
+      product,
+      provider: "ALIEXPRESS_BROWSER",
+      requestedProductId: productId,
+      resolvedProductId: String(product.id),
+      warnings,
+    };
+  } catch (error) {
+    browserLastFailure = compactError(error);
+    console.warn("[AliExpress provider] Browser fallback unavailable.", error);
   }
 
   if (globalId) {
     warnings.push(`Variante do catálogo global (${globalId}) também não retornou dados.`);
   }
 
+  console.error("[AliExpress provider] All automatic providers failed.", {
+    official: officialLastFailure || null,
+    omkar: omkarLastFailure || null,
+    scrapingBee: scrapingBeeLastFailure || null,
+    browser: browserLastFailure || null,
+  });
   throw new AliExpressProviderUnavailableError(
-    "Não foi possível consultar SKU/estoque do produto. " +
-    `API oficial: ${officialLastFailure || "não autorizada"}. ` +
-    `Omkar: ${omkarLastFailure || "indisponível"}. ` +
-    "Abra Configurações → AliExpress e autorize sua conta para usar a API oficial de dropshipping.",
+    "Não foi possível consultar SKU/estoque agora. Os provedores automáticos estão temporariamente indisponíveis. " +
+    "Nada foi salvo. Tente novamente em alguns instantes.",
   );
 }
