@@ -60,6 +60,15 @@ export type OmkarProduct = {
 const RETRYABLE_OMKAR_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const OMKAR_MAX_ATTEMPTS = 3;
 
+export type OmkarRequestOptions = {
+  apiKey?: string;
+  fetchImpl?: typeof fetch;
+  maxAttempts?: number;
+  timeoutMs?: number;
+  retryDelayMs?: (attempt: number) => number;
+  sleep?: (ms: number) => Promise<void>;
+};
+
 function validateProductId(value: string) {
   if (!/^\d{10,}$/.test(value)) {
     throw new Error(
@@ -284,9 +293,10 @@ function userFacingOmkarError(status: number, body: string) {
 }
 
 export async function getOmkarProduct(
-  productId: string
+  productId: string,
+  options: OmkarRequestOptions = {},
 ): Promise<OmkarProduct> {
-  const apiKey = process.env.OMKAR_API_KEY;
+  const apiKey = options.apiKey?.trim() || process.env.OMKAR_API_KEY?.trim();
 
   if (!apiKey) {
     throw new Error(
@@ -303,13 +313,22 @@ export async function getOmkarProduct(
     productId
   );
 
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const maxAttempts = Math.max(
+    1,
+    Math.min(5, Math.floor(options.maxAttempts ?? OMKAR_MAX_ATTEMPTS)),
+  );
+  const timeoutMs = Math.max(1_000, options.timeoutMs ?? 45_000);
+  const retryDelay = options.retryDelayMs ?? retryDelayMs;
+  const sleep = options.sleep ?? delay;
+
   let lastStatus = 0;
   let lastBody = "";
   let lastNetworkError: unknown = null;
 
-  for (let attempt = 1; attempt <= OMKAR_MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetchImpl(endpoint, {
         method: "GET",
 
         headers: {
@@ -319,7 +338,7 @@ export async function getOmkarProduct(
 
         cache: "no-store",
 
-        signal: AbortSignal.timeout(45000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
 
       const text = await response.text();
@@ -327,11 +346,11 @@ export async function getOmkarProduct(
       lastBody = text;
 
       if (!response.ok) {
-        if (isRetryableOmkarStatus(response.status) && attempt < OMKAR_MAX_ATTEMPTS) {
+        if (isRetryableOmkarStatus(response.status) && attempt < maxAttempts) {
           console.warn(
-            `[Omkar] product ${productId} attempt ${attempt}/${OMKAR_MAX_ATTEMPTS} returned HTTP ${response.status}; retrying.`
+            `[Omkar] product ${productId} attempt ${attempt}/${maxAttempts} returned HTTP ${response.status}; retrying.`
           );
-          await delay(retryDelayMs(attempt));
+          await sleep(retryDelay(attempt));
           continue;
         }
 
@@ -343,11 +362,11 @@ export async function getOmkarProduct(
       try {
         data = JSON.parse(text) as OmkarProduct;
       } catch {
-        if (attempt < OMKAR_MAX_ATTEMPTS) {
+        if (attempt < maxAttempts) {
           console.warn(
             `[Omkar] product ${productId} returned invalid JSON on attempt ${attempt}; retrying.`
           );
-          await delay(retryDelayMs(attempt));
+          await sleep(retryDelay(attempt));
           continue;
         }
         throw new Error(
@@ -360,11 +379,11 @@ export async function getOmkarProduct(
         !data.id ||
         !data.title
       ) {
-        if (attempt < OMKAR_MAX_ATTEMPTS) {
+        if (attempt < maxAttempts) {
           console.warn(
             `[Omkar] product ${productId} returned incomplete essential fields on attempt ${attempt}; retrying.`
           );
-          await delay(retryDelayMs(attempt));
+          await sleep(retryDelay(attempt));
           continue;
         }
         throw new Error(
@@ -387,12 +406,12 @@ export async function getOmkarProduct(
       }
 
       lastNetworkError = error;
-      if (attempt < OMKAR_MAX_ATTEMPTS) {
+      if (attempt < maxAttempts) {
         console.warn(
-          `[Omkar] product ${productId} network failure on attempt ${attempt}/${OMKAR_MAX_ATTEMPTS}; retrying.`,
+          `[Omkar] product ${productId} network failure on attempt ${attempt}/${maxAttempts}; retrying.`,
           error
         );
-        await delay(retryDelayMs(attempt));
+        await sleep(retryDelay(attempt));
         continue;
       }
     }
