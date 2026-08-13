@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { extractAliExpressProductId, getOmkarProduct } from "@/lib/omkar";
+import { getOmkarProduct, resolveAliExpressProductId } from "@/lib/omkar";
 import {
   canonicalVariantsForMapping,
   normalizeSupplierProduct,
@@ -138,7 +138,7 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Produto não encontrado." }, { status: 404 });
     }
 
-    const sourceProductId = extractAliExpressProductId(parsed.data.url);
+    const sourceProductId = await resolveAliExpressProductId(parsed.data.url);
     const duplicate = await prisma.supplierProduct.findFirst({
       where: {
         productId: id,

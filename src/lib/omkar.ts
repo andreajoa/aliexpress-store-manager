@@ -70,39 +70,180 @@ function validateProductId(value: string) {
   return value;
 }
 
-export function extractAliExpressProductId(rawUrl: string) {
-  const url = new URL(rawUrl);
+const ALIEXPRESS_PRODUCT_ID_PATTERNS = [
+  // /item/1005006123456789.html e /item/en/1005006123456789.html
+  /\/item\/(?:[^/?#]+\/)?(\d+)\.html/i,
+  /\/item\/(?:[^/?#]+\/)?(\d+)(?:[/?#]|$)/i,
+  // Compartilhamento do app mobile: /i/1005006123456789.html
+  /\/i\/(\d+)\.html/i,
+  /\/i\/(\d+)(?:[/?#]|$)/i,
+  // Vitrines antigas: /store/product/nome-do-produto/123_1005006123456789.html
+  /\/store\/product\/[^?#]*?_(\d+)\.html/i,
+  // Landing pages e checkout: ?productId= / ?itemId= / ?productIds=
+  /[?&](?:productId|productIds|itemId|itemIds)=(\d+)/i,
+];
 
-  const host = url.hostname.toLowerCase();
+const MAX_SHORT_LINK_REDIRECTS = 6;
+const SHORT_LINK_TIMEOUT_MS = 10_000;
+const SHORT_LINK_BODY_LIMIT_BYTES = 256 * 1024;
 
-  const validHost =
-    host === "aliexpress.com" ||
-    host.endsWith(".aliexpress.com") ||
-    host === "aliexpress.us" ||
-    host.endsWith(".aliexpress.us");
+export function isAliExpressHost(host: string) {
+  const normalized = host.toLowerCase();
+  return (
+    normalized === "aliexpress.com" ||
+    normalized.endsWith(".aliexpress.com") ||
+    normalized === "aliexpress.us" ||
+    normalized.endsWith(".aliexpress.us") ||
+    normalized === "aliexpress.ru" ||
+    normalized.endsWith(".aliexpress.ru")
+  );
+}
 
-  if (!validHost) {
-    throw new Error(
-      "Informe uma URL válida do AliExpress."
-    );
+function parseAliExpressUrl(rawUrl: string) {
+  let url: URL;
+
+  try {
+    url = new URL(rawUrl.trim());
+  } catch {
+    throw new Error("Informe uma URL válida do AliExpress.");
   }
 
-  const patterns = [
-    /\/item\/(\d+)\.html/i,
-    /\/item\/(\d+)/i,
-    /[?&](?:productId|itemId)=(\d+)/i,
-  ];
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("Informe uma URL válida do AliExpress.");
+  }
 
-  for (const pattern of patterns) {
-    const match = rawUrl.match(pattern);
+  if (!isAliExpressHost(url.hostname)) {
+    throw new Error("Informe uma URL válida do AliExpress.");
+  }
 
-    if (match?.[1]) {
-      return validateProductId(match[1]);
+  return url;
+}
+
+export function findAliExpressProductId(value: string) {
+  for (const pattern of ALIEXPRESS_PRODUCT_ID_PATTERNS) {
+    const match = value.match(pattern);
+    if (match?.[1] && /^\d{10,}$/.test(match[1])) {
+      return match[1];
     }
+  }
+
+  return null;
+}
+
+export function extractAliExpressProductId(rawUrl: string) {
+  const url = parseAliExpressUrl(rawUrl);
+
+  const found = findAliExpressProductId(url.href) || findAliExpressProductId(rawUrl);
+  if (found) {
+    return validateProductId(found);
   }
 
   throw new Error(
     "A URL é do AliExpress, mas não contém um Product ID reconhecível."
+  );
+}
+
+/*
+ * Links curtos (a.aliexpress.com/_xxx) e de afiliado (s.click.aliexpress.com/e/_xxx)
+ * não carregam o Product ID: ele só aparece depois do redirecionamento. A resolução
+ * é best-effort, limitada a hosts do AliExpress, com teto de redirects e timeout.
+ */
+async function resolveAliExpressShortLink(
+  rawUrl: string,
+  fetchImpl: typeof fetch,
+): Promise<string | null> {
+  let current = parseAliExpressUrl(rawUrl).href;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SHORT_LINK_TIMEOUT_MS);
+
+  try {
+    for (let redirect = 0; redirect < MAX_SHORT_LINK_REDIRECTS; redirect++) {
+      const response = await fetchImpl(current, {
+        method: "GET",
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      });
+
+      const location = response.headers.get("location");
+
+      if (response.status >= 300 && response.status < 400 && location) {
+        const next = new URL(location, current);
+
+        // Nunca seguir para fora do AliExpress.
+        if (!isAliExpressHost(next.hostname)) return null;
+
+        current = next.href;
+
+        const fromRedirect = findAliExpressProductId(current);
+        if (fromRedirect) return fromRedirect;
+
+        continue;
+      }
+
+      const fromFinalUrl = findAliExpressProductId(current);
+      if (fromFinalUrl) return fromFinalUrl;
+
+      // Alguns links de afiliado respondem 200 e redirecionam por HTML/JS.
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("text/html") || !response.body) return null;
+
+      const body = await readLimitedText(response.body, SHORT_LINK_BODY_LIMIT_BYTES);
+      return findAliExpressProductId(body);
+    }
+
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function readLimitedText(stream: ReadableStream<Uint8Array>, limitBytes: number) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let received = 0;
+  let text = "";
+
+  try {
+    while (received < limitBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+
+  return text;
+}
+
+/*
+ * Ponto de entrada para entrada digitada pelo operador: resolve o Product ID
+ * inclusive quando a URL é um link curto ou de afiliado. Fail-closed.
+ */
+export async function resolveAliExpressProductId(
+  rawUrl: string,
+  options: { fetchImpl?: typeof fetch } = {},
+) {
+  const url = parseAliExpressUrl(rawUrl);
+
+  const direct = findAliExpressProductId(url.href) || findAliExpressProductId(rawUrl);
+  if (direct) return validateProductId(direct);
+
+  const resolved = await resolveAliExpressShortLink(url.href, options.fetchImpl ?? fetch);
+  if (resolved) return validateProductId(resolved);
+
+  throw new Error(
+    "A URL é do AliExpress, mas não contém um Product ID reconhecível. " +
+      "Abra o link no navegador e copie a URL final da página do produto, no formato " +
+      "https://www.aliexpress.com/item/1005006123456789.html",
   );
 }
 

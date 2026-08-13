@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { getAliExpressOperationalProduct } from "@/lib/aliexpress-operational-provider";
 import {
-  extractAliExpressProductId,
+  resolveAliExpressProductId,
   type OmkarProduct,
   type OmkarVariantGroup,
 } from "@/lib/omkar";
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
     }
 
     const requestedUrl = parsed.data.url;
-    const productId = extractAliExpressProductId(requestedUrl);
+    const productId = await resolveAliExpressProductId(requestedUrl);
 
     // Evita gastar quota/Chromium com um produto que já existe.
     const existing = await prisma.product.findUnique({
