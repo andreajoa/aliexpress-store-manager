@@ -14,6 +14,10 @@ type BrowserResponsePage = {
   on(event: "response", handler: (response: BrowserResponse) => void): unknown;
 };
 
+type BrowserEvasionPage = {
+  evaluateOnNewDocument(pageFunction: () => void): Promise<unknown>;
+};
+
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -245,35 +249,77 @@ export function browserEnvelopeToProduct(
   };
 }
 
-async function puppeteerWithStealth(base: unknown) {
-  const [{ addExtra }, stealthModule] = await Promise.all([
-    import("puppeteer-extra"),
-    import("puppeteer-extra-plugin-stealth"),
-  ]);
-  const puppeteer = addExtra(
-    base as Parameters<typeof addExtra>[0],
-  );
-  puppeteer.use(stealthModule.default());
-  return puppeteer;
-}
-
 async function launchBrowser() {
   if (process.env.VERCEL_ENV) {
     const chromium = (await import("@sparticuz/chromium")).default;
-    const core = (await import("puppeteer-core")).default;
-    const puppeteer = await puppeteerWithStealth(core);
+    const puppeteer = (await import("puppeteer-core")).default;
     return puppeteer.launch({
       headless: true,
       executablePath: await chromium.executablePath(),
-      args: [...chromium.args, "--disable-dev-shm-usage"],
+      args: [
+        ...chromium.args,
+        "--disable-blink-features=AutomationControlled",
+        "--disable-dev-shm-usage",
+      ],
+      ignoreDefaultArgs: ["--enable-automation"],
     });
   }
 
-  const local = (await import("puppeteer")).default;
-  const puppeteer = await puppeteerWithStealth(local);
+  const puppeteer = (await import("puppeteer")).default;
   return puppeteer.launch({
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-blink-features=AutomationControlled",
+    ],
+    ignoreDefaultArgs: ["--enable-automation"],
+  });
+}
+
+export async function installBrowserEvasions(page: BrowserEvasionPage) {
+  await page.evaluateOnNewDocument(() => {
+    const defineGetter = (property: string, getter: () => unknown) => {
+      try {
+        Object.defineProperty(navigator, property, {
+          configurable: true,
+          get: getter,
+        });
+      } catch {
+        // Uma propriedade não configurável não deve impedir as outras evasões.
+      }
+    };
+
+    defineGetter("webdriver", () => undefined);
+    defineGetter("languages", () => ["en-US", "en"]);
+    defineGetter("platform", () => "Linux x86_64");
+    defineGetter("hardwareConcurrency", () => 8);
+    defineGetter("deviceMemory", () => 8);
+
+    try {
+      if (!("chrome" in window)) {
+        Object.defineProperty(window, "chrome", {
+          configurable: true,
+          value: { runtime: {} },
+        });
+      }
+    } catch {
+      // O Chromium pode fornecer window.chrome nativamente.
+    }
+
+    try {
+      const originalQuery = window.navigator.permissions.query.bind(
+        window.navigator.permissions,
+      );
+      window.navigator.permissions.query = ((parameters: PermissionDescriptor) =>
+        parameters.name === "notifications"
+          ? Promise.resolve({
+              state: Notification.permission,
+            } as PermissionStatus)
+          : originalQuery(parameters)) as typeof window.navigator.permissions.query;
+    } catch {
+      // A API pode estar bloqueada; as demais evasões continuam válidas.
+    }
   });
 }
 
@@ -413,6 +459,7 @@ export async function getAliExpressBrowserProduct(
 
   try {
     const page = await browser.newPage();
+    await installBrowserEvasions(page as unknown as BrowserEvasionPage);
     await page.setViewport({ width: 1440, height: 1000 });
     await page.setUserAgent(
       "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 " +

@@ -34,7 +34,7 @@ export class AliExpressProviderUnavailableError extends Error {
 
 const OMKAR_FAST_TIMEOUT_MS = 4000;
 const OMKAR_FAST_MAX_ATTEMPTS = 2;
-const SCRAPINGBEE_TIMEOUT_MS = 82_000;
+const SCRAPINGBEE_TIMEOUT_MS = 86_000;
 const BROWSER_TIMEOUT_MS = 72_000;
 let omkarLastFailure = "";
 let officialLastFailure = "";
@@ -236,7 +236,9 @@ export async function getAliExpressOperationalProduct(
     const startedAt = Date.now();
     try {
       const product = await getAliExpressScrapingBeeProduct(automaticProductId, {
-        maxAttempts: 2,
+        // A página mobile não entrega o mesmo PDP PC com SKU/preço completo.
+        // O orçamento inteiro fica na página desktop, que é a rota operacional.
+        maxAttempts: 1,
         timeoutMs: SCRAPINGBEE_TIMEOUT_MS,
         signal: fallbackController.signal,
       });

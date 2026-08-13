@@ -11,6 +11,6 @@ assert(source.includes("getAliExpressOperationalProduct"), "health endpoint must
 assert(source.includes("skuCount"), "health endpoint must report sku count");
 assert(source.includes("totalStock"), "health endpoint must report total stock");
 assert(source.includes("providerVersion"), "health endpoint must expose provider version");
-assert(source.includes('automatic-failover-v5'), "health endpoint must identify the concurrent-browser failover");
+assert(source.includes('automatic-failover-v6'), "health endpoint must identify the self-contained browser failover");
 
 console.log("ALIEXPRESS PROVIDER RUNTIME CONTRACT: PASS");
