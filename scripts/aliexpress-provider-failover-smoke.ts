@@ -231,12 +231,16 @@ const browserProvider = readFileSync("src/lib/aliexpress-browser-provider.ts", "
 const packageJson = readFileSync("package.json", "utf8");
 const nextConfig = readFileSync("next.config.ts", "utf8");
 assert(browserProvider.includes('import("@sparticuz/chromium")'), "browser Vercel deve usar Chromium empacotado");
-assert(browserProvider.includes('import("puppeteer-extra-plugin-stealth")'), "browser deve aplicar proteção antirrobô");
+assert(browserProvider.includes("installBrowserEvasions"), "browser deve aplicar proteção antirrobô sem plugin externo");
+assert(browserProvider.includes("AutomationControlled"), "browser deve ocultar o indicador de automação");
+assert(!browserProvider.includes("puppeteer-extra"), "browser não pode depender da cadeia que quebrou no pacote da Vercel");
 assert(browserProvider.includes("www.aliexpress.com/item/"), "browser deve consultar a página global que dispara o PDP PC");
 assert(!browserProvider.includes("chromium-min"), "browser Vercel não pode baixar pack remoto durante a importação");
 assert(packageJson.includes('\"@sparticuz/chromium\": \"^141.0.0\"'), "Chromium deve ser dependência de produção");
-assert(packageJson.includes('\"puppeteer-extra-plugin-stealth\"'), "plugin stealth deve ser dependência de produção");
+assert(!packageJson.includes('\"puppeteer-extra-plugin-stealth\"'), "plugin stealth frágil não pode permanecer instalado");
+assert(!packageJson.includes('\"puppeteer-extra\"'), "wrapper externo do Puppeteer não pode permanecer instalado");
 assert(!packageJson.includes('\"@sparticuz/chromium-min\"'), "chromium-min remoto não deve permanecer instalado");
 assert(nextConfig.includes("outputFileTracingIncludes"), "build deve incluir os binários Chromium nas rotas operacionais");
+assert(provider.includes("maxAttempts: 1"), "ScrapingBee operacional deve reservar todo o tempo para o PDP desktop");
 
 console.log("ALIEXPRESS OPERATIONAL PROVIDER FAILOVER: PASS");
