@@ -4,9 +4,6 @@ import type {
   OmkarVariantGroup,
 } from "./omkar";
 
-let cachedExecutablePath: string | null = null;
-let executablePathPromise: Promise<string> | null = null;
-
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -238,41 +235,13 @@ export function browserEnvelopeToProduct(
   };
 }
 
-function currentChromiumPackUrl() {
-  const configured = process.env.CHROMIUM_PACK_URL?.trim();
-  if (configured) return configured;
-
-  // Pack oficial do @sparticuz/chromium v141, servido diretamente do GitHub Releases.
-  // Vercel serverless usa x64 por padrão; arm64 pode ser selecionado via env override.
-  const arch = process.arch === "arm64" ? "arm64" : "x64";
-  return `https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.${arch}.tar`;
-}
-
-async function getVercelChromiumPath() {
-  if (cachedExecutablePath) return cachedExecutablePath;
-  if (!executablePathPromise) {
-    executablePathPromise = (async () => {
-      const chromium = (await import("@sparticuz/chromium-min")).default;
-      const packUrl = currentChromiumPackUrl();
-      if (!packUrl) throw new Error("Chromium pack URL não está disponível no runtime Vercel.");
-      const executablePath = await chromium.executablePath(packUrl);
-      cachedExecutablePath = executablePath;
-      return executablePath;
-    })().catch((error) => {
-      executablePathPromise = null;
-      throw error;
-    });
-  }
-  return executablePathPromise;
-}
-
 async function launchBrowser() {
   if (process.env.VERCEL_ENV) {
-    const chromium = (await import("@sparticuz/chromium-min")).default;
+    const chromium = (await import("@sparticuz/chromium")).default;
     const puppeteer = await import("puppeteer-core");
     return puppeteer.launch({
       headless: true,
-      executablePath: await getVercelChromiumPath(),
+      executablePath: await chromium.executablePath(),
       args: chromium.args,
     });
   }

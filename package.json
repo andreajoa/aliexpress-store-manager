@@ -7,7 +7,6 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "node scripts/postinstall.mjs",
     "test:repository-dry-run": "node --no-warnings --experimental-strip-types scripts/repository-dry-run-smoke.ts",
     "test:publication-target": "node --no-warnings --experimental-strip-types scripts/publication-target-contract-smoke.ts",
     "test:store-compatibility": "node --no-warnings --experimental-strip-types scripts/store-compatibility-smoke.ts",
@@ -28,7 +27,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-neon": "^7.9.1",
     "@prisma/client": "^7.9.1",
-    "@sparticuz/chromium-min": "^141.0.0",
+    "@sparticuz/chromium": "^141.0.0",
     "dotenv": "^17.4.2",
     "next": "16.3.0",
     "puppeteer-core": "^23.11.0",
@@ -38,7 +37,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@sparticuz/chromium": "^141.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

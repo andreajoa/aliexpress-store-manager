@@ -144,41 +144,39 @@ export async function getAliExpressOperationalProduct(
     }
   }
 
-  for (const candidate of candidates) {
-    const converted = candidate !== productId;
-
-    try {
-      const product = await getOmkarProductFast(candidate);
-      if (String(product.id) !== candidate) {
-        throw new Error(
-          `Omkar retornou Product ID ${product.id}, diferente do consultado ${candidate}.`,
-        );
-      }
-      omkarLastFailure = "";
-      if (converted) {
-        warnings.push(`ID regional ${productId} convertido para o catálogo global ${candidate}.`);
-      }
-      return {
-        product,
-        provider: "OMKAR",
-        requestedProductId: productId,
-        resolvedProductId: candidate,
-        warnings,
-      };
-    } catch (error) {
-      omkarLastFailure = compactError(error);
-      console.warn("[AliExpress provider] Omkar fallback unavailable.", error);
-    }
-  }
-  warnings.push(`Omkar indisponível: ${omkarLastFailure}`);
-
-  // Provedores automáticos não exigem login do usuário. Links aliexpress.us
-  // usam o ID global porque é o identificador aceito pelo payload PDP.
+  // Provedores automáticos usam diretamente o ID global quando o link regional
+  // possui uma conversão conhecida. Isso evita consumir todas as tentativas em
+  // um identificador que esses provedores não reconhecem.
   const automaticProductId = globalId || productId;
 
   try {
+    const product = await getOmkarProductFast(automaticProductId);
+    if (String(product.id) !== automaticProductId) {
+      throw new Error(
+        `Omkar retornou Product ID ${product.id}, diferente do consultado ${automaticProductId}.`,
+      );
+    }
+    omkarLastFailure = "";
+    if (automaticProductId !== productId) {
+      warnings.push(`ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`);
+    }
+    return {
+      product,
+      provider: "OMKAR",
+      requestedProductId: productId,
+      resolvedProductId: automaticProductId,
+      warnings,
+    };
+  } catch (error) {
+    omkarLastFailure = compactError(error);
+    console.warn("[AliExpress provider] Omkar fallback unavailable.", error);
+  }
+  warnings.push(`Omkar indisponível: ${omkarLastFailure}`);
+
+  try {
     const product = await getAliExpressScrapingBeeProduct(automaticProductId, {
-      timeoutMs: 40_000,
+      maxAttempts: 2,
+      timeoutMs: 50_000,
     });
     if (String(product.id) !== automaticProductId) {
       throw new Error(
@@ -235,7 +233,10 @@ export async function getAliExpressOperationalProduct(
     browser: browserLastFailure || null,
   });
   throw new AliExpressProviderUnavailableError(
-    "Não foi possível consultar SKU/estoque agora. Os provedores automáticos estão temporariamente indisponíveis. " +
-    "Nada foi salvo. Tente novamente em alguns instantes.",
+    "Não foi possível consultar SKU/estoque. " +
+    `Omkar: ${omkarLastFailure || "sem resposta"}. ` +
+    `ScrapingBee: ${scrapingBeeLastFailure || "sem resposta"}. ` +
+    `Browser: ${browserLastFailure || "sem resposta"}. ` +
+    "Nada foi salvo.",
   );
 }

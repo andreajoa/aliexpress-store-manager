@@ -30,17 +30,16 @@ assert(attrs["SKU-BLACK-S"] === "14:193;5:100014064", "order sku attr was not pr
 const provider = readFileSync("src/lib/aliexpress-operational-provider.ts", "utf8");
 const route = readFileSync("src/app/api/import/aliexpress/route.ts", "utf8");
 const form = readFileSync("src/app/products/import-form.tsx", "utf8");
-assert(
-  provider.indexOf("getOfficialProduct(candidate)") < provider.indexOf("getOmkarProductFast(candidate)"),
-  "official provider must be first path",
-);
+const officialIndex = provider.indexOf("getOfficialProduct(candidate)");
+const omkarIndex = provider.indexOf("getOmkarProductFast(automaticProductId)");
+assert(officialIndex >= 0, "official provider call is missing");
+assert(omkarIndex > officialIndex, "official provider must be first path");
 assert(provider.includes("ALIEXPRESS_OPEN_PLATFORM"), "official provider label missing");
 assert(provider.includes("getAliExpressScrapingBeeProduct"), "automatic managed-browser fallback missing");
-assert(
-  provider.indexOf("getAliExpressScrapingBeeProduct(automaticProductId)") <
-    provider.indexOf("getAliExpressBrowserProduct(automaticProductId)"),
-  "local browser must remain the final fallback",
-);
+const scrapingBeeIndex = provider.indexOf("getAliExpressScrapingBeeProduct(automaticProductId,");
+const browserIndex = provider.indexOf("getAliExpressBrowserProduct(automaticProductId)");
+assert(scrapingBeeIndex >= 0, "managed browser must receive the operational ID");
+assert(browserIndex > scrapingBeeIndex, "local browser must remain the final fallback");
 assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "Omkar fallback must fail fast");
 assert(!route.includes("scrapeAliExpressProduct"), "editorial ScrapingBee cannot block import");
 assert(route.includes("orderSkuAttr: officialSkuAttrs"), "supplier variant must persist official orderSkuAttr");
