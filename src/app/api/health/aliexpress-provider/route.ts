@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       {
         ok: true,
         buildSha,
-        providerVersion: "browser-failover-v1",
+        providerVersion: "official-omkar-resilient-v2",
       },
       {
         headers: { "Cache-Control": "private, no-store" },
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       {
         ok: true,
         buildSha,
-        providerVersion: "browser-failover-v1",
+        providerVersion: "official-omkar-resilient-v2",
         provider: result.provider,
         productId: String(result.product.id),
         skuCount: skuPricing.length,
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       {
         ok: false,
         buildSha,
-        providerVersion: "browser-failover-v1",
+        providerVersion: "official-omkar-resilient-v2",
         error: error instanceof Error ? error.message : String(error),
         health: getAliExpressProviderHealth(),
       },

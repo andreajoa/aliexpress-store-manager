@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import { browserEnvelopeToProduct } from "../src/lib/aliexpress-browser-provider.ts";
+import { globalAliExpressProductId } from "../src/lib/aliexpress-catalog-id.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -99,6 +100,10 @@ try {
   missingStockBlocked = true;
 }
 assert(missingStockBlocked, "SKU sem estoque verificável deve ser bloqueado");
+assert(
+  globalAliExpressProductId("3256807571372169") === "1005007757686921",
+  "ID regional aliexpress.us deve resolver para o catálogo global",
+);
 
 const importRoute = readFileSync("src/app/api/import/aliexpress/route.ts", "utf8");
 const supplierRefresh = readFileSync("src/lib/supplier-refresh-service.ts", "utf8");
@@ -119,7 +124,11 @@ assert(provider.includes("getDropshipProduct"), "provider deve consultar aliexpr
 assert(provider.includes('provider: "ALIEXPRESS_OPEN_PLATFORM"'), "API oficial deve ser o caminho primário");
 assert(provider.includes("OMKAR_CIRCUIT_MS"), "fallback Omkar deve manter circuit breaker");
 assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "fallback Omkar deve falhar rápido");
+assert(provider.includes("OMKAR_FAST_MAX_ATTEMPTS = 3"), "fallback Omkar deve repetir falhas transitórias");
 assert(provider.includes("getOmkarProductFast"), "Omkar deve existir apenas como fallback rápido");
-assert(!provider.includes("getAliExpressBrowserProduct"), "browser não pode estar no caminho operacional síncrono");
+assert(!provider.includes("getAliExpressBrowserProduct"), "browser com verificação humana não pode bloquear a importação operacional");
+assert(provider.includes("resolvedProductId"), "provider deve informar o ID canônico realmente consultado");
+assert(importRoute.includes("existingResolved"), "import deve impedir duplicata após converter ID regional");
+assert(importRoute.includes("sourceProductId: resolvedProductId"), "import deve persistir o ID canônico do fornecedor");
 
 console.log("ALIEXPRESS OPERATIONAL PROVIDER FAILOVER: PASS");

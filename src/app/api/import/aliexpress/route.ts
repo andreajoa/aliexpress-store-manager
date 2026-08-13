@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getAliExpressOperationalProduct } from "@/lib/aliexpress-operational-provider";
 import {
-  extractAliExpressProductId,
+  AliExpressProviderUnavailableError,
+  getAliExpressOperationalProduct,
+} from "@/lib/aliexpress-operational-provider";
+import {
+  resolveAliExpressProductId,
   type OmkarProduct,
   type OmkarVariantGroup,
 } from "@/lib/omkar";
@@ -111,9 +114,9 @@ export async function POST(request: Request) {
     }
 
     const requestedUrl = parsed.data.url;
-    const productId = extractAliExpressProductId(requestedUrl);
+    const productId = await resolveAliExpressProductId(requestedUrl);
 
-    // Evita gastar quota/Chromium com um produto que já existe.
+    // Evita gastar quota com um produto que já existe.
     const existing = await prisma.product.findUnique({
       where: {
         sourceProvider_sourceProductId: {
@@ -138,17 +141,44 @@ export async function POST(request: Request) {
 
     /*
      * CAMADA OPERACIONAL REDUNDANTE
-     * 1. Omkar: caminho rápido quando saudável.
-     * 2. Browser AliExpress: captura o mesmo payload estruturado usado pela página.
+     * 1. API oficial AliExpress, quando a conta está autorizada.
+     * 2. Omkar com novas tentativas curtas para falhas transitórias.
      * Nenhum produto é persistido sem SKU, preço e estoque verificáveis.
      */
     const operational = await getAliExpressOperationalProduct(productId);
     const sourceProduct = operational.product;
+    const resolvedProductId = operational.resolvedProductId;
 
-    if (String(sourceProduct.id) !== productId) {
+    if (String(sourceProduct.id) !== resolvedProductId) {
       throw new Error(
-        `O AliExpress retornou Product ID ${sourceProduct.id}, diferente do solicitado ${productId}. Nada foi salvo.`,
+        `O AliExpress retornou Product ID ${sourceProduct.id}, diferente do ID operacional ${resolvedProductId}. Nada foi salvo.`,
       );
+    }
+
+    // Links aliexpress.us podem resolver para o ID global usado pelas APIs.
+    // A segunda verificação evita duplicar um produto já salvo pelo ID canônico.
+    if (resolvedProductId !== productId) {
+      const existingResolved = await prisma.product.findUnique({
+        where: {
+          sourceProvider_sourceProductId: {
+            sourceProvider: "ALIEXPRESS",
+            sourceProductId: resolvedProductId,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (existingResolved) {
+        return NextResponse.json(
+          {
+            ok: false,
+            duplicate: true,
+            productId: existingResolved.id,
+            error: "Este produto do AliExpress já foi importado.",
+          },
+          { status: 409 },
+        );
+      }
     }
 
     // Enriquecimento editorial é posterior e nunca bloqueia SKU/estoque.
@@ -185,7 +215,7 @@ export async function POST(request: Request) {
       const created = await tx.product.create({
         data: {
           sourceProvider: "ALIEXPRESS",
-          sourceProductId: productId,
+          sourceProductId: resolvedProductId,
           sourceUrl,
           sourceSellerId: sourceProduct.seller?.id
             ? String(sourceProduct.seller.id)
@@ -210,10 +240,14 @@ export async function POST(request: Request) {
             shippingInfo: "",
             stockInfo: "",
             operationalProvider: operational.provider,
+            requestedProductId: productId,
+            resolvedProductId,
           },
           rawPayload: {
             operationalProvider: operational.provider,
             operationalWarnings: operational.warnings,
+            requestedProductId: productId,
+            resolvedProductId,
             operationalProduct: JSON.parse(JSON.stringify(sourceProduct)),
             scrapingBee: null,
           },
@@ -260,7 +294,7 @@ export async function POST(request: Request) {
         data: {
           productId: created.id,
           provider: "ALIEXPRESS",
-          sourceProductId: productId,
+          sourceProductId: resolvedProductId,
           sourceUrl,
           sellerId: sourceProduct.seller?.id
             ? String(sourceProduct.seller.id)
@@ -275,6 +309,8 @@ export async function POST(request: Request) {
           rawPayload: {
             operationalProvider: operational.provider,
             operationalWarnings: operational.warnings,
+            requestedProductId: productId,
+            resolvedProductId,
             product: JSON.parse(JSON.stringify(sourceProduct)),
           },
           lastCheckedAt: importedAt,
@@ -372,15 +408,20 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("AliExpress import failed:", error);
 
+    const providerUnavailable = error instanceof AliExpressProviderUnavailableError;
+
     return NextResponse.json(
       {
         ok: false,
+        code: providerUnavailable ? error.code : "ALIEXPRESS_IMPORT_FAILED",
+        retryable: providerUnavailable ? error.retryable : false,
+        actionUrl: providerUnavailable ? "/settings/aliexpress" : null,
         error:
           error instanceof Error
             ? error.message
             : "Não foi possível importar o produto.",
       },
-      { status: 502 },
+      { status: providerUnavailable ? 503 : 502 },
     );
   }
 }
