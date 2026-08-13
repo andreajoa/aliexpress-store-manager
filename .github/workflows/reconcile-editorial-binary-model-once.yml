@@ -1,0 +1,50 @@
+name: Reconcile editorial binary model once
+
+on:
+  push:
+    branches:
+      - feat/persistent-editorial-storage
+    paths:
+      - .github/workflows/reconcile-editorial-binary-model-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/persistent-editorial-storage
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Add Prisma model
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'prisma/schema.prisma';
+          let s = fs.readFileSync(path, 'utf8');
+          if (!s.includes('model EditorialBinary {')) {
+            s += `\n\nmodel EditorialBinary {\n  storageKey String @id\n  content    Bytes\n  mimeType   String\n  sha256     String\n  byteSize   Int\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n\n  @@index([sha256])\n}\n`;
+          }
+          fs.writeFileSync(path, s);
+          NODE
+      - run: |
+          npm ci
+          npx prisma validate
+          npx prisma generate
+      - name: Remove reconciler and commit
+        run: |
+          rm .github/workflows/reconcile-editorial-binary-model-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add prisma/schema.prisma prisma/migrations/20260808193500_add_editorial_binary_store/migration.sql .github/workflows/reconcile-editorial-binary-model-once.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: add durable editorial binary store"
+          git push origin HEAD:feat/persistent-editorial-storage

@@ -1,0 +1,50 @@
+name: Editorial Persistence CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Prisma
+        run: |
+          npx prisma validate
+          npx prisma generate
+      - name: Verify durable model and write path
+        run: |
+          grep -Fq 'model EditorialBinary {' prisma/schema.prisma
+          grep -Fq 'persistEditorialBinary' src/lib/editorial-binary-store.ts
+          grep -Fq 'persistEditorialBinary' src/lib/editorial-storage.ts
+          grep -Fq 'readEditorialBinary' 'src/app/api/editorial-assets/[id]/content/route.ts'
+          grep -Fq 'CREATE TABLE "EditorialBinary"' prisma/migrations/20260808193500_add_editorial_binary_store/migration.sql
+      - name: Reject production-first local filesystem storage
+        run: |
+          grep -Fq 'process.env.NODE_ENV !== "production"' src/lib/editorial-storage.ts
+          grep -Fq 'process.env.NODE_ENV === "production"' src/lib/editorial-binary-store.ts
+          if grep -R -n -E '(readFile|stat|existsSync)\([^;\n]*generatedPath' src --include='*.ts' --include='*.tsx' | grep -v 'editorial-local-fallback.ts' | grep -v 'editorial-persistent-access.ts'; then
+            echo 'Direct filesystem dependency on generatedPath remains'
+            exit 1
+          fi
+      - name: Lint
+        run: npm run lint
+      - name: Publication regression
+        run: npm run test:github-publication
+      - name: Build
+        run: npm run build

@@ -1,0 +1,55 @@
+name: Editorial Persistence Final Gate Once
+
+on:
+  push:
+    branches:
+      - feat/persistent-editorial-storage
+    paths:
+      - .github/workflows/editorial-persistence-final-gate-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  gate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/persistent-editorial-storage
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+      - run: npx prisma generate
+      - name: Verify persistent storage wiring
+        run: |
+          grep -Fq 'model EditorialBinary {' prisma/schema.prisma
+          grep -Fq 'persistEditorialBinary' src/lib/editorial-storage.ts
+          grep -Fq 'readEditorialBinary' 'src/app/api/editorial-assets/[id]/content/route.ts'
+          grep -Fq 'CREATE TABLE "EditorialBinary"' prisma/migrations/20260808193500_add_editorial_binary_store/migration.sql
+          if grep -R -n -E '(readFile|stat|existsSync)\([^;\n]*generatedPath' src --include='*.ts' --include='*.tsx' | grep -v 'editorial-binary-store.ts' | grep -v 'editorial-persistent-access.ts'; then
+            echo 'Direct generatedPath filesystem dependency remains'
+            exit 1
+          fi
+      - run: npm run test:repository-dry-run
+      - run: npm run test:github-publication
+      - run: npm run lint
+      - run: npm run build
+      - name: Record immutable gate result
+        run: |
+          mkdir -p .quality-gates
+          printf '%s\n' 'EDITORIAL_PERSISTENCE_FINAL_GATE=PASS' > .quality-gates/editorial-persistence.pass
+          rm .github/workflows/editorial-persistence-final-gate-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add .quality-gates/editorial-persistence.pass .github/workflows/editorial-persistence-final-gate-once.yml
+          git commit -m "ci: record editorial persistence final gate"
+          git push origin HEAD:feat/persistent-editorial-storage

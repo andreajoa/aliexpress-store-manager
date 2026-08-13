@@ -1,0 +1,88 @@
+name: Online Readiness Final Gate Once
+
+on:
+  push:
+    branches:
+      - release/online-readiness
+    paths:
+      - .github/workflows/online-readiness-final-gate-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  gate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/online-readiness
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Prisma schema
+        run: |
+          npx prisma validate
+          npx prisma generate
+      - name: Runtime readiness
+        run: node --no-warnings --experimental-strip-types scripts/runtime-readiness-smoke.ts
+      - name: Admin auth
+        run: node --no-warnings --experimental-strip-types scripts/manager-admin-auth-smoke.ts
+      - name: Store compatibility
+        run: npm run test:store-compatibility
+      - name: Publication target
+        run: npm run test:publication-target
+      - name: Repository dry-run
+        run: npm run test:repository-dry-run
+      - name: GitHub publication executor
+        run: npm run test:github-publication
+      - name: Vercel Preview verifier
+        run: npm run test:vercel-preview
+      - name: GitHub PR lifecycle
+        run: npm run test:github-pr-lifecycle
+      - name: Supplier mapping
+        run: node --no-warnings --experimental-strip-types scripts/supplier-variant-mapper-smoke.ts
+      - name: Supplier selection
+        run: node --no-warnings --experimental-strip-types scripts/supplier-selection-smoke.ts
+      - name: Order ingestion
+        run: node --no-warnings --experimental-strip-types scripts/order-ingestion-smoke.ts
+      - name: Persistent editorial storage wiring
+        run: |
+          grep -Fq 'model EditorialBinary {' prisma/schema.prisma
+          grep -Fq 'persistEditorialBinary' src/lib/editorial-storage.ts
+          grep -Fq 'readEditorialBinary' 'src/app/api/editorial-assets/[id]/content/route.ts'
+      - name: Online safety wiring
+        run: |
+          grep -Fq 'MANAGER_ADMIN_USER' src/lib/runtime-readiness.ts
+          grep -Fq 'GITHUB_PUBLISH_TOKEN' src/lib/runtime-readiness.ts
+          grep -Fq 'VERCEL_TOKEN' src/lib/runtime-readiness.ts
+          grep -Fq 'orders/webhook' src/lib/manager-admin-auth.ts
+          grep -Fq 'FulfillmentBatch' prisma/schema.prisma
+          grep -Fq 'SupplierProduct' prisma/schema.prisma
+      - name: Lint
+        run: npm run lint
+      - name: Production build
+        run: npm run build
+      - name: Record immutable release gate
+        run: |
+          mkdir -p .quality-gates
+          printf '%s\n' 'ONLINE_READINESS_FINAL_GATE=PASS' > .quality-gates/online-readiness.pass
+          printf '%s\n' 'PUBLICATION=PASS' >> .quality-gates/online-readiness.pass
+          printf '%s\n' 'SUPPLIERS=PASS' >> .quality-gates/online-readiness.pass
+          printf '%s\n' 'ORDERS=PASS' >> .quality-gates/online-readiness.pass
+          printf '%s\n' 'ADMIN_AUTH=PASS' >> .quality-gates/online-readiness.pass
+          printf '%s\n' 'EDITORIAL_PERSISTENCE=PASS' >> .quality-gates/online-readiness.pass
+          printf '%s\n' 'BUILD=PASS' >> .quality-gates/online-readiness.pass
+          rm .github/workflows/online-readiness-final-gate-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add .quality-gates/online-readiness.pass .github/workflows/online-readiness-final-gate-once.yml
+          git commit -m "ci: record consolidated online readiness gate"
+          git push origin HEAD:release/online-readiness

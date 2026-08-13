@@ -1,0 +1,66 @@
+name: Publication Engine CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: AliExpress operational provider failover
+        run: npm run test:aliexpress-provider-failover
+
+      - name: Serverless Chromium runtime
+        run: npm run test:serverless-browser-runtime
+
+      - name: Product copy grounded fallback
+        run: npm run test:product-copy-fallback
+
+      - name: Gemini quota fallback
+        run: npm run test:gemini-quota-fallback
+
+      - name: Web export and market currency
+        run: npm run test:web-export-currency
+
+      - name: AMB backend bridge
+        run: npm run test:amb-backend-bridge
+
+      - name: Store compatibility
+        run: npm run test:store-compatibility
+
+      - name: Publication target contract
+        run: npm run test:publication-target
+
+      - name: Repository dry-run
+        run: npm run test:repository-dry-run
+
+      - name: GitHub publication executor
+        run: npm run test:github-publication
+
+      - name: Vercel preview verifier
+        run: npm run test:vercel-preview
+
+      - name: GitHub PR lifecycle
+        run: npm run test:github-pr-lifecycle

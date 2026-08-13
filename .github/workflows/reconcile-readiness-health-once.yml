@@ -1,0 +1,95 @@
+name: Reconcile readiness health once
+
+on:
+  push:
+    branches:
+      - release/online-readiness
+    paths:
+      - .github/workflows/reconcile-readiness-health-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/online-readiness
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Replace health route
+        run: |
+          cat > src/app/api/health/route.ts <<'EOF'
+          import { NextResponse } from "next/server";
+
+          import { prisma } from "@/lib/prisma";
+          import { runtimeReadiness } from "@/lib/runtime-readiness";
+
+          export const runtime = "nodejs";
+
+          export async function GET() {
+            const readiness = runtimeReadiness(process.env);
+            try {
+              await prisma.$queryRaw`SELECT 1`;
+              const [stores, products, publications, orders] = await Promise.all([
+                prisma.store.count(),
+                prisma.product.count(),
+                prisma.publication.count(),
+                prisma.order.count(),
+              ]);
+
+              return NextResponse.json({
+                ok: true,
+                database: "connected",
+                productionCoreReady: readiness.productionCoreReady,
+                fullFeatureReady: readiness.fullFeatureReady,
+                capabilities: Object.fromEntries(
+                  Object.entries(readiness.capabilities).map(([name, value]) => [name, value.ready]),
+                ),
+                optional: readiness.optional,
+                counts: { stores, products, publications, orders },
+                timestamp: new Date().toISOString(),
+              }, {
+                status: 200,
+                headers: { "Cache-Control": "no-store" },
+              });
+            } catch (error) {
+              console.error("Health database check failed:", error);
+              return NextResponse.json({
+                ok: false,
+                database: "unavailable",
+                productionCoreReady: false,
+                fullFeatureReady: false,
+                capabilities: Object.fromEntries(
+                  Object.entries(readiness.capabilities).map(([name, value]) => [name, value.ready]),
+                ),
+                timestamp: new Date().toISOString(),
+              }, {
+                status: 503,
+                headers: { "Cache-Control": "no-store" },
+              });
+            }
+          }
+          EOF
+      - name: Validate
+        run: |
+          npx prisma generate
+          npm run lint
+          npm run build
+      - name: Record and remove reconciler
+        run: |
+          rm .github/workflows/reconcile-readiness-health-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add src/app/api/health/route.ts src/lib/runtime-readiness.ts .github/workflows/reconcile-readiness-health-once.yml
+          git commit -m "feat: expose non-secret production readiness health"
+          git push origin HEAD:release/online-readiness

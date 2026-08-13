@@ -1,0 +1,85 @@
+name: Reconcile editorial write persistence once
+
+on:
+  push:
+    branches:
+      - feat/persistent-editorial-storage
+    paths:
+      - .github/workflows/reconcile-editorial-write-persistence-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/persistent-editorial-storage
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Persist every editorial write
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const ts = require('typescript');
+          const file = 'src/lib/editorial-storage.ts';
+          let source = fs.readFileSync(file, 'utf8');
+          if (!source.includes('persistEditorialBinary')) {
+            const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+            const insertions = [];
+            function visit(node) {
+              if (ts.isCallExpression(node)) {
+                const callee = node.expression.getText(sf);
+                const isWrite = callee === 'writeFile' || callee.endsWith('.writeFile');
+                if (isWrite && node.arguments.length >= 2) {
+                  let parent = node;
+                  while (parent && !ts.isExpressionStatement(parent)) parent = parent.parent;
+                  if (!parent) throw new Error('writeFile call is not an expression statement');
+                  const pathExpr = node.arguments[0].getText(sf);
+                  const bytesExpr = node.arguments[1].getText(sf);
+                  const lineStart = source.lastIndexOf('\n', parent.getStart(sf)) + 1;
+                  const indent = source.slice(lineStart, parent.getStart(sf)).match(/^\s*/)?.[0] || '';
+                  insertions.push({
+                    pos: parent.getEnd(),
+                    text: `\n${indent}await persistEditorialBinary({ storageKey: String(${pathExpr}), bytes: ${bytesExpr} });`,
+                  });
+                }
+              }
+              ts.forEachChild(node, visit);
+            }
+            visit(sf);
+            if (insertions.length === 0) throw new Error('No editorial writeFile call found');
+            for (const insertion of insertions.sort((a, b) => b.pos - a.pos)) {
+              source = source.slice(0, insertion.pos) + insertion.text + source.slice(insertion.pos);
+            }
+            const imports = [...source.matchAll(/^import .*;$/gm)];
+            if (!imports.length) throw new Error('No import anchor');
+            const last = imports[imports.length - 1];
+            const pos = last.index + last[0].length;
+            source = source.slice(0, pos) + '\nimport { persistEditorialBinary } from "./editorial-binary-store";' + source.slice(pos);
+            fs.writeFileSync(file, source);
+          }
+          NODE
+      - name: Validate
+        run: |
+          npx prisma generate
+          npm run lint
+          npm run build
+      - name: Remove reconciler and commit
+        run: |
+          rm .github/workflows/reconcile-editorial-write-persistence-once.yml
+          git config user.name "store-manager-bot"
+          git config user.email "store-manager-bot@users.noreply.github.com"
+          git add src/lib/editorial-storage.ts src/lib/editorial-binary-store.ts .github/workflows/reconcile-editorial-write-persistence-once.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: persist generated editorial binaries durably"
+          git push origin HEAD:feat/persistent-editorial-storage

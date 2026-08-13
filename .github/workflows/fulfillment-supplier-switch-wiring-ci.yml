@@ -1,0 +1,32 @@
+name: Fulfillment Supplier Switch Wiring CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wiring:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/store_manager_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify UI wiring
+        run: |
+          grep -Fq 'SupplierSwitchControl' 'src/app/orders/[id]/order-fulfillment-panel.tsx'
+          grep -Fq 'supplier-switch' 'src/app/api/orders/[id]/fulfillment/batches/[batchId]/supplier-switch/route.ts'
+          grep -Fq 'fulfillment.supplier_switched' src/lib/fulfillment-supplier-switch.ts
+      - run: npm run lint
+      - run: npm run build
