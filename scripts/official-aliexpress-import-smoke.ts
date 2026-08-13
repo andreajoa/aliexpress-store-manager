@@ -30,7 +30,10 @@ assert(attrs["SKU-BLACK-S"] === "14:193;5:100014064", "order sku attr was not pr
 const provider = readFileSync("src/lib/aliexpress-operational-provider.ts", "utf8");
 const route = readFileSync("src/app/api/import/aliexpress/route.ts", "utf8");
 const form = readFileSync("src/app/products/import-form.tsx", "utf8");
-assert(provider.includes("getOfficialProduct(productId)"), "official provider must be first path");
+assert(
+  provider.indexOf("getOfficialProduct(candidate)") < provider.indexOf("getOmkarProductFast(candidate)"),
+  "official provider must be first path",
+);
 assert(provider.includes("ALIEXPRESS_OPEN_PLATFORM"), "official provider label missing");
 assert(!provider.includes("getAliExpressBrowserProduct"), "browser cannot be synchronous operational fallback");
 assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 5000"), "Omkar fallback must fail fast");

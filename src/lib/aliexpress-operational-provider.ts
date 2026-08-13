@@ -1,3 +1,4 @@
+import { globalAliExpressProductId } from "./aliexpress-catalog-id";
 import { requireAliExpressSession } from "./aliexpress-connection";
 import { officialDropshipProductToOperationalProduct } from "./aliexpress-official-product-provider";
 import type { OmkarProduct } from "./omkar";
@@ -112,31 +113,59 @@ export async function getAliExpressOperationalProduct(
 
   const warnings: string[] = [];
 
-  try {
-    const product = await getOfficialProduct(productId);
-    officialLastFailure = "";
-    return { product, provider: "ALIEXPRESS_OPEN_PLATFORM", warnings };
-  } catch (error) {
-    officialLastFailure = compactError(error);
-    warnings.push(`API oficial indisponível: ${officialLastFailure}`);
-    console.warn("[AliExpress provider] Official dropship API unavailable; trying Omkar fallback.", error);
-  }
+  /*
+   * O ID informado sempre é tentado primeiro. A variante global só é consultada
+   * se a original falhar, de modo que a conversão nunca substitui um resultado
+   * válido nem pode trocar o produto importado por outro.
+   */
+  const globalId = globalAliExpressProductId(productId);
+  const candidates = globalId ? [productId, globalId] : [productId];
 
-  const now = Date.now();
-  if (now >= omkarCircuitOpenUntil) {
+  for (const candidate of candidates) {
+    const converted = candidate !== productId;
+
     try {
-      const product = await getOmkarProductFast(productId);
+      const product = await getOfficialProduct(candidate);
+      officialLastFailure = "";
+      if (converted) {
+        warnings.push(`ID regional ${productId} convertido para o catálogo global ${candidate}.`);
+      }
+      return { product, provider: "ALIEXPRESS_OPEN_PLATFORM", warnings };
+    } catch (error) {
+      officialLastFailure = compactError(error);
+      if (!converted) {
+        warnings.push(`API oficial indisponível: ${officialLastFailure}`);
+      }
+      console.warn("[AliExpress provider] Official dropship API unavailable; trying Omkar fallback.", error);
+    }
+
+    if (Date.now() < omkarCircuitOpenUntil) {
+      if (!converted) {
+        warnings.push("Omkar temporariamente ignorado pelo circuit breaker após falha recente.");
+      }
+      continue;
+    }
+
+    try {
+      const product = await getOmkarProductFast(candidate);
       omkarCircuitOpenUntil = 0;
       omkarLastFailure = "";
+      if (converted) {
+        warnings.push(`ID regional ${productId} convertido para o catálogo global ${candidate}.`);
+      }
       return { product, provider: "OMKAR", warnings };
     } catch (error) {
       omkarLastFailure = compactError(error);
       omkarCircuitOpenUntil = Date.now() + OMKAR_CIRCUIT_MS;
-      warnings.push(`Omkar indisponível: ${omkarLastFailure}`);
+      if (!converted) {
+        warnings.push(`Omkar indisponível: ${omkarLastFailure}`);
+      }
       console.warn("[AliExpress provider] Omkar fallback unavailable.", error);
     }
-  } else {
-    warnings.push("Omkar temporariamente ignorado pelo circuit breaker após falha recente.");
+  }
+
+  if (globalId) {
+    warnings.push(`Variante do catálogo global (${globalId}) também não retornou dados.`);
   }
 
   throw new Error(
