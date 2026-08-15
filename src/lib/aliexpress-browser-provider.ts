@@ -349,6 +349,15 @@ export async function getAliExpressBrowserProduct(productId: string): Promise<Om
       throw new Error("O browser abriu o AliExpress, mas não recebeu o payload operacional do produto.");
     }
 
+    const errorRet = Array.isArray(captured.ret)
+      ? captured.ret.find((entry) => typeof entry === "string" && entry.includes("::"))
+      : null;
+    if (errorRet) {
+      throw new Error(
+        `AliExpress bloqueou a extração no browser: ${errorRet}. Nenhum dado operacional foi salvo.`
+      );
+    }
+
     return browserEnvelopeToProduct(productId, captured);
   } finally {
     await browser.close().catch(() => undefined);

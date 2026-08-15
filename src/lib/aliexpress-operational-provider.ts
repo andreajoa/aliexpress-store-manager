@@ -158,9 +158,9 @@ export async function getAliExpressOperationalProduct(
 
   throw new Error(
     "Não foi possível consultar SKU/estoque do produto. " +
-    `API oficial: ${officialLastFailure || "não autorizada"}. ` +
-    `Omkar: ${omkarLastFailure || "indisponível"}. ` +
-    `Browser: ${browserLastFailure || "indisponível"}. ` +
-    "Abra Configurações → AliExpress e autorize sua conta para usar a API oficial de dropshipping.",
+      `API oficial: ${officialLastFailure || "não autorizada"}. ` +
+      `Omkar: ${omkarLastFailure || "indisponível"}. ` +
+      `Browser: ${browserLastFailure || "indisponível"}. ` +
+      "Se o browser falhou com bloqueio do AliExpress, tente autorizar a API oficial em Configurações → AliExpress."
   );
 }
