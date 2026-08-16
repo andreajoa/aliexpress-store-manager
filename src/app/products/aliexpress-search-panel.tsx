@@ -99,10 +99,10 @@ export function AliExpressSearchPanel() {
     setImportMessage(null);
 
     try {
-      const response = await fetch('/api/import/aliexpress', {
+      const response = await fetch('/api/import/aliexpress/omkar-search-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: item.link }),
+        body: JSON.stringify({ productId: item.id }),
       });
 
       const text = await response.text();
