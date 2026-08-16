@@ -38,6 +38,11 @@ export async function getAliExpressOxylabsProduct(
 
   if (!response.ok) {
     const text = await response.text();
+    if (response.status === 401) {
+      throw new Error(
+        "Oxylabs retornou HTTP 401. Verifique OXYLABS_USERNAME e OXYLABS_PASSWORD na Vercel; elas estão ausentes ou inválidas.",
+      );
+    }
     throw new Error(
       `Oxylabs falhou: HTTP ${response.status}: ${text.slice(0, 300)}`,
     );
