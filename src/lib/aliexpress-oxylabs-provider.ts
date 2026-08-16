@@ -7,6 +7,10 @@ function oxylabsHeaders(): Record<string, string> {
   const password = process.env.OXYLABS_PASSWORD?.trim();
 
   if (!username || !password) {
+    console.error("[Oxylabs] Missing credentials.", {
+      usernamePresent: Boolean(process.env.OXYLABS_USERNAME?.trim()),
+      passwordPresent: Boolean(process.env.OXYLABS_PASSWORD?.trim()),
+    });
     throw new Error(
       "OXYLABS_USERNAME/OXYLABS_PASSWORD não configuradas. " +
         "Sem essas variáveis o provider Oxylabs não funciona.",
