@@ -304,25 +304,84 @@ export async function getAliExpressOperationalProduct(
     }
   })();
 
-  try {
-    const winner = await Promise.any([scrapingBeeAttempt, browserAttempt]);
-    fallbackController.abort("AliExpress provider selected");
-    if (automaticProductId !== productId) {
-      warnings.push(`ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`);
+  const oxylabsAttempt = (async () => {
+    const startedAt = Date.now();
+    try {
+      const product = await getAliExpressOxylabsProduct(automaticProductId, {
+        timeoutMs: OXYLABS_TIMEOUT_MS,
+        signal: fallbackController.signal,
+      });
+      if (String(product.id) !== automaticProductId) {
+        throw new Error(
+          `Oxylabs retornou Product ID ${product.id}, diferente do consultado ${automaticProductId}.`,
+        );
+      }
+      oxylabsLastFailure = "";
+      console.info("[AliExpress provider] Oxylabs provider succeeded.", {
+        productId: automaticProductId,
+        durationMs: providerDurationMs(startedAt),
+      });
+      return { product, provider: "OXYLABS_UNIVERSAL" as const };
+    } catch (error) {
+      if (!fallbackController.signal.aborted) {
+        failures.oxylabs = compactError(error);
+        oxylabsLastFailure = failures.oxylabs;
+        console.warn("[AliExpress provider] Oxylabs fallback unavailable.", {
+          productId: automaticProductId,
+          durationMs: providerDurationMs(startedAt),
+          error: failures.oxylabs,
+        });
+      }
+      throw error;
     }
-    return {
-      product: winner.product,
-      provider: winner.provider,
-      requestedProductId: productId,
-      resolvedProductId: String(winner.product.id),
-      warnings,
-    };
+  })();
+
+  try {
+    let resolved:
+      | { product: OmkarProduct; provider: AliExpressOperationalProvider }
+      | null = null;
+    const tasks = [
+      (async () => {
+        try {
+          resolved = await oxylabsAttempt;
+        } catch {
+          // ignore and continue
+        }
+      })(),
+      (async () => {
+        try {
+          resolved = await scrapingBeeAttempt;
+        } catch {
+          // ignore and continue
+        }
+      })(),
+      (async () => {
+        try {
+          resolved = await browserAttempt;
+        } catch {
+          // ignore and continue
+        }
+      })(),
+    ];
+
+    await Promise.race(tasks);
+    if (resolved) {
+      fallbackController.abort("AliExpress provider selected");
+      if (automaticProductId !== productId) {
+        warnings.push(`ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`);
+      }
+      return {
+        product: resolved.product,
+        provider: resolved.provider,
+        requestedProductId: productId,
+        resolvedProductId: String(resolved.product.id),
+        warnings,
+      };
+    }
+
+    fallbackController.abort("All AliExpress automatic providers failed");
   } catch {
     fallbackController.abort("All AliExpress automatic providers failed");
-  }
-
-  if (globalId) {
-    warnings.push(`Variante do catálogo global (${globalId}) também não retornou dados.`);
   }
 
   console.error("[AliExpress provider] All automatic providers failed.", {
