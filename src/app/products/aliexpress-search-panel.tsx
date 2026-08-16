@@ -47,7 +47,7 @@ export function AliExpressSearchPanel() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<SearchResponse['results']>([]);
+  const [results, setResults] = useState<OmkarSearchResult[]>([]);
   const [meta, setMeta] = useState<Pick<SearchResponse, 'count' | 'current_page' | 'total_pages' | 'next' | 'previous' | 'error'>>({});
   const [importingId, setImportingId] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
