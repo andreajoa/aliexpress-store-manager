@@ -366,15 +366,19 @@ export async function getAliExpressOperationalProduct(
 
     await Promise.race(tasks);
     if (resolved) {
+      const winner = resolved as {
+        product: OmkarProduct;
+        provider: AliExpressOperationalProvider;
+      };
       fallbackController.abort("AliExpress provider selected");
       if (automaticProductId !== productId) {
         warnings.push(`ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`);
       }
       return {
-        product: resolved.product,
-        provider: resolved.provider,
+        product: winner.product,
+        provider: winner.provider,
         requestedProductId: productId,
-        resolvedProductId: String(resolved.product.id),
+        resolvedProductId: String(winner.product.id),
         warnings,
       };
     }
