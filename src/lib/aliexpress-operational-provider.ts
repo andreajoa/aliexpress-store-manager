@@ -5,6 +5,7 @@ import {
   requireAliExpressSession,
 } from "./aliexpress-connection";
 import { officialDropshipProductToOperationalProduct } from "./aliexpress-official-product-provider";
+import { getAliExpressOxylabsProduct } from "./aliexpress-oxylabs-provider";
 import { getAliExpressScrapingBeeProduct } from "./aliexpress-scrapingbee-provider";
 import { getOmkarProduct, type OmkarProduct } from "./omkar";
 
@@ -12,7 +13,8 @@ export type AliExpressOperationalProvider =
   | "ALIEXPRESS_OPEN_PLATFORM"
   | "OMKAR"
   | "SCRAPINGBEE_BROWSER"
-  | "ALIEXPRESS_BROWSER";
+  | "ALIEXPRESS_BROWSER"
+  | "OXYLABS_UNIVERSAL";
 
 export type AliExpressOperationalProduct = {
   product: OmkarProduct;
@@ -35,10 +37,12 @@ export class AliExpressProviderUnavailableError extends Error {
 const OMKAR_FAST_TIMEOUT_MS = 4000;
 const OMKAR_FAST_MAX_ATTEMPTS = 2;
 const SCRAPINGBEE_TIMEOUT_MS = 86_000;
+const OXYLABS_TIMEOUT_MS = 90_000;
 const BROWSER_TIMEOUT_MS = 72_000;
 let omkarLastFailure = "";
 let officialLastFailure = "";
 let scrapingBeeLastFailure = "";
+let oxylabsLastFailure = "";
 let browserLastFailure = "";
 
 function compactError(error: unknown) {
@@ -123,6 +127,7 @@ export async function getAliExpressOperationalProduct(
     official: "",
     omkar: "",
     scrapingBee: "",
+    oxylabs: "",
     browser: "",
   };
 
