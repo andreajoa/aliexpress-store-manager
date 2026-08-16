@@ -7,7 +7,10 @@ function oxylabsHeaders(): Record<string, string> {
   const password = process.env.OXYLABS_PASSWORD?.trim();
 
   if (!username || !password) {
-    throw new Error("OXYLABS_USERNAME/OXYLABS_PASSWORD não configuradas.");
+    throw new Error(
+      "OXYLABS_USERNAME/OXYLABS_PASSWORD não configuradas. " +
+        "Sem essas variáveis o provider Oxylabs não funciona.",
+    );
   }
 
   return {
