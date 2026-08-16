@@ -33,7 +33,7 @@ export type OmkarSearchResponse = {
   results: OmkarSearchResult[];
 };
 
-const OMKAR_SEARCH_BASE = 'https://aliexpress-scraper-api.omkar.cloud/aliexpress-scraper/v2/search';
+const OMKAR_SEARCH_BASE = 'https://aliexpress-scraper-api.omkar.cloud/aliexpress/scraper/v2/search';
 
 export async function searchOmkarProducts(query: string, page = 1): Promise<OmkarSearchResponse> {
   const apiKey = process.env.OMKAR_API_KEY;
