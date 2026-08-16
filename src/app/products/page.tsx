@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
 import { ImportForm } from "./import-form";
+import { AliExpressSearchPanel } from "./aliexpress-search-panel";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -45,6 +46,10 @@ export default async function ProductsPage() {
 
         <div className="mt-8">
           <ImportForm />
+        </div>
+
+        <div className="mt-8">
+          <AliExpressSearchPanel />
         </div>
 
         <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
