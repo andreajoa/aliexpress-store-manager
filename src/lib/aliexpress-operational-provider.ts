@@ -330,12 +330,14 @@ export async function getAliExpressOperationalProduct(
     official: failures.official || null,
     omkar: failures.omkar || null,
     scrapingBee: failures.scrapingBee || null,
+    oxylabs: failures.oxylabs || null,
     browser: failures.browser || null,
   });
   throw new AliExpressProviderUnavailableError(
     "Todos os provedores de dados do AliExpress falharam. " +
       `Omkar: ${failures.omkar || "sem resposta"}. ` +
       `ScrapingBee: ${failures.scrapingBee || "sem resposta"}. ` +
+      `Oxylabs: ${failures.oxylabs || "sem resposta"}. ` +
       `Browser: ${failures.browser || "sem resposta"}. ` +
       "Se quiser, tente novamente mais tarde. Alternativa imediata: use a busca do Omkar no site e importe pelo resultado da listagem.",
   );
