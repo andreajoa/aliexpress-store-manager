@@ -328,10 +328,10 @@ export async function getAliExpressOperationalProduct(
     browser: failures.browser || null,
   });
   throw new AliExpressProviderUnavailableError(
-    "Não foi possível consultar SKU/estoque. " +
-    `Omkar: ${failures.omkar || "sem resposta"}. ` +
-    `ScrapingBee: ${failures.scrapingBee || "sem resposta"}. ` +
-    `Browser: ${failures.browser || "sem resposta"}. ` +
-    "Nada foi salvo.",
+    "Todos os provedores de dados do AliExpress falharam. " +
+      `Omkar: ${failures.omkar || "sem resposta"}. ` +
+      `ScrapingBee: ${failures.scrapingBee || "sem resposta"}. ` +
+      `Browser: ${failures.browser || "sem resposta"}. ` +
+      "Se quiser, tente novamente mais tarde. Alternativa imediata: use a busca do Omkar no site e importe pelo resultado da listagem.",
   );
 }
