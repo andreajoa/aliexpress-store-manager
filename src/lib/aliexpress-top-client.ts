@@ -14,6 +14,7 @@ export type FreightQuote = {
 };
 
 const ALIEXPRESS_REQUEST_TIMEOUT_MS = 10_000;
+const SHIPS_FROM_PROPERTY_ID = "200007763";
 
 function scalar(value: unknown) {
   if (value === null || value === undefined) return "";
@@ -106,6 +107,55 @@ export function regionalProductIdFromEnvelope(
   }
 
   return null;
+}
+
+function productSkuRows(envelope: Record<string, unknown>) {
+  const result = asRecord(envelope.result);
+  const container = result.ae_item_sku_info_dtos;
+  if (Array.isArray(container)) return container as Record<string, unknown>[];
+  const wrapper = asRecord(container);
+  return asArray<Record<string, unknown>>(
+    wrapper.ae_item_sku_info_d_t_o ?? wrapper.ae_item_sku_info_dto,
+  );
+}
+
+function skuProperties(row: Record<string, unknown>) {
+  const container = row.ae_sku_property_dtos;
+  if (Array.isArray(container)) return container as Record<string, unknown>[];
+  const wrapper = asRecord(container);
+  return asArray<Record<string, unknown>>(
+    wrapper.ae_sku_property_d_t_o ?? wrapper.ae_sku_property_dto,
+  );
+}
+
+export function shipsFromValuesFromEnvelope(
+  envelope: Record<string, unknown>,
+) {
+  const values = new Set<string>();
+
+  for (const row of productSkuRows(envelope)) {
+    for (const property of skuProperties(row)) {
+      const propertyId = scalar(property.sku_property_id).trim();
+      const propertyName = scalar(property.sku_property_name).trim();
+      if (
+        propertyId !== SHIPS_FROM_PROPERTY_ID &&
+        !/^ships?\s+from$/i.test(propertyName)
+      ) {
+        continue;
+      }
+
+      const valueId = scalar(property.property_value_id).trim();
+      const value =
+        scalar(property.sku_property_value).trim() ||
+        scalar(property.property_value_definition_name).trim();
+      const label = [propertyId || SHIPS_FROM_PROPERTY_ID, valueId, value]
+        .filter(Boolean)
+        .join(":");
+      if (label) values.add(label);
+    }
+  }
+
+  return Array.from(values);
 }
 
 function freightQuotesFromEnvelope(
@@ -256,11 +306,7 @@ export class AliExpressTopClient {
     const rootCode = scalar(json.code);
     if (rootCode && rootCode !== "0" && rootCode.toLowerCase() !== "success") {
       const message = scalar(
-        json.message ||
-          json.msg ||
-          json.error_message ||
-          json.error_msg ||
-          "Erro da API AliExpress",
+        json.message || json.msg || json.error_message || json.error_msg || "Erro da API AliExpress",
       );
       throw new Error(`${rootCode}: ${message}`);
     }
@@ -297,6 +343,7 @@ export class AliExpressTopClient {
     priceCurrency?: string | null;
   }) {
     const candidates: string[] = [];
+    const shipsFromValues: string[] = [];
 
     try {
       const productEnvelope = await this.getDropshipProduct({
@@ -306,6 +353,8 @@ export class AliExpressTopClient {
         targetCurrency: input.priceCurrency || "USD",
         targetLanguage: "EN",
       });
+
+      shipsFromValues.push(...shipsFromValuesFromEnvelope(productEnvelope));
 
       const regionalId = regionalProductIdFromEnvelope(
         productEnvelope,
@@ -318,12 +367,14 @@ export class AliExpressTopClient {
       const mainId = scalar(converter.main_product_id).trim();
       if (/^\d{10,}$/.test(mainId)) candidates.push(mainId);
     } catch {
-      // A consulta de produto é apenas usada para resolver o ID regional.
-      // O ID recebido continua sendo uma tentativa válida de fallback.
+      // A consulta de produto é best-effort para resolver ID e diagnóstico.
     }
 
     candidates.push(input.productId);
-    return Array.from(new Set(candidates.filter((id) => /^\d{10,}$/.test(id))));
+    return {
+      productIds: Array.from(new Set(candidates.filter((id) => /^\d{10,}$/.test(id)))),
+      shipsFromValues: Array.from(new Set(shipsFromValues)),
+    };
   }
 
   async calculateFreight(input: {
@@ -335,18 +386,17 @@ export class AliExpressTopClient {
     price?: string | null;
     priceCurrency?: string | null;
   }): Promise<FreightQuote[]> {
-    const productIds = await this.freightProductCandidates({
+    const candidates = await this.freightProductCandidates({
       session: input.session,
       productId: input.productId,
       countryCode: input.countryCode,
       priceCurrency: input.priceCurrency,
     });
     const failures: string[] = [];
+    const sendGoodsCountryCode = input.sendGoodsCountryCode || "CN";
 
-    for (const productId of productIds) {
-      const pricingModes = input.price
-        ? [true, false]
-        : [false];
+    for (const productId of candidates.productIds) {
+      const pricingModes = input.price ? [true, false] : [false];
 
       for (const includePrice of pricingModes) {
         try {
@@ -358,14 +408,9 @@ export class AliExpressTopClient {
                 country_code: input.countryCode,
                 product_id: productId,
                 product_num: input.quantity,
-                send_goods_country_code:
-                  input.sendGoodsCountryCode || "CN",
-                ...(includePrice && input.price
-                  ? { price: input.price }
-                  : {}),
-                ...(includePrice && input.priceCurrency
-                  ? { price_currency: input.priceCurrency }
-                  : {}),
+                send_goods_country_code: sendGoodsCountryCode,
+                ...(includePrice && input.price ? { price: input.price } : {}),
+                ...(includePrice && input.priceCurrency ? { price_currency: input.priceCurrency } : {}),
               },
             },
           );
@@ -386,6 +431,8 @@ export class AliExpressTopClient {
 
     throw new Error(
       "AliExpress não conseguiu calcular o frete para o produto. " +
+        `send_goods_country_code=${sendGoodsCountryCode}. ` +
+        `Ships From=${candidates.shipsFromValues.join(", ") || "não informado"}. ` +
         `Tentativas: ${failures.join(" || ") || "nenhuma opção retornada"}`,
     );
   }
@@ -439,14 +486,10 @@ export class AliExpressTopClient {
     }
 
     const orderList = asRecord(result.order_list);
-    const numbers = asArray<unknown>(orderList.number)
-      .map(scalar)
-      .filter(Boolean);
+    const numbers = asArray<unknown>(orderList.number).map(scalar).filter(Boolean);
 
     if (numbers.length === 0) {
-      throw new Error(
-        "AliExpress confirmou o pedido sem retornar número de ordem.",
-      );
+      throw new Error("AliExpress confirmou o pedido sem retornar número de ordem.");
     }
 
     return { orderIds: numbers, raw: result };
