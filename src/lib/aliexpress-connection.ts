@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { decryptSecret, encryptSecret } from "./aliexpress-token-crypto";
-import { AliExpressTopClient } from "./aliexpress-top-client";
+import { AliExpressOperationalClient } from "./aliexpress-operational-client";
 import { aliExpressConfig } from "./aliexpress-oauth";
 
 export {
@@ -74,7 +74,7 @@ export async function requireAliExpressSession() {
   return {
     session,
     connection,
-    client: new AliExpressTopClient({ appKey: config.appKey, appSecret: config.appSecret }),
+    client: new AliExpressOperationalClient({ appKey: config.appKey, appSecret: config.appSecret }),
   };
 }
 
