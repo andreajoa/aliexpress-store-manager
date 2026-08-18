@@ -13,6 +13,8 @@ export type FreightQuote = {
   currency: string | null;
 };
 
+const ALIEXPRESS_REQUEST_TIMEOUT_MS = 10_000;
+
 function scalar(value: unknown) {
   if (value === null || value === undefined) return "";
   if (typeof value === "string") return value;
@@ -105,18 +107,43 @@ export class AliExpressTopClient {
       url.searchParams.set(key, value);
     }
 
-    const response = await fetchImpl(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
-      cache: "no-store",
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort("AliExpress official request timeout"),
+      ALIEXPRESS_REQUEST_TIMEOUT_MS,
+    );
+
+    let response: Response;
+    try {
+      response = await fetchImpl(url, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+        },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error(
+          `AliExpress Open Platform não respondeu em ${ALIEXPRESS_REQUEST_TIMEOUT_MS / 1000} segundos (${this.endpoint}).`,
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const text = await response.text();
     let json: Record<string, unknown>;
     try {
       json = JSON.parse(text) as Record<string, unknown>;
     } catch {
-      throw new Error(`AliExpress retornou resposta inválida (HTTP ${response.status}).`);
+      const preview = text.trim().slice(0, 300);
+      throw new Error(
+        `AliExpress retornou resposta inválida (HTTP ${response.status})${preview ? `: ${preview}` : "."}`,
+      );
     }
 
     const apiError = asRecord(json.error_response);
@@ -125,7 +152,16 @@ export class AliExpressTopClient {
       const message = scalar(apiError.sub_msg || apiError.msg || "Erro da API AliExpress");
       throw new Error(`${code}: ${message}`);
     }
-    if (!response.ok) throw new Error(`AliExpress HTTP ${response.status}.`);
+
+    const rootCode = scalar(json.code);
+    if (rootCode && rootCode !== "0" && rootCode.toLowerCase() !== "success") {
+      const message = scalar(json.message || json.msg || json.error_message || json.error_msg || "Erro da API AliExpress");
+      throw new Error(`${rootCode}: ${message}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(`AliExpress HTTP ${response.status}: ${text.trim().slice(0, 300) || "sem corpo de resposta"}.`);
+    }
 
     const envelope = asRecord(json[responseKey(method)]);
     return Object.keys(envelope).length > 0 ? envelope : json;
