@@ -196,7 +196,7 @@ const supplierRefresh = readFileSync("src/lib/supplier-refresh-service.ts", "utf
 const provider = readFileSync("src/lib/aliexpress-operational-provider.ts", "utf8");
 const form = readFileSync("src/app/products/import-form.tsx", "utf8");
 
-const duplicateIndex = importRoute.indexOf("const existing = await prisma.product.findUnique");
+const duplicateIndex = importRoute.indexOf("await prisma.product.findUnique");
 const providerIndex = importRoute.indexOf("getAliExpressOperationalProduct(productId)");
 assert(duplicateIndex >= 0 && providerIndex > duplicateIndex, "duplicata deve ser bloqueada antes de consumir fornecedor");
 assert(importRoute.includes('role: "PRIMARY"'), "import deve criar fornecedor PRIMARY");
