@@ -29,7 +29,7 @@ export class AliExpressProviderUnavailableError extends Error {
   }
 }
 
-const OMKAR_FAST_TIMEOUT_MS = 5000;
+const OMKAR_FAST_TIMEOUT_MS = 20_000;
 const OMKAR_FAST_MAX_ATTEMPTS = 3;
 let omkarLastFailure = "";
 let officialLastFailure = "";
@@ -45,11 +45,8 @@ function validOperationalProduct(value: unknown): value is OmkarProduct {
   const product = value as OmkarProduct;
   if (!product.id || !product.title) return false;
   if (!Array.isArray(product.sku_pricing) || product.sku_pricing.length === 0) return false;
-  return product.sku_pricing.every((sku) =>
+  return product.sku_pricing.some((sku) =>
     Boolean(sku.sku_id) &&
-    typeof sku.available_quantity === "number" &&
-    Number.isFinite(sku.available_quantity) &&
-    sku.available_quantity >= 0 &&
     typeof sku.sale_price === "number" &&
     Number.isFinite(sku.sale_price) &&
     sku.sale_price >= 0,
