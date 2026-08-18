@@ -7,6 +7,12 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
+import {
+  calculateSaleSuggestion,
+  convertSupplierCost,
+  type PriceEnding,
+} from "@/lib/product-pricing";
+
 type ProductImage = {
   id: string;
   sourceUrl: string;
@@ -37,6 +43,11 @@ type Props = {
   compareAtPrice: string | null;
   images: ProductImage[];
   variants: ProductVariant[];
+};
+
+type PricingRate = {
+  rate: number;
+  date: string | null;
 };
 
 function currencyLocale(currency: string) {
@@ -96,27 +107,6 @@ function parseInputMoney(value: string) {
     : null;
 }
 
-function endingPrice(
-  value: number,
-  ending: "90" | "99" | "none"
-) {
-  if (ending === "none") {
-    return Math.round(value * 100) / 100;
-  }
-
-  const cents = ending === "90"
-    ? 0.9
-    : 0.99;
-  const integer = Math.floor(value);
-  let candidate = integer + cents;
-
-  if (candidate < value) {
-    candidate = integer + 1 + cents;
-  }
-
-  return Math.round(candidate * 100) / 100;
-}
-
 function initialPrices(variants: ProductVariant[]) {
   return Object.fromEntries(
     variants.map((variant) => [
@@ -159,17 +149,14 @@ export function ProductEditor(props: Props) {
     useState("BRL");
   const [currencyLoading, setCurrencyLoading] =
     useState(true);
-  const [fxRate, setFxRate] =
-    useState<number | null>(null);
-  const [fxDate, setFxDate] =
-    useState<string | null>(null);
+  const [pricingRates, setPricingRates] =
+    useState<Record<string, PricingRate>>({});
   const [multiplier, setMultiplier] =
     useState("2,5");
   const [reserve, setReserve] =
     useState("0");
-  const [ending, setEnding] = useState<
-    "90" | "99" | "none"
-  >("90");
+  const [ending, setEnding] =
+    useState<PriceEnding>("90");
   const [loading, setLoading] =
     useState(false);
   const [approving, setApproving] =
@@ -215,6 +202,7 @@ export function ProductEditor(props: Props) {
 
   useEffect(() => {
     let active = true;
+    setCurrencyLoading(true);
 
     fetch(
       `/api/products/${props.productId}/pricing-context`,
@@ -225,17 +213,62 @@ export function ProductEditor(props: Props) {
       .then(async (response) => {
         const data = await response.json();
 
-        if (
-          active &&
-          response.ok &&
-          typeof data.storeCurrency === "string"
-        ) {
+        if (!response.ok) {
+          throw new Error(
+            data.error ||
+              "Não foi possível carregar as cotações de precificação."
+          );
+        }
+
+        if (!active) return;
+
+        if (typeof data.storeCurrency === "string") {
           setStoreCurrency(
             data.storeCurrency.toUpperCase()
           );
         }
+
+        const rates: Record<string, PricingRate> = {};
+        if (
+          data.rates &&
+          typeof data.rates === "object" &&
+          !Array.isArray(data.rates)
+        ) {
+          for (
+            const [currency, raw]
+            of Object.entries(
+              data.rates as Record<string, unknown>
+            )
+          ) {
+            if (
+              raw &&
+              typeof raw === "object" &&
+              !Array.isArray(raw)
+            ) {
+              const record = raw as Record<string, unknown>;
+              const rate = Number(record.rate);
+              if (Number.isFinite(rate) && rate > 0) {
+                rates[currency.toUpperCase()] = {
+                  rate,
+                  date:
+                    typeof record.date === "string"
+                      ? record.date
+                      : null,
+                };
+              }
+            }
+          }
+        }
+        setPricingRates(rates);
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (!active) return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar as cotações de precificação."
+        );
+      })
       .finally(() => {
         if (active) setCurrencyLoading(false);
       });
@@ -243,33 +276,7 @@ export function ProductEditor(props: Props) {
     return () => {
       active = false;
     };
-  }, [props.productId, props.optimizedTitle]);
-
-  useEffect(() => {
-    let active = true;
-
-    fetch(
-      `/api/fx/rate?from=USD&to=${encodeURIComponent(
-        storeCurrency
-      )}`,
-      {
-        cache: "no-store",
-      }
-    )
-      .then(async (response) => {
-        const data = await response.json();
-
-        if (active && response.ok && data.rate) {
-          setFxRate(Number(data.rate));
-          setFxDate(data.date || null);
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      active = false;
-    };
-  }, [storeCurrency]);
+  }, [props.productId, props.optimizedTitle, props.variants]);
 
   const selectedCount = selectedImages.size;
   const minimumSale = useMemo(() => {
@@ -285,6 +292,19 @@ export function ProductEditor(props: Props) {
       ? Math.min(...values)
       : null;
   }, [prices]);
+
+  const externalRates = useMemo(
+    () =>
+      Object.entries(pricingRates)
+        .filter(
+          ([currency]) =>
+            currency !== storeCurrency
+        )
+        .sort(([left], [right]) =>
+          left.localeCompare(right)
+        ),
+    [pricingRates, storeCurrency]
+  );
 
   function toggleImage(imageId: string) {
     setSelectedImages((current) => {
@@ -302,34 +322,39 @@ export function ProductEditor(props: Props) {
     variant: ProductVariant
   ) {
     if (!variant.costPrice) return null;
+    if (!variant.sourceCurrency) return null;
+
     const cost = Number(variant.costPrice);
-    if (!Number.isFinite(cost)) return null;
-
-    if (
-      variant.sourceCurrency?.toUpperCase() ===
-      storeCurrency
-    ) {
-      return cost;
+    if (!Number.isFinite(cost) || cost <= 0) {
+      return null;
     }
 
-    if (
-      variant.sourceCurrency?.toUpperCase() ===
-        "USD" &&
-      fxRate
-    ) {
-      return cost * fxRate;
-    }
+    const sourceCurrency =
+      variant.sourceCurrency.toUpperCase();
+    const rate =
+      sourceCurrency === storeCurrency
+        ? 1
+        : pricingRates[sourceCurrency]?.rate;
 
-    return null;
+    try {
+      return convertSupplierCost({
+        cost,
+        sourceCurrency,
+        sellingCurrency: storeCurrency,
+        rate,
+      });
+    } catch {
+      return null;
+    }
   }
 
   function calculateSuggestions() {
     setError("");
     setMessage("");
 
-    if (!fxRate) {
+    if (currencyLoading) {
       setError(
-        `A cotação USD/${storeCurrency} ainda não foi carregada.`
+        "As cotações ainda estão sendo carregadas."
       );
       return;
     }
@@ -359,27 +384,68 @@ export function ProductEditor(props: Props) {
       return;
     }
 
+    const eligibleVariants = props.variants.filter(
+      (variant) =>
+        variant.available &&
+        (variant.stock === null || variant.stock > 0)
+    );
+
+    if (eligibleVariants.length === 0) {
+      setError(
+        "Não há variantes disponíveis para precificar."
+      );
+      return;
+    }
+
     const next = { ...prices };
 
-    for (const variant of props.variants) {
-      const convertedCost =
-        costInSellingCurrency(variant);
-      if (convertedCost === null) continue;
+    try {
+      for (const variant of eligibleVariants) {
+        if (!variant.costPrice) {
+          throw new Error(
+            `A variante ${variant.sourceSkuId} está sem custo do fornecedor.`
+          );
+        }
+        if (!variant.sourceCurrency) {
+          throw new Error(
+            `A variante ${variant.sourceSkuId} está sem moeda do fornecedor.`
+          );
+        }
 
-      const raw =
-        convertedCost *
-        multiplierValue *
-        (1 + reserveValue / 100);
-      const suggested = endingPrice(raw, ending);
-      next[variant.id] = inputMoney(
-        suggested,
-        storeCurrency
+        const sourceCurrency =
+          variant.sourceCurrency.toUpperCase();
+        const rate =
+          sourceCurrency === storeCurrency
+            ? 1
+            : pricingRates[sourceCurrency]?.rate;
+
+        const result = calculateSaleSuggestion({
+          cost: Number(variant.costPrice),
+          sourceCurrency,
+          sellingCurrency: storeCurrency,
+          rate,
+          multiplier: multiplierValue,
+          reservePercent: reserveValue,
+          ending,
+        });
+
+        next[variant.id] = inputMoney(
+          result.suggestedPrice,
+          storeCurrency
+        );
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível calcular os preços de venda."
       );
+      return;
     }
 
     setPrices(next);
     setMessage(
-      `Sugestões calculadas em ${storeCurrency}. Você pode alterar qualquer valor manualmente.`
+      `${eligibleVariants.length} preço(s) final(is) calculado(s) em ${storeCurrency}. Salve a revisão ou aprove o produto para gravar os valores.`
     );
   }
 
@@ -559,7 +625,7 @@ export function ProductEditor(props: Props) {
               onChange={(event) =>
                 setBenefits(event.target.value)
               }
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-emerald-500"
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-emerald-500"
             />
           </label>
 
@@ -572,7 +638,7 @@ export function ProductEditor(props: Props) {
               onChange={(event) =>
                 setCta(event.target.value)
               }
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-emerald-500"
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-emerald-500"
             />
           </label>
         </div>
@@ -650,31 +716,40 @@ export function ProductEditor(props: Props) {
           <div>
             <p className="font-medium">Precificação</p>
             <p className="mt-2 text-sm leading-6 text-zinc-500">
-              A moeda de venda acompanha o mercado escolhido na geração da copy.
+              O custo do fornecedor é convertido para a moeda de venda antes do cálculo do preço final.
             </p>
           </div>
           <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold text-zinc-950">
             {currencyLoading
-              ? "Carregando moeda..."
+              ? "Carregando cotações..."
               : `Venda em ${storeCurrency}`}
           </span>
         </div>
 
-        {fxRate && (
-          <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-            <p className="text-xs text-zinc-500">
-              Referência USD → {storeCurrency}
-            </p>
-            <p className="mt-1 text-xl font-semibold">
-              US$ 1 = {formatCurrency(
-                fxRate,
-                storeCurrency
-              )}
-            </p>
-            {fxDate && (
-              <p className="mt-1 text-xs text-zinc-600">
-                Data da cotação: {fxDate}
-              </p>
+        {externalRates.length > 0 && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {externalRates.map(
+              ([sourceCurrency, quote]) => (
+                <div
+                  key={sourceCurrency}
+                  className="rounded-xl border border-zinc-800 bg-zinc-950 p-4"
+                >
+                  <p className="text-xs text-zinc-500">
+                    Referência {sourceCurrency} → {storeCurrency}
+                  </p>
+                  <p className="mt-1 text-lg font-semibold">
+                    1 {sourceCurrency} = {formatCurrency(
+                      quote.rate,
+                      storeCurrency
+                    )}
+                  </p>
+                  {quote.date && (
+                    <p className="mt-1 text-xs text-zinc-600">
+                      Data da cotação: {quote.date}
+                    </p>
+                  )}
+                </div>
+              )
             )}
           </div>
         )}
@@ -714,10 +789,7 @@ export function ProductEditor(props: Props) {
               value={ending}
               onChange={(event) =>
                 setEnding(
-                  event.target.value as
-                    | "90"
-                    | "99"
-                    | "none"
+                  event.target.value as PriceEnding
                 )
               }
               className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2"
