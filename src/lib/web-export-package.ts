@@ -202,32 +202,42 @@ export async function buildProductWebExport({
   });
 
   const imageErrors: string[] = [];
+  const downloadedImages = await Promise.all(
+    product.images.map(async (image, index) => {
+      const url = image.storedUrl || image.sourceUrl;
 
-  for (
-    let index = 0;
-    index < product.images.length;
-    index += 1
-  ) {
-    const image = product.images[index];
-    const url = image.storedUrl || image.sourceUrl;
+      try {
+        const downloaded = await fetchExportImage({ url });
+        return {
+          entry: {
+            name:
+              `${root}/imagens/originais/${String(
+                index + 1
+              ).padStart(2, "0")}${downloaded.extension}`,
+            data: downloaded.bytes,
+          } satisfies ZipEntry,
+          error: null,
+        };
+      } catch (error) {
+        return {
+          entry: null,
+          error:
+            `${index + 1}: ${
+              error instanceof Error
+                ? error.message
+                : "erro"
+            }`,
+        };
+      }
+    })
+  );
 
-    try {
-      const downloaded = await fetchExportImage({ url });
-      entries.push({
-        name:
-          `${root}/imagens/originais/${String(
-            index + 1
-          ).padStart(2, "0")}${downloaded.extension}`,
-        data: downloaded.bytes,
-      });
-    } catch (error) {
-      imageErrors.push(
-        `${index + 1}: ${
-          error instanceof Error
-            ? error.message
-            : "erro"
-        }`
-      );
+  for (const downloaded of downloadedImages) {
+    if (downloaded.entry) {
+      entries.push(downloaded.entry);
+    }
+    if (downloaded.error) {
+      imageErrors.push(downloaded.error);
     }
   }
 
@@ -320,6 +330,10 @@ export async function buildProductWebExport({
       {
         exportedAt: new Date().toISOString(),
         originalImages: product.images.length,
+        exportedOriginalImages:
+          downloadedImages.filter(
+            (downloaded) => downloaded.entry
+          ).length,
         editorialExport: editorialReport,
         imageErrors,
       },
