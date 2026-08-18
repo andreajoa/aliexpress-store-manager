@@ -366,13 +366,11 @@ export async function getAliExpressOperationalProduct(
   })();
 
   try {
-    // Promise.any espera a primeira RESPOSTA COM SUCESSO. Uma falha rápida de
-    // um provedor (por exemplo Oxylabs 401) não pode cancelar os demais.
-    const winner = await Promise.any([
-      oxylabsAttempt,
-      scrapingBeeAttempt,
-      browserAttempt,
-    ]);
+    // ScrapingBee e Browser continuam disputando o mesmo orçamento. Promise.any
+    // só rejeita quando AMBOS falham, então um erro rápido de um deles não mata
+    // o outro. Esse vencedor disputa em paralelo com o Oxylabs.
+    const browserWinner = Promise.any([scrapingBeeAttempt, browserAttempt]);
+    const winner = await Promise.any([oxylabsAttempt, browserWinner]);
 
     fallbackController.abort("AliExpress provider selected");
 
