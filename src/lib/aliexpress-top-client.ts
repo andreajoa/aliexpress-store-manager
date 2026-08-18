@@ -20,21 +20,18 @@ function scalar(value: unknown) {
   return JSON.stringify(value);
 }
 
+/**
+ * The current international AliExpress Open Platform expects Unix epoch
+ * milliseconds for migrated API calls through /sync.
+ */
 export function topTimestamp(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-  const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
-  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+  return String(date.getTime());
 }
 
+/**
+ * Migrated AliExpress APIs use HMAC-SHA256 on the ASCII-sorted parameter
+ * name/value concatenation. The signature is returned as uppercase hex.
+ */
 export function signTopParameters(
   params: Record<string, string>,
   appSecret: string,
@@ -44,7 +41,10 @@ export function signTopParameters(
     .sort()
     .map((key) => `${key}${params[key]}`)
     .join("");
-  return createHmac("md5", appSecret).update(base, "utf8").digest("hex").toUpperCase();
+  return createHmac("sha256", appSecret)
+    .update(base, "utf8")
+    .digest("hex")
+    .toUpperCase();
 }
 
 function responseKey(method: string) {
@@ -69,7 +69,10 @@ export class AliExpressTopClient {
 
   constructor(config: AliExpressTopConfig) {
     this.config = config;
-    this.endpoint = config.endpoint || "https://eco.taobao.com/router/rest";
+    // New app keys created in the international AliExpress console are not
+    // recognized by the legacy eco.taobao.com TOP gateway. Migrated method-name
+    // APIs are exposed by the international /sync compatibility endpoint.
+    this.endpoint = config.endpoint || "https://api-sg.aliexpress.com/sync";
   }
 
   async execute(
@@ -79,27 +82,35 @@ export class AliExpressTopClient {
     fetchImpl: typeof fetch = fetch,
   ) {
     if (!session) throw new Error("Sessão AliExpress ausente.");
+
     const params: Record<string, string> = {
       method,
       app_key: this.config.appKey,
       session,
       timestamp: topTimestamp(),
       format: "json",
-      v: "2.0",
-      sign_method: "hmac",
+      simplify: "true",
+      sign_method: "sha256",
     };
+
     for (const [key, value] of Object.entries(businessParams)) {
       if (value === undefined || value === null) continue;
       params[key] = scalar(value);
     }
+
     params.sign = signTopParameters(params, this.config.appSecret);
 
-    const response = await fetchImpl(this.endpoint, {
+    const url = new URL(this.endpoint);
+    for (const [key, value] of Object.entries(params)) {
+      url.searchParams.set(key, value);
+    }
+
+    const response = await fetchImpl(url, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
-      body: new URLSearchParams(params),
       cache: "no-store",
     });
+
     const text = await response.text();
     let json: Record<string, unknown>;
     try {
