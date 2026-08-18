@@ -577,9 +577,18 @@ Crie a apresentação comercial inteira no idioma solicitado.
     );
   }
 
-  return productCopySchema.parse(
-    JSON.parse(response.text)
-  );
+  const raw = JSON.parse(response.text) as Record<string, unknown>;
+
+  // O Gemini às vezes excede os limites de caracteres pedidos.
+  // Truncar antes de validar evita rejeição desnecessária.
+  if (typeof raw.optimizedTitle === "string") raw.optimizedTitle = truncateText(raw.optimizedTitle, 100);
+  if (typeof raw.headline === "string") raw.headline = truncateText(raw.headline, 140);
+  if (typeof raw.shortDescription === "string") raw.shortDescription = truncateText(raw.shortDescription, 500);
+  if (typeof raw.seoTitle === "string") raw.seoTitle = truncateText(raw.seoTitle, 70);
+  if (typeof raw.seoDescription === "string") raw.seoDescription = truncateText(raw.seoDescription, 170);
+  if (typeof raw.cta === "string") raw.cta = truncateText(raw.cta, 90);
+
+  return productCopySchema.parse(raw);
 }
 
 async function audit(

@@ -167,6 +167,8 @@ export function ProductEditor(props: Props) {
     useState("2,5");
   const [reserve, setReserve] =
     useState("0");
+  const [freight, setFreight] =
+    useState("0");
   const [ending, setEnding] = useState<
     "90" | "99" | "none"
   >("90");
@@ -323,6 +325,31 @@ export function ProductEditor(props: Props) {
     return null;
   }
 
+  function freightInSellingCurrency() {
+    const freightValue = Number(
+      freight.replace(",", ".")
+    );
+    if (
+      !Number.isFinite(freightValue) ||
+      freightValue <= 0
+    )
+      return 0;
+
+    // Frete é sempre em USD (AliExpress)
+    if (storeCurrency === "USD") return freightValue;
+    if (fxRate) return freightValue * fxRate;
+    return 0;
+  }
+
+  function totalCostInSellingCurrency(
+    variant: ProductVariant
+  ) {
+    const productCost =
+      costInSellingCurrency(variant);
+    if (productCost === null) return null;
+    return productCost + freightInSellingCurrency();
+  }
+
   function calculateSuggestions() {
     setError("");
     setMessage("");
@@ -360,10 +387,12 @@ export function ProductEditor(props: Props) {
     }
 
     const next = { ...prices };
+    const freightConverted =
+      freightInSellingCurrency();
 
     for (const variant of props.variants) {
       const convertedCost =
-        costInSellingCurrency(variant);
+        totalCostInSellingCurrency(variant);
       if (convertedCost === null) continue;
 
       const raw =
@@ -378,8 +407,12 @@ export function ProductEditor(props: Props) {
     }
 
     setPrices(next);
+    const freightNote =
+      freightConverted > 0
+        ? ` (inclui frete de ${formatCurrency(freightConverted, storeCurrency)} por unidade)`
+        : "";
     setMessage(
-      `Sugestões calculadas em ${storeCurrency}. Você pode alterar qualquer valor manualmente.`
+      `Sugestões calculadas em ${storeCurrency}${freightNote}. Você pode alterar qualquer valor manualmente.`
     );
   }
 
@@ -679,7 +712,21 @@ export function ProductEditor(props: Props) {
           </div>
         )}
 
-        <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <div className="mt-5 grid gap-3 md:grid-cols-5">
+          <label>
+            <span className="mb-2 block text-xs text-zinc-500">
+              Frete por unidade (USD)
+            </span>
+            <input
+              value={freight}
+              onChange={(event) =>
+                setFreight(event.target.value)
+              }
+              placeholder="0.00"
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2"
+            />
+          </label>
+
           <label>
             <span className="mb-2 block text-xs text-zinc-500">
               Multiplicador
@@ -751,7 +798,7 @@ export function ProductEditor(props: Props) {
                 <th className="px-4 py-3">Variante</th>
                 <th className="px-4 py-3">Custo</th>
                 <th className="px-4 py-3">
-                  Custo {storeCurrency}
+                  Custo Total {storeCurrency}
                 </th>
                 <th className="px-4 py-3">Estoque</th>
                 <th className="px-4 py-3">
@@ -761,8 +808,8 @@ export function ProductEditor(props: Props) {
             </thead>
             <tbody>
               {props.variants.map((variant) => {
-                const convertedCost =
-                  costInSellingCurrency(variant);
+                const totalCost =
+                  totalCostInSellingCurrency(variant);
 
                 return (
                   <tr
@@ -783,10 +830,10 @@ export function ProductEditor(props: Props) {
                       {variant.costPrice || "—"}{" "}
                       {variant.sourceCurrency}
                     </td>
-                    <td className="px-4 py-3">
-                      {convertedCost !== null
+                    <td className="px-4 py-3 font-semibold">
+                      {totalCost !== null
                         ? formatCurrency(
-                            convertedCost,
+                            totalCost,
                             storeCurrency
                           )
                         : "—"}
