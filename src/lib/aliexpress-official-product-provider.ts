@@ -51,6 +51,35 @@ function optionKey(attributeName: string, optionValue: string) {
   return `${attributeName}:${optionValue}`;
 }
 
+function valueShape(value: unknown) {
+  if (Array.isArray(value)) return `array(${value.length})`;
+  if (value === null) return "null";
+  return typeof value;
+}
+
+function safeResponseShape(envelope: Record<string, unknown>) {
+  const result = record(envelope.result);
+  const skuContainer = result.ae_item_sku_info_dtos;
+  const skuRecord = record(skuContainer);
+  const wrappedRows = skuRecord.ae_item_sku_info_d_t_o;
+  const firstRow = Array.isArray(wrappedRows)
+    ? wrappedRows[0]
+    : wrappedRows && typeof wrappedRows === "object"
+      ? wrappedRows
+      : Array.isArray(skuContainer)
+        ? skuContainer[0]
+        : undefined;
+
+  return [
+    `envelopeKeys=${Object.keys(envelope).sort().join(",") || "none"}`,
+    `resultKeys=${Object.keys(result).sort().join(",") || "none"}`,
+    `skuContainer=${valueShape(skuContainer)}`,
+    `skuContainerKeys=${Object.keys(skuRecord).sort().join(",") || "none"}`,
+    `wrappedRows=${valueShape(wrappedRows)}`,
+    `firstSkuKeys=${Object.keys(record(firstRow)).sort().join(",") || "none"}`,
+  ].join(" | ");
+}
+
 function variantGroupsFromOfficialSkus(
   skus: ReturnType<typeof officialSkusFromProductResponse>["skus"],
 ): OmkarVariantGroup[] {
@@ -100,7 +129,11 @@ export function officialDropshipProductToOperationalProduct(
 
   const title = text(base.subject);
   if (!title) throw new Error("AliExpress Open Platform retornou produto sem título.");
-  if (official.skus.length === 0) throw new Error("AliExpress Open Platform retornou produto sem SKUs oficiais.");
+  if (official.skus.length === 0) {
+    throw new Error(
+      `AliExpress Open Platform retornou produto sem SKUs oficiais. Diagnóstico de formato: ${safeResponseShape(envelope)}`,
+    );
+  }
 
   const imageUrls = text(multimedia.image_urls)
     .split(";")
