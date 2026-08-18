@@ -4,6 +4,14 @@
     {
       "path": "/api/cron/maintenance",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/stock-sync",
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron/tracking-sync",
+      "schedule": "0 2,6,10,14,18,22 * * *"
     }
   ]
 }

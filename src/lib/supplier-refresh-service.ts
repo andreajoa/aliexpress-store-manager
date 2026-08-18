@@ -1,5 +1,6 @@
 import { getAliExpressOperationalProduct } from "./aliexpress-operational-provider";
 import { prisma } from "./prisma";
+import { pushInventoryToStores } from "./store-sync-service";
 import {
   canonicalVariantsForMapping,
   normalizeSupplierProduct,
@@ -109,6 +110,11 @@ export async function syncCanonicalAvailability(productId: string) {
       }),
     ),
   );
+
+  // Fire-and-forget: empurra estoque atualizado para lojas conectadas.
+  pushInventoryToStores(productId).catch((error) => {
+    console.warn("[Store Sync] Stock push failed for product", productId, error);
+  });
 
   return availability;
 }

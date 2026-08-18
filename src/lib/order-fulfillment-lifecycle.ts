@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { pushTrackingToStore } from "./store-sync-service";
 import { syncCanonicalAvailability } from "./supplier-refresh-service";
 
 function aggregateStatus(statuses: string[]) {
@@ -149,6 +150,12 @@ export async function updateFulfillmentBatchTracking(input: {
   }
 
   const order = await updateAggregateOrder(input.orderId);
+
+  // Fire-and-forget: empurra rastreamento para a loja conectada.
+  pushTrackingToStore(input.orderId, input.batchId).catch((error) => {
+    console.warn("[Store Sync] Tracking push failed for batch", input.batchId, error);
+  });
+
   const productIds = Array.from(new Set(batch.items.flatMap((item) => item.productId ? [item.productId] : [])));
   const syncWarnings: string[] = [];
 
