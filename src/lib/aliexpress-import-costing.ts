@@ -45,6 +45,14 @@ export type AliExpressImportSkuCost = {
   costCurrency: string;
 };
 
+type CostSnapshotQuote = {
+  serviceName: string;
+  estimatedDeliveryTime: string | null;
+  amount: number;
+  currency: string;
+  amountInCostCurrency: number;
+};
+
 export type AliExpressImportCosting = {
   complete: boolean;
   costedSkus: AliExpressImportSkuCost[];
@@ -72,7 +80,7 @@ export type AliExpressImportCosting = {
       amountInCostCurrency: number | null;
       costCurrency: string;
       quoteCount: number;
-      quotes: Array<Record<string, unknown>>;
+      quotes: CostSnapshotQuote[];
       error: string | null;
     };
     calculatedAt: string;
@@ -244,7 +252,7 @@ export async function buildAliExpressImportCosting(input: {
     const landedCosts = costedSkus
       .map((row) => row.landedCost)
       .filter((value): value is number => value !== null);
-    const normalizedQuotes = freightQuotes.flatMap((quote) => {
+    const normalizedQuotes: CostSnapshotQuote[] = freightQuotes.flatMap((quote) => {
       if (
         quote.amount === null ||
         !Number.isFinite(quote.amount) ||
