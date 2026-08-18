@@ -327,7 +327,7 @@ export async function POST(request: Request) {
         ? sourceProduct.official_sku_attrs as Record<string, string>
         : {};
 
-      for (const canonicalVariant of created.variants) {
+      const supplierVariantRows = created.variants.map((canonicalVariant) => {
         const sku = skuById.get(canonicalVariant.sourceSkuId);
         if (!sku) {
           throw new Error(
@@ -336,26 +336,53 @@ export async function POST(request: Request) {
         }
 
         const attributes = canonicalVariant.attributes as Record<string, string>;
-        const supplierVariant = await tx.supplierVariant.create({
-          data: {
-            supplierProductId: supplier.id,
-            sourceSkuId: canonicalVariant.sourceSkuId,
-            orderSkuAttr: officialSkuAttrs[canonicalVariant.sourceSkuId] || null,
-            name: supplierVariantName(attributes, canonicalVariant.sourceSkuId),
-            sourcePrice: canonicalVariant.costPrice,
-            stock: canonicalVariant.stock ?? 0,
-            attributes,
-            imageUrl: canonicalVariant.imageUrl,
-          },
-        });
+        return {
+          supplierProductId: supplier.id,
+          sourceSkuId: canonicalVariant.sourceSkuId,
+          orderSkuAttr: officialSkuAttrs[canonicalVariant.sourceSkuId] || null,
+          name: supplierVariantName(attributes, canonicalVariant.sourceSkuId),
+          sourcePrice: canonicalVariant.costPrice,
+          stock: canonicalVariant.stock ?? 0,
+          attributes,
+          imageUrl: canonicalVariant.imageUrl,
+        };
+      });
 
-        await tx.supplierVariantMapping.create({
-          data: {
+      const supplierVariants = await tx.supplierVariant.createManyAndReturn({
+        data: supplierVariantRows,
+        select: {
+          id: true,
+          sourceSkuId: true,
+        },
+      });
+
+      const supplierVariantBySourceSkuId = new Map(
+        supplierVariants.map((variant) => [variant.sourceSkuId, variant]),
+      );
+
+      if (supplierVariantBySourceSkuId.size !== created.variants.length) {
+        throw new Error(
+          "Nem todas as variantes do fornecedor foram persistidas. A importação foi revertida.",
+        );
+      }
+
+      await tx.supplierVariantMapping.createMany({
+        data: created.variants.map((canonicalVariant) => {
+          const supplierVariant = supplierVariantBySourceSkuId.get(
+            canonicalVariant.sourceSkuId,
+          );
+          if (!supplierVariant) {
+            throw new Error(
+              `SKU ${canonicalVariant.sourceSkuId} ficou sem vínculo após a gravação em lote.`,
+            );
+          }
+
+          return {
             supplierProductId: supplier.id,
             supplierVariantId: supplierVariant.id,
             canonicalVariantId: canonicalVariant.id,
             confidence: 1,
-            method: "AUTO",
+            method: "AUTO" as const,
             evidence: {
               source: "aliexpress-import-exact-sku",
               sourceSkuId: canonicalVariant.sourceSkuId,
@@ -363,11 +390,14 @@ export async function POST(request: Request) {
             },
             active: true,
             verifiedAt: importedAt,
-          },
-        });
-      }
+          };
+        }),
+      });
 
       return created;
+    }, {
+      maxWait: 5_000,
+      timeout: 20_000,
     });
 
     const totalStock = product.variants.reduce(
