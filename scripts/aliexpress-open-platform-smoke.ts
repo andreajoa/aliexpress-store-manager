@@ -7,20 +7,23 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-console.log("=== TOP SIGNATURE ===");
+console.log("=== API-SG SIGNATURE ===");
 const signature = signTopParameters({
   method: "aliexpress.ds.product.get",
   app_key: "test-key",
   session: "test-session",
-  timestamp: "2026-08-08 12:34:56",
+  timestamp: "1786192496000",
   format: "json",
-  v: "2.0",
-  sign_method: "hmac",
+  simplify: "true",
+  sign_method: "sha256",
   product_id: "12345",
   ship_to_country: "US",
 }, "test-secret");
-assert(signature === "9E2EDF9AF526630A3EF4C98CC8B3F0A5", "TOP HMAC-MD5 vector changed");
-console.log("✅ deterministic HMAC-MD5 vector");
+assert(
+  signature === "6860A7C55907EFA0D03255E0870B083F3D6A940E28CD5769E52F6CC608095A21",
+  "API-SG HMAC-SHA256 vector changed",
+);
+console.log("✅ deterministic HMAC-SHA256 vector");
 
 console.log("=== TOKEN ENCRYPTION ===");
 const cryptoEnv = { ALIEXPRESS_TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64") };
@@ -36,12 +39,14 @@ const oauthEnv = {
   ALIEXPRESS_OAUTH_REDIRECT_URI: "https://manager.example/api/aliexpress/oauth/callback",
 };
 const authorize = new URL(buildAliExpressAuthorizeUrl({ state: "state-123", env: oauthEnv }));
-assert(authorize.hostname === "oauth.aliexpress.com", "Unexpected OAuth host");
+assert(authorize.hostname === "api-sg.aliexpress.com", "Unexpected OAuth host");
+assert(authorize.pathname === "/oauth/authorize", "Unexpected OAuth path");
 assert(authorize.searchParams.get("response_type") === "code", "OAuth server flow must request code");
+assert(authorize.searchParams.get("force_auth") === "true", "Current OAuth flow must force authorization");
 assert(authorize.searchParams.get("state") === "state-123", "OAuth state missing");
 const expires = tokenExpiryFromResponse({ expire_time: 2_000_000_000_000 }, 1_900_000_000_000);
 assert(expires.getTime() === 2_000_000_000_000, "Millisecond expire_time not preserved");
-console.log("✅ OAuth state + millisecond expiry");
+console.log("✅ api-sg OAuth state + millisecond expiry");
 
 console.log("=== OFFICIAL SKU PARSER ===");
 const parsed = officialSkusFromProductResponse({
