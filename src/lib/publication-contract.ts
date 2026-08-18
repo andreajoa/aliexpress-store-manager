@@ -7,6 +7,11 @@ export type StoreProductVariantPayload = {
   imageUrl: string | null;
 };
 
+export type StoreProductCurrency =
+  | "BRL"
+  | "USD"
+  | "EUR";
+
 export type StoreProductPayload = {
   protocolVersion: "2026-08-01";
 
@@ -24,7 +29,7 @@ export type StoreProductPayload = {
 
     price: number;
     compareAtPrice: number | null;
-    currency: "BRL";
+    currency: StoreProductCurrency;
 
     image: string;
     gallery: string[];
