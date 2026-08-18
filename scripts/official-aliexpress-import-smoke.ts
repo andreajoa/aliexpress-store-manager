@@ -41,7 +41,7 @@ const browserIndex = provider.indexOf("getAliExpressBrowserProduct(automaticProd
 assert(scrapingBeeIndex >= 0, "managed browser must receive the operational ID");
 assert(browserIndex > scrapingBeeIndex, "local browser must remain an automatic fallback");
 assert(provider.includes("Promise.any([scrapingBeeAttempt, browserAttempt])"), "automatic browsers must run concurrently");
-assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 4000"), "Omkar fallback must fail fast");
+assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 20_000"), "Omkar fallback timeout must allow slow scraper responses");
 assert(!route.includes("scrapeAliExpressProduct"), "editorial ScrapingBee cannot block import");
 assert(route.includes("orderSkuAttr: officialSkuAttrs"), "supplier variant must persist official orderSkuAttr");
 assert(!form.includes("await response.json()"), "client cannot blindly parse gateway errors as JSON");
