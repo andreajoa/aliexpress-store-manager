@@ -77,7 +77,7 @@ export async function fetchExportImage({
       Accept: "image/*",
       "User-Agent": "Store-Manager/1.0",
     },
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(12_000),
     cache: "no-store",
   });
 
