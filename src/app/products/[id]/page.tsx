@@ -31,6 +31,39 @@ function variantName(attributes: unknown, index: number) {
   return label || `Variante ${index + 1}`;
 }
 
+function pendingItemCost(rawPayload: unknown) {
+  if (!rawPayload || typeof rawPayload !== "object" || Array.isArray(rawPayload)) {
+    return null;
+  }
+
+  const costBreakdown = (rawPayload as Record<string, unknown>).costBreakdown;
+  if (
+    !costBreakdown ||
+    typeof costBreakdown !== "object" ||
+    Array.isArray(costBreakdown)
+  ) {
+    return null;
+  }
+
+  const record = costBreakdown as Record<string, unknown>;
+  if (record.status !== "PENDING_FREIGHT") return null;
+
+  const itemPrice = Number(record.itemPrice);
+  const itemCurrency =
+    typeof record.itemCurrency === "string"
+      ? record.itemCurrency.trim().toUpperCase()
+      : "";
+
+  if (!Number.isFinite(itemPrice) || itemPrice <= 0 || !itemCurrency) {
+    return null;
+  }
+
+  return {
+    price: String(Math.round(itemPrice * 100) / 100),
+    currency: itemCurrency,
+  };
+}
+
 export default async function ProductPage({
   params,
 }: {
@@ -58,6 +91,34 @@ export default async function ProductPage({
     id: variant.id,
     name: variantName(variant.attributes, index),
   }));
+
+  const pricingVariants = product.variants.map((variant) => {
+    const provisional = variant.costPrice
+      ? null
+      : pendingItemCost(variant.rawPayload);
+
+    return {
+      id: variant.id,
+      sourceSkuId: variant.sourceSkuId,
+      attributes: variant.attributes as Record<string, string>,
+      costPrice:
+        variant.costPrice?.toString() ||
+        provisional?.price ||
+        null,
+      salePrice: variant.salePrice?.toString() || null,
+      sourceCurrency:
+        variant.sourceCurrency ||
+        provisional?.currency ||
+        null,
+      stock: variant.stock,
+      available: variant.available,
+      provisional: Boolean(provisional),
+    };
+  });
+
+  const provisionalPricingCount = pricingVariants.filter(
+    (variant) => variant.provisional,
+  ).length;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
@@ -119,7 +180,7 @@ export default async function ProductPage({
               </p>
 
               <div className="mt-4 space-y-3">
-                {product.variants.map((variant, index) => (
+                {pricingVariants.map((variant, index) => (
                   <div
                     key={variant.id}
                     className="rounded-xl border border-zinc-800 bg-zinc-950 p-4"
@@ -128,7 +189,8 @@ export default async function ProductPage({
                     <div className="mt-2 flex flex-wrap gap-4 text-xs text-zinc-500">
                       <span>SKU canônico: {variant.sourceSkuId}</span>
                       <span>
-                        Custo base: {variant.costPrice?.toString() || "—"} {variant.sourceCurrency}
+                        {variant.provisional ? "Custo do item" : "Custo base"}: {variant.costPrice || "—"} {variant.sourceCurrency}
+                        {variant.provisional ? " (frete pendente)" : ""}
                       </span>
                       <span>Estoque seguro: {variant.stock ?? "—"}</span>
                       <span>{variant.available ? "Disponível" : "Indisponível"}</span>
@@ -158,6 +220,13 @@ export default async function ProductPage({
                   </div>
                 </div>
 
+                {provisionalPricingCount > 0 && (
+                  <div className="rounded-2xl border border-amber-700 bg-amber-950/30 p-5 text-sm leading-6 text-amber-200">
+                    <strong>Precificação provisória:</strong>{" "}
+                    {provisionalPricingCount} variante(s) ainda estão com o frete do AliExpress pendente. O botão “Calcular sugestões” usará o preço original do item preservado na importação como custo-base. O frete ainda não está incluído; use “Reserva adicional %” como margem de segurança até a logística ser sincronizada.
+                  </div>
+                )}
+
                 <ProductEditor
                   productId={product.id}
                   status={product.status}
@@ -174,12 +243,12 @@ export default async function ProductPage({
                     sourceUrl: image.sourceUrl,
                     selected: image.selected,
                   }))}
-                  variants={product.variants.map((variant) => ({
+                  variants={pricingVariants.map((variant) => ({
                     id: variant.id,
                     sourceSkuId: variant.sourceSkuId,
-                    attributes: variant.attributes as Record<string, string>,
-                    costPrice: variant.costPrice?.toString() || null,
-                    salePrice: variant.salePrice?.toString() || null,
+                    attributes: variant.attributes,
+                    costPrice: variant.costPrice,
+                    salePrice: variant.salePrice,
                     sourceCurrency: variant.sourceCurrency,
                     stock: variant.stock,
                     available: variant.available,
