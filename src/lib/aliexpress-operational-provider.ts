@@ -39,6 +39,7 @@ const OMKAR_FAST_MAX_ATTEMPTS = 2;
 const SCRAPINGBEE_TIMEOUT_MS = 86_000;
 const OXYLABS_TIMEOUT_MS = 90_000;
 const BROWSER_TIMEOUT_MS = 72_000;
+
 let omkarLastFailure = "";
 let officialLastFailure = "";
 let scrapingBeeLastFailure = "";
@@ -53,11 +54,21 @@ function providerDurationMs(startedAt: number) {
   return Math.max(0, Date.now() - startedAt);
 }
 
+function officialConfigured() {
+  return Boolean(
+    process.env.ALIEXPRESS_APP_KEY?.trim() &&
+    process.env.ALIEXPRESS_APP_SECRET?.trim() &&
+    process.env.ALIEXPRESS_OAUTH_REDIRECT_URI?.trim() &&
+    process.env.ALIEXPRESS_TOKEN_ENCRYPTION_KEY?.trim(),
+  );
+}
+
 function validOperationalProduct(value: unknown): value is OmkarProduct {
   if (!value || typeof value !== "object") return false;
   const product = value as OmkarProduct;
   if (!product.id || !product.title) return false;
   if (!Array.isArray(product.sku_pricing) || product.sku_pricing.length === 0) return false;
+
   return product.sku_pricing.every((sku) =>
     Boolean(sku.sku_id) &&
     typeof sku.available_quantity === "number" &&
@@ -79,9 +90,13 @@ async function getOfficialProduct(productId: string): Promise<OmkarProduct> {
     targetLanguage: "EN",
   });
   const product = officialDropshipProductToOperationalProduct(envelope, productId);
+
   if (!validOperationalProduct(product)) {
-    throw new Error("AliExpress Open Platform retornou produto sem SKU/preço/estoque operacional completo.");
+    throw new Error(
+      "AliExpress Open Platform retornou produto sem SKU/preço/estoque operacional completo.",
+    );
   }
+
   return product;
 }
 
@@ -91,19 +106,17 @@ async function getOmkarProductFast(productId: string): Promise<OmkarProduct> {
     timeoutMs: OMKAR_FAST_TIMEOUT_MS,
     retryDelayMs: (attempt) => Math.min(1_000, 250 * 2 ** Math.max(0, attempt - 1)),
   });
+
   if (!validOperationalProduct(product)) {
     throw new Error("Omkar retornou produto sem SKU/preço/estoque operacional completo.");
   }
+
   return product;
 }
 
 export function getAliExpressProviderHealth() {
   return {
-    officialConfigured: Boolean(
-      process.env.ALIEXPRESS_APP_KEY?.trim() &&
-      process.env.ALIEXPRESS_APP_SECRET?.trim() &&
-      process.env.ALIEXPRESS_TOKEN_ENCRYPTION_KEY?.trim(),
-    ),
+    officialConfigured: officialConfigured(),
     officialLastFailure: officialLastFailure || null,
     omkarConfigured: Boolean(process.env.OMKAR_API_KEY?.trim()),
     omkarLastFailure: omkarLastFailure || null,
@@ -111,6 +124,10 @@ export function getAliExpressProviderHealth() {
     omkarTimeoutMs: OMKAR_FAST_TIMEOUT_MS,
     scrapingBeeConfigured: Boolean(process.env.SCRAPINGBEE_API_KEY?.trim()),
     scrapingBeeLastFailure: scrapingBeeLastFailure || null,
+    oxylabsConfigured: Boolean(
+      process.env.OXYLABS_USERNAME?.trim() && process.env.OXYLABS_PASSWORD?.trim(),
+    ),
+    oxylabsLastFailure: oxylabsLastFailure || null,
     browserLastFailure: browserLastFailure || null,
   };
 }
@@ -131,11 +148,6 @@ export async function getAliExpressOperationalProduct(
     browser: "",
   };
 
-  /*
-   * O ID informado sempre é tentado primeiro. A variante global só é consultada
-   * se a original falhar, de modo que a conversão nunca substitui um resultado
-   * válido nem pode trocar o produto importado por outro.
-   */
   const globalId = globalAliExpressProductId(productId);
   const candidates = globalId ? [productId, globalId] : [productId];
 
@@ -145,10 +157,10 @@ export async function getAliExpressOperationalProduct(
   } catch (error) {
     failures.official = compactError(error);
     officialLastFailure = failures.official;
-    console.warn("[AliExpress provider] Could not read official connection status; using automatic providers.", {
-      productId,
-      error: failures.official,
-    });
+    console.warn(
+      "[AliExpress provider] Could not read official connection status; using automatic providers.",
+      { productId, error: failures.official },
+    );
   }
 
   if (officialConnected) {
@@ -163,9 +175,13 @@ export async function getAliExpressOperationalProduct(
           productId: candidate,
           durationMs: providerDurationMs(startedAt),
         });
+
         if (converted) {
-          warnings.push(`ID regional ${productId} convertido para o catálogo global ${candidate}.`);
+          warnings.push(
+            `ID regional ${productId} convertido para o catálogo global ${candidate}.`,
+          );
         }
+
         return {
           product,
           provider: "ALIEXPRESS_OPEN_PLATFORM",
@@ -176,27 +192,32 @@ export async function getAliExpressOperationalProduct(
       } catch (error) {
         failures.official = compactError(error);
         officialLastFailure = failures.official;
+
         if (!converted) {
           warnings.push(`API oficial indisponível: ${failures.official}`);
         }
-        console.warn("[AliExpress provider] Official provider failed; using automatic providers.", {
-          productId: candidate,
-          durationMs: providerDurationMs(startedAt),
-          error: failures.official,
-        });
+
+        console.warn(
+          "[AliExpress provider] Official provider failed; using automatic providers.",
+          {
+            productId: candidate,
+            durationMs: providerDurationMs(startedAt),
+            error: failures.official,
+          },
+        );
       }
     }
   } else if (!failures.official) {
-    failures.official = "conta não autorizada; etapa opcional ignorada";
+    failures.official = officialConfigured()
+      ? "credenciais configuradas, mas a conta ainda não está autorizada em Configurações → AliExpress"
+      : "credenciais da AliExpress Open Platform ainda não estão configuradas no ambiente";
     officialLastFailure = failures.official;
-    console.info("[AliExpress provider] Official provider skipped because no active session exists.", {
-      productId,
-    });
+    console.info(
+      "[AliExpress provider] Official provider skipped because no active session exists.",
+      { productId, reason: failures.official },
+    );
   }
 
-  // Provedores automáticos usam diretamente o ID global quando o link regional
-  // possui uma conversão conhecida. Isso evita consumir todas as tentativas em
-  // um identificador que esses provedores não reconhecem.
   const automaticProductId = globalId || productId;
 
   const omkarStartedAt = Date.now();
@@ -207,14 +228,19 @@ export async function getAliExpressOperationalProduct(
         `Omkar retornou Product ID ${product.id}, diferente do consultado ${automaticProductId}.`,
       );
     }
+
     omkarLastFailure = "";
     console.info("[AliExpress provider] Omkar provider succeeded.", {
       productId: automaticProductId,
       durationMs: providerDurationMs(omkarStartedAt),
     });
+
     if (automaticProductId !== productId) {
-      warnings.push(`ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`);
+      warnings.push(
+        `ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`,
+      );
     }
+
     return {
       product,
       provider: "OMKAR",
@@ -231,27 +257,26 @@ export async function getAliExpressOperationalProduct(
       error: failures.omkar,
     });
   }
+
   warnings.push(`Omkar indisponível: ${failures.omkar}`);
 
-  // Os dois fallbacks lentos disputam o mesmo orçamento. Antes eles rodavam em
-  // sequência: um timeout do ScrapingBee deixava pouco tempo para o Chromium.
   const fallbackController = new AbortController();
 
   const scrapingBeeAttempt = (async () => {
     const startedAt = Date.now();
     try {
       const product = await getAliExpressScrapingBeeProduct(automaticProductId, {
-        // A página mobile não entrega o mesmo PDP PC com SKU/preço completo.
-        // O orçamento inteiro fica na página desktop, que é a rota operacional.
         maxAttempts: 1,
         timeoutMs: SCRAPINGBEE_TIMEOUT_MS,
         signal: fallbackController.signal,
       });
+
       if (String(product.id) !== automaticProductId) {
         throw new Error(
           `ScrapingBee retornou Product ID ${product.id}, diferente do consultado ${automaticProductId}.`,
         );
       }
+
       scrapingBeeLastFailure = "";
       console.info("[AliExpress provider] ScrapingBee provider succeeded.", {
         productId: automaticProductId,
@@ -279,11 +304,13 @@ export async function getAliExpressOperationalProduct(
         timeoutMs: BROWSER_TIMEOUT_MS,
         signal: fallbackController.signal,
       });
+
       if (String(product.id) !== automaticProductId) {
         throw new Error(
           `Browser retornou Product ID ${product.id}, diferente do consultado ${automaticProductId}.`,
         );
       }
+
       browserLastFailure = "";
       console.info("[AliExpress provider] Browser provider succeeded.", {
         productId: automaticProductId,
@@ -311,11 +338,13 @@ export async function getAliExpressOperationalProduct(
         timeoutMs: OXYLABS_TIMEOUT_MS,
         signal: fallbackController.signal,
       });
+
       if (String(product.id) !== automaticProductId) {
         throw new Error(
           `Oxylabs retornou Product ID ${product.id}, diferente do consultado ${automaticProductId}.`,
         );
       }
+
       oxylabsLastFailure = "";
       console.info("[AliExpress provider] Oxylabs provider succeeded.", {
         productId: automaticProductId,
@@ -337,58 +366,34 @@ export async function getAliExpressOperationalProduct(
   })();
 
   try {
-    let resolved:
-      | { product: OmkarProduct; provider: AliExpressOperationalProvider }
-      | null = null;
-    const tasks = [
-      (async () => {
-        try {
-          resolved = await oxylabsAttempt;
-        } catch {
-          // ignore and continue
-        }
-      })(),
-      (async () => {
-        try {
-          resolved = await scrapingBeeAttempt;
-        } catch {
-          // ignore and continue
-        }
-      })(),
-      (async () => {
-        try {
-          resolved = await browserAttempt;
-        } catch {
-          // ignore and continue
-        }
-      })(),
-    ];
+    // Promise.any espera a primeira RESPOSTA COM SUCESSO. Uma falha rápida de
+    // um provedor (por exemplo Oxylabs 401) não pode cancelar os demais.
+    const winner = await Promise.any([
+      oxylabsAttempt,
+      scrapingBeeAttempt,
+      browserAttempt,
+    ]);
 
-    await Promise.race(tasks);
-    if (resolved) {
-      const winner = resolved as {
-        product: OmkarProduct;
-        provider: AliExpressOperationalProvider;
-      };
-      fallbackController.abort("AliExpress provider selected");
-      if (automaticProductId !== productId) {
-        warnings.push(`ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`);
-      }
-      return {
-        product: winner.product,
-        provider: winner.provider,
-        requestedProductId: productId,
-        resolvedProductId: String(winner.product.id),
-        warnings,
-      };
+    fallbackController.abort("AliExpress provider selected");
+
+    if (automaticProductId !== productId) {
+      warnings.push(
+        `ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`,
+      );
     }
 
-    fallbackController.abort("All AliExpress automatic providers failed");
+    return {
+      product: winner.product,
+      provider: winner.provider,
+      requestedProductId: productId,
+      resolvedProductId: String(winner.product.id),
+      warnings,
+    };
   } catch {
     fallbackController.abort("All AliExpress automatic providers failed");
   }
 
-  console.error("[AliExpress provider] All automatic providers failed.", {
+  console.error("[AliExpress provider] All providers failed.", {
     productId: automaticProductId,
     official: failures.official || null,
     omkar: failures.omkar || null,
@@ -396,12 +401,14 @@ export async function getAliExpressOperationalProduct(
     oxylabs: failures.oxylabs || null,
     browser: failures.browser || null,
   });
+
   throw new AliExpressProviderUnavailableError(
     "Todos os provedores de dados do AliExpress falharam. " +
+      `API oficial: ${failures.official || "sem resposta"}. ` +
       `Omkar: ${failures.omkar || "sem resposta"}. ` +
       `ScrapingBee: ${failures.scrapingBee || "sem resposta"}. ` +
       `Oxylabs: ${failures.oxylabs || "sem resposta"}. ` +
       `Browser: ${failures.browser || "sem resposta"}. ` +
-      "Se quiser, tente novamente mais tarde. Alternativa imediata: use a busca do Omkar no site e importe pelo resultado da listagem.",
+      "Se a API oficial estiver configurada, confirme a autorização em Configurações → AliExpress e tente novamente.",
   );
 }
