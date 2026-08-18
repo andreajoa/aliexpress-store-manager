@@ -161,6 +161,8 @@ export function ProductEditor(props: Props) {
     useState(false);
   const [approving, setApproving] =
     useState(false);
+  const [calculating, setCalculating] =
+    useState(false);
   const [message, setMessage] =
     useState("");
   const [error, setError] =
@@ -348,58 +350,124 @@ export function ProductEditor(props: Props) {
     }
   }
 
-  function calculateSuggestions() {
+  async function calculateSuggestions() {
+    setCalculating(true);
     setError("");
     setMessage("");
 
-    if (currencyLoading) {
-      setError(
-        "As cotações ainda estão sendo carregadas."
-      );
-      return;
-    }
-
-    const multiplierValue = Number(
-      multiplier.replace(",", ".")
-    );
-    const reserveValue = Number(
-      reserve.replace(",", ".")
-    );
-
-    if (
-      !Number.isFinite(multiplierValue) ||
-      multiplierValue <= 0
-    ) {
-      setError("Informe um multiplicador válido.");
-      return;
-    }
-
-    if (
-      !Number.isFinite(reserveValue) ||
-      reserveValue < 0
-    ) {
-      setError(
-        "Informe uma reserva percentual válida."
-      );
-      return;
-    }
-
-    const eligibleVariants = props.variants.filter(
-      (variant) =>
-        variant.available &&
-        (variant.stock === null || variant.stock > 0)
-    );
-
-    if (eligibleVariants.length === 0) {
-      setError(
-        "Não há variantes disponíveis para precificar."
-      );
-      return;
-    }
-
-    const next = { ...prices };
-
     try {
+      const multiplierValue = Number(
+        multiplier.replace(",", ".")
+      );
+      const reserveValue = Number(
+        reserve.replace(",", ".")
+      );
+
+      if (
+        !Number.isFinite(multiplierValue) ||
+        multiplierValue <= 0
+      ) {
+        throw new Error("Informe um multiplicador válido.");
+      }
+
+      if (
+        !Number.isFinite(reserveValue) ||
+        reserveValue < 0
+      ) {
+        throw new Error(
+          "Informe uma reserva percentual válida."
+        );
+      }
+
+      const eligibleVariants = props.variants.filter(
+        (variant) =>
+          variant.available &&
+          (variant.stock === null || variant.stock > 0)
+      );
+
+      if (eligibleVariants.length === 0) {
+        throw new Error(
+          "Não há variantes disponíveis para precificar."
+        );
+      }
+
+      const response = await fetch(
+        `/api/products/${props.productId}/pricing-context`,
+        {
+          cache: "no-store",
+          credentials: "same-origin",
+        }
+      );
+      const raw = await response.text();
+      let data: Record<string, unknown> = {};
+
+      try {
+        data = raw
+          ? JSON.parse(raw) as Record<string, unknown>
+          : {};
+      } catch {
+        throw new Error(
+          response.status === 401
+            ? "A autenticação administrativa não foi reutilizada pela precificação. Atualize a página e autentique novamente."
+            : "A consulta de precificação retornou uma resposta inválida."
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : `Não foi possível carregar as cotações de precificação (HTTP ${response.status}).`
+        );
+      }
+
+      const effectiveStoreCurrency =
+        typeof data.storeCurrency === "string" &&
+        data.storeCurrency.trim()
+          ? data.storeCurrency.trim().toUpperCase()
+          : storeCurrency;
+      const effectiveRates: Record<string, PricingRate> = {};
+
+      if (
+        data.rates &&
+        typeof data.rates === "object" &&
+        !Array.isArray(data.rates)
+      ) {
+        for (
+          const [currency, rawRate] of Object.entries(
+            data.rates as Record<string, unknown>
+          )
+        ) {
+          if (
+            !rawRate ||
+            typeof rawRate !== "object" ||
+            Array.isArray(rawRate)
+          ) {
+            continue;
+          }
+
+          const record = rawRate as Record<string, unknown>;
+          const rate = Number(record.rate);
+          if (!Number.isFinite(rate) || rate <= 0) {
+            continue;
+          }
+
+          effectiveRates[currency.toUpperCase()] = {
+            rate,
+            date:
+              typeof record.date === "string"
+                ? record.date
+                : null,
+          };
+        }
+      }
+
+      setStoreCurrency(effectiveStoreCurrency);
+      setPricingRates(effectiveRates);
+      setCurrencyLoading(false);
+
+      const next = { ...prices };
+
       for (const variant of eligibleVariants) {
         if (!variant.costPrice) {
           throw new Error(
@@ -415,14 +483,14 @@ export function ProductEditor(props: Props) {
         const sourceCurrency =
           variant.sourceCurrency.toUpperCase();
         const rate =
-          sourceCurrency === storeCurrency
+          sourceCurrency === effectiveStoreCurrency
             ? 1
-            : pricingRates[sourceCurrency]?.rate;
+            : effectiveRates[sourceCurrency]?.rate;
 
         const result = calculateSaleSuggestion({
           cost: Number(variant.costPrice),
           sourceCurrency,
-          sellingCurrency: storeCurrency,
+          sellingCurrency: effectiveStoreCurrency,
           rate,
           multiplier: multiplierValue,
           reservePercent: reserveValue,
@@ -431,22 +499,23 @@ export function ProductEditor(props: Props) {
 
         next[variant.id] = inputMoney(
           result.suggestedPrice,
-          storeCurrency
+          effectiveStoreCurrency
         );
       }
+
+      setPrices(next);
+      setMessage(
+        `${eligibleVariants.length} preço(s) final(is) calculado(s) em ${effectiveStoreCurrency}. Salve a revisão ou aprove o produto para gravar os valores.`
+      );
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : "Não foi possível calcular os preços de venda."
       );
-      return;
+    } finally {
+      setCalculating(false);
     }
-
-    setPrices(next);
-    setMessage(
-      `${eligibleVariants.length} preço(s) final(is) calculado(s) em ${storeCurrency}. Salve a revisão ou aprove o produto para gravar os valores.`
-    );
   }
 
   async function saveDraft() {
@@ -552,7 +621,7 @@ export function ProductEditor(props: Props) {
     }
   }
 
-  const busy = loading || approving;
+  const busy = loading || approving || calculating;
 
   return (
     <div className="space-y-6">
@@ -809,10 +878,10 @@ export function ProductEditor(props: Props) {
           <button
             type="button"
             onClick={calculateSuggestions}
-            disabled={currencyLoading}
+            disabled={calculating}
             className="self-end rounded-xl border border-emerald-800 bg-emerald-950/40 px-4 py-2 font-semibold text-emerald-300 disabled:opacity-50"
           >
-            Calcular sugestões
+            {calculating ? "Calculando..." : "Calcular sugestões"}
           </button>
         </div>
 
