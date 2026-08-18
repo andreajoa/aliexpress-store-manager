@@ -15,7 +15,7 @@ const schema = z.object({
     .max(10),
   cta: z.string().trim().min(2).max(150),
   seoTitle: z.string().trim().min(3).max(100),
-  seoDescription: z.string().trim().min(10).max(300),
+  seoDescription: z.string().trim().min(10).max(170),
   compareAtPrice: z.string().optional().default(""),
   selectedImageIds: z.array(z.string()).min(1),
   variantPrices: z.array(
