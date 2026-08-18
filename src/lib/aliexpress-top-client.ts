@@ -202,12 +202,25 @@ export class AliExpressTopClient {
       },
     });
     const result = asRecord(envelope.result);
+    const resultSuccess = scalar(result.success).toLowerCase();
+    if (resultSuccess === "false") {
+      throw new Error(
+        scalar(result.error_desc) ||
+          "AliExpress não conseguiu calcular o frete para este produto.",
+      );
+    }
+
     const wrapper = result.aeop_freight_calculate_result_for_buyer_d_t_o_list;
-    const rows = asArray<Record<string, unknown>>(
-      asRecord(wrapper).aeop_freight_calculate_result_for_buyer_d_t_o || wrapper,
-    );
+    const wrapperRecord = asRecord(wrapper);
+    const rowPayload =
+      wrapperRecord.aeop_freight_calculate_result_for_buyer_dto ??
+      wrapperRecord.aeop_freight_calculate_result_for_buyer_d_t_o ??
+      wrapper;
+    const rows = asArray<Record<string, unknown>>(rowPayload);
+
     return rows.flatMap((row) => {
-      if (row.success === false) return [];
+      const rowSuccess = scalar(row.success).toLowerCase();
+      if (row.success === false || rowSuccess === "false") return [];
       const freight = asRecord(row.freight);
       const serviceName = scalar(row.service_name);
       if (!serviceName) return [];
