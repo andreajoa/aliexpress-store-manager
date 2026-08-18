@@ -93,13 +93,20 @@ export async function POST(request: Request) {
     const zip = buildZipArchive(exported.entries);
 
     if (store.id === "amb-boutique-store") {
-      await recordAmbProductExport({
-        storeId: store.id,
-        productId: product.id,
-        sourceProductId: product.sourceProductId,
-        sourceUrl: product.sourceUrl,
-        variants: product.variants,
-      });
+      try {
+        await recordAmbProductExport({
+          storeId: store.id,
+          productId: product.id,
+          sourceProductId: product.sourceProductId,
+          sourceUrl: product.sourceUrl,
+          variants: product.variants,
+        });
+      } catch (error) {
+        console.warn(
+          "AMB export lineage failed after ZIP was prepared:",
+          error
+        );
+      }
     }
 
     const filename =
