@@ -37,10 +37,8 @@ export async function fetchFxRate({
   }
 
   const url = new URL(
-    "https://api.frankfurter.app/latest"
+    `https://api.frankfurter.dev/v2/rate/${encodeURIComponent(base)}/${encodeURIComponent(quote)}`
   );
-  url.searchParams.set("from", base);
-  url.searchParams.set("to", quote);
 
   const response = await fetchImpl(url, {
     cache: "no-store",
@@ -55,10 +53,12 @@ export async function fetchFxRate({
 
   const data = await response.json() as {
     date?: unknown;
-    rates?: Record<string, unknown>;
+    base?: unknown;
+    quote?: unknown;
+    rate?: unknown;
   };
 
-  const rate = Number(data?.rates?.[quote]);
+  const rate = Number(data?.rate);
 
   if (!Number.isFinite(rate) || rate <= 0) {
     throw new Error(
