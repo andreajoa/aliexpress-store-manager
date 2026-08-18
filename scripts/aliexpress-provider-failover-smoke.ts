@@ -210,8 +210,9 @@ assert(provider.includes("requireAliExpressSession"), "provider deve usar sessã
 assert(provider.includes("getDropshipProduct"), "provider deve consultar aliexpress.ds.product.get");
 assert(provider.includes('provider: "ALIEXPRESS_OPEN_PLATFORM"'), "API oficial deve ser o caminho primário");
 assert(!provider.includes("OMKAR_CIRCUIT_MS"), "falha anterior do Omkar não pode bloquear uma nova tentativa do usuário");
-assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 4000"), "fallback Omkar deve falhar rápido");
+assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 20_000"), "fallback Omkar deve tolerar respostas lentas do scraper");
 assert(provider.includes("OMKAR_FAST_MAX_ATTEMPTS = 2"), "fallback Omkar não deve consumir o orçamento dos browsers");
+assert(provider.includes("return product.sku_pricing.some"), "produto operacional deve ser aceito quando ao menos um SKU tem preço válido");
 assert(provider.includes("getOmkarProductFast"), "Omkar deve existir apenas como fallback rápido");
 assert(provider.includes("getAliExpressScrapingBeeProduct"), "ScrapingBee deve contornar bloqueio do browser sem login AliExpress");
 const scrapingBeeIndex = provider.indexOf("getAliExpressScrapingBeeProduct(automaticProductId,");
