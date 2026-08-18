@@ -6,24 +6,26 @@ import {
 } from "./product-copy.ts";
 
 const QUOTA_COOLDOWN_MS = 60_000;
+const AVAILABILITY_COOLDOWN_MS = 30_000;
+const AVAILABILITY_RETRY_DELAYS_MS = [1_000, 2_000];
 
-let quotaBlockedUntil = 0;
+let geminiBlockedUntil = 0;
 
-export function isGeminiQuotaError(
-  error: unknown
-) {
-  if (!error) {
-    return false;
-  }
+function errorRecord(error: unknown) {
+  return error && typeof error === "object"
+    ? (error as Record<string, unknown>)
+    : null;
+}
 
-  const record =
-    typeof error === "object"
-      ? (error as Record<string, unknown>)
-      : null;
+function nestedErrorRecord(error: unknown) {
+  const record = errorRecord(error);
+  const nested = record?.error;
+  return nested && typeof nested === "object"
+    ? (nested as Record<string, unknown>)
+    : null;
+}
 
-  const code = record?.code;
-  const status = record?.status;
-
+function errorText(error: unknown) {
   let serialized = "";
 
   try {
@@ -32,10 +34,23 @@ export function isGeminiQuotaError(
     serialized = String(error);
   }
 
-  const message =
-    error instanceof Error
-      ? `${error.message} ${serialized}`
-      : `${String(error)} ${serialized}`;
+  return error instanceof Error
+    ? `${error.message} ${serialized}`
+    : `${String(error)} ${serialized}`;
+}
+
+export function isGeminiQuotaError(
+  error: unknown
+) {
+  if (!error) {
+    return false;
+  }
+
+  const record = errorRecord(error);
+  const nested = nestedErrorRecord(error);
+  const code = record?.code ?? nested?.code;
+  const status = record?.status ?? nested?.status;
+  const message = errorText(error);
 
   return (
     code === 429 ||
@@ -46,31 +61,89 @@ export function isGeminiQuotaError(
   );
 }
 
+export function isGeminiUnavailableError(
+  error: unknown
+) {
+  if (!error) {
+    return false;
+  }
+
+  const record = errorRecord(error);
+  const nested = nestedErrorRecord(error);
+  const code = record?.code ?? nested?.code;
+  const status = record?.status ?? nested?.status;
+  const message = errorText(error);
+
+  return (
+    code === 503 ||
+    status === "UNAVAILABLE" ||
+    /(?:\b503\b|\bunavailable\b|high demand|temporarily overloaded|temporarily unavailable)/i.test(
+      message
+    )
+  );
+}
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export async function generateQuotaSafeProductCopy(
   input: OptimizeInput
 ): Promise<ProductCopy> {
-  if (Date.now() < quotaBlockedUntil) {
+  if (Date.now() < geminiBlockedUntil) {
     console.warn(
-      "[Gemini quota] cooldown ativo; usando fallback factual sem nova chamada ao Gemini."
+      "[Gemini resilience] cooldown ativo; usando fallback factual sem nova chamada ao Gemini."
     );
 
     return buildGroundedFallback(input);
   }
 
-  try {
-    return await generateProductCopy(input);
-  } catch (error) {
-    if (!isGeminiQuotaError(error)) {
-      throw error;
+  for (
+    let attempt = 1;
+    attempt <= AVAILABILITY_RETRY_DELAYS_MS.length + 1;
+    attempt++
+  ) {
+    try {
+      return await generateProductCopy(input);
+    } catch (error) {
+      if (isGeminiQuotaError(error)) {
+        geminiBlockedUntil =
+          Date.now() + QUOTA_COOLDOWN_MS;
+
+        console.warn(
+          "[Gemini resilience] 429/RESOURCE_EXHAUSTED; usando fallback factual e pausando novas chamadas por 60 segundos."
+        );
+
+        return buildGroundedFallback(input);
+      }
+
+      if (!isGeminiUnavailableError(error)) {
+        throw error;
+      }
+
+      const retryDelay =
+        AVAILABILITY_RETRY_DELAYS_MS[attempt - 1];
+
+      if (retryDelay !== undefined) {
+        console.warn(
+          `[Gemini resilience] 503/UNAVAILABLE na tentativa ${attempt}; repetindo em ${retryDelay} ms.`
+        );
+        await sleep(retryDelay);
+        continue;
+      }
+
+      geminiBlockedUntil =
+        Date.now() + AVAILABILITY_COOLDOWN_MS;
+
+      console.warn(
+        "[Gemini resilience] 503/UNAVAILABLE persistiu após retries; usando fallback factual e pausando novas chamadas por 30 segundos."
+      );
+
+      return buildGroundedFallback(input);
     }
-
-    quotaBlockedUntil =
-      Date.now() + QUOTA_COOLDOWN_MS;
-
-    console.warn(
-      "[Gemini quota] 429/RESOURCE_EXHAUSTED; usando fallback factual e pausando novas chamadas por 60 segundos."
-    );
-
-    return buildGroundedFallback(input);
   }
+
+  return buildGroundedFallback(input);
 }
