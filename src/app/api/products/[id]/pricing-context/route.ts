@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { fetchFxRate } from "@/lib/fx-rate";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -16,6 +17,11 @@ export async function GET(
       where: { id },
       select: {
         storeCurrency: true,
+        variants: {
+          select: {
+            sourceCurrency: true,
+          },
+        },
       },
     });
 
@@ -28,10 +34,58 @@ export async function GET(
       });
     }
 
+    const storeCurrency =
+      product.storeCurrency.trim().toUpperCase();
+    const sourceCurrencies = Array.from(
+      new Set(
+        product.variants
+          .map((variant) =>
+            variant.sourceCurrency
+              ?.trim()
+              .toUpperCase()
+          )
+          .filter(
+            (currency): currency is string =>
+              Boolean(currency)
+          )
+      )
+    );
+
+    const quotes = await Promise.all(
+      sourceCurrencies.map(async (sourceCurrency) => {
+        if (sourceCurrency === storeCurrency) {
+          return {
+            sourceCurrency,
+            rate: 1,
+            date: null as string | null,
+          };
+        }
+
+        const quote = await fetchFxRate({
+          from: sourceCurrency,
+          to: storeCurrency,
+        });
+
+        return {
+          sourceCurrency,
+          rate: quote.rate,
+          date: quote.date,
+        };
+      })
+    );
+
     return NextResponse.json({
       ok: true,
-      storeCurrency:
-        product.storeCurrency,
+      storeCurrency,
+      rates: Object.fromEntries(
+        quotes.map((quote) => [
+          quote.sourceCurrency,
+          {
+            rate: quote.rate,
+            date: quote.date,
+          },
+        ])
+      ),
     }, {
       headers: {
         "Cache-Control": "no-store",
@@ -43,9 +97,12 @@ export async function GET(
       error:
         error instanceof Error
           ? error.message
-          : "Não foi possível carregar a moeda do produto.",
+          : "Não foi possível carregar as cotações de precificação.",
     }, {
-      status: 500,
+      status: 502,
+      headers: {
+        "Cache-Control": "no-store",
+      },
     });
   }
 }
