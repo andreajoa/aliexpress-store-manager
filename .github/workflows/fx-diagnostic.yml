@@ -1,0 +1,17 @@
+name: FX Diagnostic
+
+on:
+  push:
+    branches:
+      - diagnostic/pricing-fx
+
+jobs:
+  fx:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Test CNY to USD rate
+        run: |
+          set -euo pipefail
+          echo "=== CNY/USD ==="
+          curl --fail --silent --show-error --max-time 15 https://api.frankfurter.dev/v2/rate/CNY/USD
+          echo
