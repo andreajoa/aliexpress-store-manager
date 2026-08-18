@@ -18,3 +18,9 @@ jobs:
           echo "=== CNY/USD ==="
           curl --fail --silent --show-error --max-time 15 https://api.frankfurter.dev/v2/rate/CNY/USD
           echo
+      - name: Probe production pricing context
+        run: |
+          set -euo pipefail
+          echo "=== PRODUCTION PRICING CONTEXT ==="
+          curl --silent --show-error --max-time 20 --include https://aliexpress-store-manager-six.vercel.app/api/products/cmsy2hk7a000004jrnf0s45x8/pricing-context
+          echo
