@@ -83,6 +83,26 @@ export function isGeminiUnavailableError(
   );
 }
 
+export function isGeminiOutputValidationError(
+  error: unknown
+) {
+  if (!error) {
+    return false;
+  }
+
+  const record = errorRecord(error);
+  const issues = record?.issues;
+  const message = errorText(error);
+
+  return (
+    record?.name === "ZodError" ||
+    Array.isArray(issues) ||
+    /(?:ZodError|too_big|too_small|expected string to have <=\d+ characters)/i.test(
+      message
+    )
+  );
+}
+
 function sleep(ms: number) {
   return new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
@@ -114,6 +134,14 @@ export async function generateQuotaSafeProductCopy(
 
         console.warn(
           "[Gemini resilience] 429/RESOURCE_EXHAUSTED; usando fallback factual e pausando novas chamadas por 60 segundos."
+        );
+
+        return buildGroundedFallback(input);
+      }
+
+      if (isGeminiOutputValidationError(error)) {
+        console.warn(
+          "[Gemini resilience] resposta fora do contrato editorial; usando fallback factual validado."
         );
 
         return buildGroundedFallback(input);
