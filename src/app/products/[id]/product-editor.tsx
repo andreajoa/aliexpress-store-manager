@@ -326,14 +326,9 @@ export function ProductEditor(props: Props) {
   }
 
   function freightInSellingCurrency() {
-    const freightValue = Number(
-      freight.replace(",", ".")
-    );
-    if (
-      !Number.isFinite(freightValue) ||
-      freightValue <= 0
-    )
-      return 0;
+    const freightValue =
+      parseInputMoney(freight) ?? 0;
+    if (freightValue <= 0) return 0;
 
     // Frete é sempre em USD (AliExpress)
     if (storeCurrency === "USD") return freightValue;
@@ -361,12 +356,10 @@ export function ProductEditor(props: Props) {
       return;
     }
 
-    const multiplierValue = Number(
-      multiplier.replace(",", ".")
-    );
-    const reserveValue = Number(
-      reserve.replace(",", ".")
-    );
+    const multiplierValue =
+      parseInputMoney(multiplier) ?? 0;
+    const reserveValue =
+      parseInputMoney(reserve) ?? 0;
 
     if (
       !Number.isFinite(multiplierValue) ||
@@ -712,7 +705,7 @@ export function ProductEditor(props: Props) {
           </div>
         )}
 
-        <div className="mt-5 grid gap-3 md:grid-cols-5">
+        <div className="mt-5 grid items-end gap-3 md:grid-cols-5">
           <label>
             <span className="mb-2 block text-xs text-zinc-500">
               Frete por unidade (USD)
