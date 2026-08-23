@@ -37,7 +37,7 @@ export class AliExpressProviderUnavailableError extends Error {
 const OMKAR_FAST_TIMEOUT_MS = 20_000;
 const OMKAR_FAST_MAX_ATTEMPTS = 2;
 const SCRAPINGBEE_TIMEOUT_MS = 86_000;
-const OXYLABS_TIMEOUT_MS = 90_000;
+const OXYLABS_TIMEOUT_MS = 86_000;
 const BROWSER_TIMEOUT_MS = 72_000;
 
 let omkarLastFailure = "";
@@ -217,47 +217,40 @@ export async function getAliExpressOperationalProduct(
 
   const automaticProductId = globalId || productId;
 
-  const omkarStartedAt = Date.now();
-  try {
-    const product = await getOmkarProductFast(automaticProductId);
-    if (String(product.id) !== automaticProductId) {
-      throw new Error(
-        `Omkar retornou Product ID ${product.id}, diferente do consultado ${automaticProductId}.`,
-      );
-    }
-
-    omkarLastFailure = "";
-    console.info("[AliExpress provider] Omkar provider succeeded.", {
-      productId: automaticProductId,
-      durationMs: providerDurationMs(omkarStartedAt),
-    });
-
-    if (automaticProductId !== productId) {
-      warnings.push(
-        `ID regional ${productId} convertido para o catálogo global ${automaticProductId}.`,
-      );
-    }
-
-    return {
-      product,
-      provider: "OMKAR",
-      requestedProductId: productId,
-      resolvedProductId: automaticProductId,
-      warnings,
-    };
-  } catch (error) {
-    failures.omkar = compactError(error);
-    omkarLastFailure = failures.omkar;
-    console.warn("[AliExpress provider] Omkar fallback unavailable.", {
-      productId: automaticProductId,
-      durationMs: providerDurationMs(omkarStartedAt),
-      error: failures.omkar,
-    });
-  }
-
-  warnings.push(`Omkar indisponível: ${failures.omkar}`);
-
+  // Todos os provedores automáticos rodam em paralelo. Antes o Omkar rodava
+  // sequencialmente e desperdiçava até 40s quando falhava, não sobrando tempo
+  // suficiente para os fallbacks dentro do maxDuration de 120s da function.
   const fallbackController = new AbortController();
+
+  const omkarAttempt = (async () => {
+    const startedAt = Date.now();
+    try {
+      const product = await getOmkarProductFast(automaticProductId);
+      if (String(product.id) !== automaticProductId) {
+        throw new Error(
+          `Omkar retornou Product ID ${product.id}, diferente do consultado ${automaticProductId}.`,
+        );
+      }
+
+      omkarLastFailure = "";
+      console.info("[AliExpress provider] Omkar provider succeeded.", {
+        productId: automaticProductId,
+        durationMs: providerDurationMs(startedAt),
+      });
+      return { product, provider: "OMKAR" as const };
+    } catch (error) {
+      if (!fallbackController.signal.aborted) {
+        failures.omkar = compactError(error);
+        omkarLastFailure = failures.omkar;
+        console.warn("[AliExpress provider] Omkar fallback unavailable.", {
+          productId: automaticProductId,
+          durationMs: providerDurationMs(startedAt),
+          error: failures.omkar,
+        });
+      }
+      throw error;
+    }
+  })();
 
   const scrapingBeeAttempt = (async () => {
     const startedAt = Date.now();
@@ -363,11 +356,14 @@ export async function getAliExpressOperationalProduct(
   })();
 
   try {
-    // ScrapingBee e Browser continuam disputando o mesmo orçamento. Promise.any
-    // só rejeita quando AMBOS falham, então um erro rápido de um deles não mata
-    // o outro. Esse vencedor disputa em paralelo com o Oxylabs.
-    const browserWinner = Promise.any([scrapingBeeAttempt, browserAttempt]);
-    const winner = await Promise.any([oxylabsAttempt, browserWinner]);
+    // Todos os provedores disputam em paralelo. O primeiro a responder com
+    // sucesso ganha. Promise.any só rejeita quando TODOS falham.
+    const winner = await Promise.any([
+      omkarAttempt,
+      oxylabsAttempt,
+      scrapingBeeAttempt,
+      browserAttempt,
+    ]);
 
     fallbackController.abort("AliExpress provider selected");
 
