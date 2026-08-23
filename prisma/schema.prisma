@@ -556,16 +556,20 @@ model EditorialBinary {
 }
 
 model AliExpressConnection {
-  id                    String   @id @default("primary")
-  accessTokenCiphertext String   @db.Text
-  accessTokenIv         String
-  accessTokenTag        String
-  userId                String?
-  userNick              String?
-  expiresAt             DateTime
-  authorizedAt          DateTime @default(now())
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                     String   @id @default("primary")
+  accessTokenCiphertext  String   @db.Text
+  accessTokenIv          String
+  accessTokenTag         String
+  refreshTokenCiphertext String?  @db.Text
+  refreshTokenIv         String?
+  refreshTokenTag        String?
+  refreshExpiresAt       DateTime?
+  userId                 String?
+  userNick               String?
+  expiresAt              DateTime
+  authorizedAt           DateTime @default(now())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }
 
 model InventoryReservation {

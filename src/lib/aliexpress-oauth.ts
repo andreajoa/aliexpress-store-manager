@@ -128,9 +128,78 @@ export async function exchangeAliExpressCode(input: {
     throw new Error(errorMessage || `Falha OAuth AliExpress (HTTP ${response.status}).`);
   }
 
+  const refreshToken = text(payload.refresh_token);
+  const refreshExpiresIn = Number(payload.refresh_expires_in);
+  const refreshExpiresAt = refreshToken && Number.isFinite(refreshExpiresIn) && refreshExpiresIn > 0
+    ? new Date(Date.now() + refreshExpiresIn * 1000)
+    : null;
+
   return {
     accessToken,
+    refreshToken: refreshToken || null,
     expiresAt: tokenExpiryFromResponse(payload),
+    refreshExpiresAt,
+    userId: text(
+      payload.user_Id ||
+      payload.user_id ||
+      payload.account_id ||
+      payload.seller_Id,
+    ) || null,
+    userNick: text(payload.account || payload.user_nick) || null,
+  };
+}
+
+const ALIEXPRESS_TOKEN_REFRESH_API = "/auth/token/refresh";
+
+export async function refreshAliExpressToken(input: {
+  refreshToken: string;
+  env?: Record<string, string | undefined>;
+  fetchImpl?: typeof fetch;
+}) {
+  const config = aliExpressConfig(input.env);
+  const fetchImpl = input.fetchImpl || fetch;
+
+  const params: Record<string, string> = {
+    app_key: config.appKey,
+    refresh_token: input.refreshToken,
+    sign_method: "sha256",
+    timestamp: String(Date.now()),
+  };
+  const sign = signIopRequest(ALIEXPRESS_TOKEN_REFRESH_API, params, config.appSecret);
+
+  const url = new URL(`${ALIEXPRESS_AUTH_BASE_URL}/rest${ALIEXPRESS_TOKEN_REFRESH_API}`);
+  for (const [key, value] of Object.entries({ ...params, sign })) {
+    url.searchParams.set(key, value);
+  }
+
+  const response = await fetchImpl(url, {
+    method: "GET",
+    cache: "no-store",
+  });
+  const payload = await response.json() as AliExpressTokenResponse;
+  const accessToken = text(payload.access_token);
+
+  if (!response.ok || !accessToken) {
+    const errorMessage = text(
+      payload.error_description ||
+      payload.message ||
+      payload.error ||
+      payload.error_code,
+    );
+    throw new Error(errorMessage || `Falha ao renovar token AliExpress (HTTP ${response.status}).`);
+  }
+
+  const newRefreshToken = text(payload.refresh_token);
+  const refreshExpiresIn = Number(payload.refresh_expires_in);
+  const refreshExpiresAt = newRefreshToken && Number.isFinite(refreshExpiresIn) && refreshExpiresIn > 0
+    ? new Date(Date.now() + refreshExpiresIn * 1000)
+    : null;
+
+  return {
+    accessToken,
+    refreshToken: newRefreshToken || null,
+    expiresAt: tokenExpiryFromResponse(payload),
+    refreshExpiresAt,
     userId: text(
       payload.user_Id ||
       payload.user_id ||
