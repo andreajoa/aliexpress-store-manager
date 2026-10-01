@@ -33,14 +33,13 @@ async function fetchGitHubFile(input: {
   path: string;
 }) {
   const token = process.env.GITHUB_READ_TOKEN?.trim() || process.env.GITHUB_PUBLISH_TOKEN?.trim();
-  if (!token) throw new Error("GITHUB_READ_TOKEN ou GITHUB_PUBLISH_TOKEN é necessário para ler o catálogo privado da AMB.");
   const url = `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents/${input.path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(input.branch)}`;
   const response = await fetch(url, {
     headers: {
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
       "User-Agent": "aliexpress-store-manager",
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     cache: "no-store",
   });
