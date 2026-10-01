@@ -56,6 +56,51 @@ async function fetchGitHubFile(input: {
   return { source: base64Decode(content), blobSha: text(payload.sha) };
 }
 
+async function fetchAmbCatalogFromStore(accessToken: string) {
+  const token = accessToken.trim();
+  if (!token) throw new Error("Credencial AMB ausente para leitura do catálogo.");
+  const baseUrl =
+    process.env.AMB_BOUTIQUE_BASE_URL?.trim().replace(/\/+$/, "") ||
+    "https://www.ambboutique.online";
+  const response = await fetch(`${baseUrl}/api/store-manager/catalog`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const body = await response.json().catch(() => null) as unknown;
+  const payload = record(body);
+  if (!response.ok) {
+    throw new Error(text(payload.error) || `AMB catalog bridge HTTP ${response.status}.`);
+  }
+  if (!Array.isArray(payload.products)) {
+    throw new Error("AMB catalog bridge não retornou products.");
+  }
+  const products: AmbCatalogProduct[] = payload.products.flatMap((raw) => {
+    const row = record(raw);
+    const slug = text(row.slug);
+    const name = text(row.name);
+    const color = text(row.color);
+    const sizes = Array.isArray(row.sizes) ? row.sizes.map(text).filter(Boolean) : [];
+    const stockRaw = Number(row.stock);
+    const costRaw = Number(row.unitCostUsd);
+    if (!slug || !name || !color || sizes.length === 0) return [];
+    return [{
+      slug,
+      name,
+      color,
+      sizes,
+      stock: Number.isFinite(stockRaw) ? stockRaw : null,
+      unitCostUsd: Number.isFinite(costRaw) ? costRaw : null,
+    }];
+  });
+  if (products.length === 0) {
+    throw new Error("AMB catalog bridge retornou catálogo vazio.");
+  }
+  return {
+    products,
+    version: text(payload.version) || `live-${products.length}`,
+  };
+}
+
 function catalogSnapshot(products: AmbCatalogProduct[]) {
   return Object.fromEntries(products.map((product) => [product.slug, {
     name: product.name,
@@ -148,7 +193,7 @@ function inferFromLineage(product: AmbCatalogProduct, capabilities: unknown) {
   };
 }
 
-export async function scanAmbCatalog(input: { storeId?: string; force?: boolean } = {}) {
+export async function scanAmbCatalog(input: { storeId?: string; force?: boolean; accessToken?: string } = {}) {
   const storeId = input.storeId || "amb-boutique-store";
   const store = await prisma.store.findUnique({ where: { id: storeId } });
   if (!store) throw new Error("Loja AMB não encontrada no Store Manager.");
@@ -157,19 +202,43 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean 
 
   const capabilities = record(store.connectorCapabilities);
   const previousScan = record(capabilities.ambCatalogScan);
-  const github = await fetchGitHubFile({
-    owner: store.githubOwner,
-    repo: store.githubRepo,
-    branch: store.githubBranch || "main",
-    path: "app/generated-products.ts",
-  });
 
-  if (!input.force && github.blobSha && github.blobSha === text(previousScan.catalogBlobSha)) {
+  let catalog: AmbCatalogProduct[];
+  let catalogBlobSha: string;
+
+  if (input.accessToken) {
+    try {
+      const live = await fetchAmbCatalogFromStore(input.accessToken);
+      catalog = live.products;
+      catalogBlobSha = live.version;
+    } catch (error) {
+      console.warn("AMB authenticated catalog bridge failed, falling back to GitHub:", error);
+      const github = await fetchGitHubFile({
+        owner: store.githubOwner,
+        repo: store.githubRepo,
+        branch: store.githubBranch || "main",
+        path: "app/generated-products.ts",
+      });
+      catalog = parseAmbGeneratedProductsSource(github.source);
+      catalogBlobSha = catalogBlobSha;
+    }
+  } else {
+    const github = await fetchGitHubFile({
+      owner: store.githubOwner,
+      repo: store.githubRepo,
+      branch: store.githubBranch || "main",
+      path: "app/generated-products.ts",
+    });
+    catalog = parseAmbGeneratedProductsSource(github.source);
+    catalogBlobSha = catalogBlobSha;
+  }
+
+  if (!input.force && catalogBlobSha && catalogBlobSha === text(previousScan.catalogBlobSha)) {
     return {
       ok: true,
       changed: false,
       storeId,
-      catalogBlobSha: github.blobSha,
+      catalogBlobSha,
       totalProducts: Number(previousScan.totalProducts) || 0,
       newProducts: 0,
       autoMapped: 0,
@@ -178,8 +247,6 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean 
       removedProducts: Array.isArray(previousScan.removedProducts) ? previousScan.removedProducts.length : 0,
     };
   }
-
-  const catalog = parseAmbGeneratedProductsSource(github.source);
   const bridge = parseAmbBridgeConfig(capabilities) || { version: 1, mode: "backend-only", products: {} };
   const managerProducts = await prisma.product.findMany({
     where: { sourceProvider: "ALIEXPRESS" },
@@ -254,7 +321,7 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean 
     ambCatalogScan: {
       version: 1,
       lastScannedAt: now,
-      catalogBlobSha: github.blobSha,
+      catalogBlobSha: catalogBlobSha,
       totalProducts: catalog.length,
       newProducts: newProducts.map((product) => product.slug),
       autoMapped,
@@ -274,7 +341,7 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean 
     ok: true,
     changed: true,
     storeId,
-    catalogBlobSha: github.blobSha,
+    catalogBlobSha: catalogBlobSha,
     totalProducts: catalog.length,
     newProducts: newProducts.length,
     autoMapped,
