@@ -26,16 +26,21 @@ export function normalizeAliExpressCountryCode(countryCode: string) {
 }
 
 const PHONE_COUNTRY: Record<string, string> = {
-  US: "+1",
-  CA: "+1",
-  UK: "+44",
-  AU: "+61",
-  NZ: "+64",
+  US: "1",
+  CA: "1",
+  UK: "44",
+  AU: "61",
+  NZ: "64",
 };
 
-function cleanPhone(value: string | null) {
+function cleanPhone(value: string | null, country: string) {
   if (!value) return "";
-  return value.replace(/[^0-9+]/g, "");
+  let digits = value.replace(/[^0-9]/g, "");
+  const countryCallingCode = PHONE_COUNTRY[country] || "";
+  if (countryCallingCode && digits.startsWith(countryCallingCode)) {
+    digits = digits.slice(countryCallingCode.length);
+  }
+  return digits;
 }
 
 function logisticsAddress(input: {
@@ -51,7 +56,7 @@ function logisticsAddress(input: {
   countryCode: string;
 }) {
   const country = normalizeAliExpressCountryCode(input.countryCode);
-  const phone = cleanPhone(input.customerPhone);
+  const phone = cleanPhone(input.customerPhone, country);
   if (!input.recipient.trim()) throw new Error("Nome do destinatário ausente.");
   if (!input.line1.trim() || !input.city.trim() || !input.state.trim() || !input.postalCode.trim()) {
     throw new Error("Endereço de entrega incompleto.");
