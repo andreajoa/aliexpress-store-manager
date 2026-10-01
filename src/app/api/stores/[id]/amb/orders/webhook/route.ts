@@ -139,7 +139,7 @@ export async function POST(
 
   let catalogScanWarning: string | null = null;
   try {
-    await scanAmbCatalog({ storeId });
+    await scanAmbCatalog({ storeId, accessToken: token });
   } catch (error) {
     catalogScanWarning = compactError(error);
   }
