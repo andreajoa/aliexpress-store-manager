@@ -5,6 +5,8 @@ export type AmbCatalogProduct = {
   sizes: string[];
   stock: number | null;
   unitCostUsd: number | null;
+  sourceProductId: string | null;
+  sourceColor: string | null;
 };
 
 export type AmbSupplierVariantSnapshot = {
