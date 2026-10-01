@@ -136,6 +136,8 @@ export function parseAmbGeneratedProductsSource(source: string): AmbCatalogProdu
       sizes,
       stock: numberOrNull(row.stock),
       unitCostUsd: numberOrNull(row.unitCostUsd),
+      sourceProductId: text(row.sourceProductId) || null,
+      sourceColor: text(row.sourceColor) || null,
     }];
   });
 }
