@@ -94,9 +94,103 @@ function stringMetadata(value: unknown) {
   );
 }
 
-export async function loadAmbStripeSession(sessionId: string): Promise<AmbStripeSession> {
+function parseForwardedAmbSession(value: unknown, safeId: string): AmbStripeSession {
+  const session = record(value);
+  const shipping = record(session.shipping);
+  const rawLines = Array.isArray(session.lines) ? session.lines : [];
+
+  const lines: AmbStripeLine[] = rawLines.map((raw, index) => {
+    const line = record(raw);
+    const product = record(line.product);
+    const productId = text(product.id);
+    if (!productId) throw new Error(`AMB line ${index + 1} não retornou Product válido.`);
+    return {
+      id: text(line.id) || `line-${index + 1}`,
+      quantity: Math.max(1, integer(line.quantity)),
+      amountSubtotal: Math.max(0, integer(line.amountSubtotal)),
+      amountTotal: Math.max(0, integer(line.amountTotal)),
+      product: {
+        id: productId,
+        name: text(product.name) || "AMB BOUTIQUE product",
+        metadata: stringMetadata(product.metadata),
+      },
+    };
+  });
+
+  if (text(session.id) !== safeId) throw new Error("AMB retornou uma Stripe Session diferente da solicitada.");
+  if (lines.length === 0) throw new Error("AMB não retornou itens para fulfillment.");
+
+  const recipient = text(shipping.recipient) || text(session.customerName);
+  const city = text(shipping.city);
+  const state = text(shipping.state) || city;
+  if (
+    !recipient ||
+    !text(shipping.line1) ||
+    !city ||
+    !state ||
+    !text(shipping.postalCode) ||
+    !text(shipping.countryCode)
+  ) {
+    throw new Error("AMB não retornou endereço de entrega completo para fulfillment.");
+  }
+
+  return {
+    id: safeId,
+    paymentStatus: text(session.paymentStatus),
+    currency: text(session.currency).toUpperCase(),
+    amountSubtotal: Math.max(0, integer(session.amountSubtotal)),
+    amountTotal: Math.max(0, integer(session.amountTotal)),
+    amountShipping: Math.max(0, integer(session.amountShipping)),
+    amountDiscount: Math.max(0, integer(session.amountDiscount)),
+    customerName: text(session.customerName) || recipient,
+    customerEmail: text(session.customerEmail) || null,
+    customerPhone: text(session.customerPhone) || null,
+    shipping: {
+      recipient,
+      line1: text(shipping.line1),
+      line2: text(shipping.line2) || null,
+      city,
+      state,
+      postalCode: text(shipping.postalCode),
+      countryCode: text(shipping.countryCode).toUpperCase(),
+    },
+    metadata: stringMetadata(session.metadata),
+    lines,
+  };
+}
+
+async function loadAmbStripeSessionFromStore(sessionId: string, accessToken: string) {
+  const baseUrl =
+    process.env.AMB_BOUTIQUE_BASE_URL?.trim().replace(/\/+$/, "") ||
+    "https://www.ambboutique.online";
+  const response = await fetch(
+    `${baseUrl}/api/store-manager/order?session_id=${encodeURIComponent(sessionId)}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    },
+  );
+  const body = await response.json().catch(() => null) as unknown;
+  if (!response.ok) {
+    throw new Error(text(record(body).error) || `AMB order bridge HTTP ${response.status}.`);
+  }
+  return parseForwardedAmbSession(record(body).session, sessionId);
+}
+
+export async function loadAmbStripeSession(
+  sessionId: string,
+  accessToken?: string,
+): Promise<AmbStripeSession> {
   const safeId = sessionId.trim();
   if (!/^cs_[A-Za-z0-9_]+$/.test(safeId)) throw new Error("Stripe Checkout Session inválida.");
+
+  const secret = process.env.AMB_STRIPE_SECRET_KEY?.trim() || process.env.STRIPE_SECRET_KEY?.trim();
+  if (!secret) {
+    if (!accessToken) {
+      throw new Error("Store Manager não recebeu credencial para consultar o pedido AMB.");
+    }
+    return loadAmbStripeSessionFromStore(safeId, accessToken);
+  }
 
   const session = await stripeRequest(`/v1/checkout/sessions/${encodeURIComponent(safeId)}`);
   const linesEnvelope = await stripeRequest(
@@ -352,8 +446,8 @@ async function autoCreateAliExpressUnpaidOrders(orderId: string, countryCode: st
   return results;
 }
 
-export async function ingestAmbPaidStripeSession(input: { storeId: string; sessionId: string }) {
-  const session = await loadAmbStripeSession(input.sessionId);
+export async function ingestAmbPaidStripeSession(input: { storeId: string; sessionId: string; accessToken?: string }) {
+  const session = await loadAmbStripeSession(input.sessionId, input.accessToken);
   if (normalized(session.paymentStatus) !== "paid") {
     throw new Error(`Stripe Session ${session.id} ainda não está paga.`);
   }
