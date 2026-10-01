@@ -22,6 +22,18 @@ function text(value: unknown) {
   return value === null || value === undefined ? "" : String(value).trim();
 }
 
+async function ambWebhookBootstrapHash() {
+  const baseUrl =
+    process.env.AMB_BOUTIQUE_BASE_URL?.trim().replace(/\/+$/, "") ||
+    "https://www.ambboutique.online";
+  const response = await fetch(`${baseUrl}/api/store-manager/bootstrap`, {
+    cache: "no-store",
+  });
+  const body = await response.json().catch(() => null) as unknown;
+  if (!response.ok) return "";
+  return text(record(body).tokenHash);
+}
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -37,7 +49,31 @@ export async function POST(
   }
 
   const token = bearerToken(request);
-  if (!store.webhookEnabled || !token || !verifyStoreWebhookToken(token, store.webhookTokenHash)) {
+  let webhookEnabled = store.webhookEnabled;
+  let webhookTokenHash = store.webhookTokenHash;
+
+  if (
+    storeId === "amb-boutique-store" &&
+    token &&
+    (!webhookEnabled || !webhookTokenHash)
+  ) {
+    const bootstrapHash = await ambWebhookBootstrapHash().catch(() => "");
+    if (bootstrapHash && verifyStoreWebhookToken(token, bootstrapHash)) {
+      webhookEnabled = true;
+      webhookTokenHash = bootstrapHash;
+      await prisma.store.update({
+        where: { id: storeId },
+        data: {
+          baseUrl: "https://www.ambboutique.online",
+          webhookEnabled: true,
+          webhookTokenHash: bootstrapHash,
+          webhookTokenCreatedAt: new Date(),
+        },
+      });
+    }
+  }
+
+  if (!webhookEnabled || !token || !verifyStoreWebhookToken(token, webhookTokenHash)) {
     return NextResponse.json({ ok: false, error: "Credencial de webhook inválida." }, { status: 401 });
   }
 
@@ -109,7 +145,7 @@ export async function POST(
   }
 
   try {
-    const result = await ingestAmbPaidStripeSession({ storeId, sessionId });
+    const result = await ingestAmbPaidStripeSession({ storeId, sessionId, accessToken: token });
     await prisma.integrationEvent.updateMany({
       where: { storeId, externalEventId },
       data: { status: "PROCESSED", processedAt: new Date(), errorMessage: null },
