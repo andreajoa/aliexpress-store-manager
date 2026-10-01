@@ -10,14 +10,18 @@ export function hashStoreWebhookToken(token: string) {
   return createHash("sha256").update(token, "utf8").digest("hex");
 }
 
-export function verifyStoreWebhookToken(token: string, expectedHash: string | null | undefined) {
-  if (!token.startsWith(TOKEN_PREFIX) || !expectedHash || !/^[a-f0-9]{64}$/i.test(expectedHash)) {
+export function verifySharedWebhookToken(token: string, expectedHash: string | null | undefined) {
+  if (!token || !expectedHash || !/^[a-f0-9]{64}$/i.test(expectedHash)) {
     return false;
   }
 
   const actual = Buffer.from(hashStoreWebhookToken(token), "hex");
   const expected = Buffer.from(expectedHash, "hex");
   return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+export function verifyStoreWebhookToken(token: string, expectedHash: string | null | undefined) {
+  return token.startsWith(TOKEN_PREFIX) && verifySharedWebhookToken(token, expectedHash);
 }
 
 export function bearerToken(request: Request) {
