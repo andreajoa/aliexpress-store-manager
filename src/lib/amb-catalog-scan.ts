@@ -198,6 +198,12 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean 
   let changedVariants = 0;
 
   for (const product of catalog) {
+    if (product.sourceProductId && product.sourceColor) {
+      nextBindings[product.slug] = { sourceProductId: product.sourceProductId, color: product.sourceColor };
+      autoMapped += 1;
+      continue;
+    }
+
     const existing = nextBindings[product.slug];
     if (existing) {
       const validation = validateBinding({ product, binding: existing, supplierRows });
