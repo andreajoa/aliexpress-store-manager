@@ -220,7 +220,7 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean;
         path: "app/generated-products.ts",
       });
       catalog = parseAmbGeneratedProductsSource(github.source);
-      catalogBlobSha = catalogBlobSha;
+      catalogBlobSha = github.blobSha;
     }
   } else {
     const github = await fetchGitHubFile({
@@ -230,7 +230,7 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean;
       path: "app/generated-products.ts",
     });
     catalog = parseAmbGeneratedProductsSource(github.source);
-    catalogBlobSha = catalogBlobSha;
+    catalogBlobSha = github.blobSha;
   }
 
   if (!input.force && catalogBlobSha && catalogBlobSha === text(previousScan.catalogBlobSha)) {
