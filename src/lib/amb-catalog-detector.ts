@@ -65,15 +65,57 @@ function sameSet(left: string[], right: string[]) {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+function extractJsonArrayAssignment(source: string, names: string[]) {
+  for (const name of names) {
+    const marker = new RegExp(`(?:const|export\\s+const)\\s+${name}\\s*:\\s*Product\\[\\]\\s*=\\s*\\[`, "m");
+    const match = marker.exec(source);
+    if (!match) continue;
+
+    const start = source.indexOf("[", match.index);
+    if (start < 0) continue;
+
+    let depth = 0;
+    let quote = "";
+    let escaped = false;
+    for (let index = start; index < source.length; index += 1) {
+      const ch = source[index];
+      if (quote) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === "\\") {
+          escaped = true;
+        } else if (ch === quote) {
+          quote = "";
+        }
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === "`") {
+        quote = ch;
+        continue;
+      }
+      if (ch === "[") depth += 1;
+      if (ch === "]") {
+        depth -= 1;
+        if (depth === 0) {
+          return source.slice(start, index + 1);
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export function parseAmbGeneratedProductsSource(source: string): AmbCatalogProduct[] {
-  const assignment = source.match(/generatedProducts\s*:\s*Product\[\]\s*=\s*(\[[\s\S]*\])\s*;?\s*$/);
-  if (!assignment) throw new Error("Não foi possível localizar generatedProducts no catálogo AMB.");
+  const literal = extractJsonArrayAssignment(source, ["generatedProducts", "allGeneratedProducts"]);
+  if (!literal) throw new Error("Não foi possível localizar generatedProducts ou allGeneratedProducts no catálogo AMB.");
+
+  const jsonLiteral = literal.replace(/^\s*\.\.\.[A-Za-z0-9_$]+\s*,?\s*$/gm, "");
 
   let rows: unknown;
   try {
-    rows = JSON.parse(assignment[1]);
+    rows = JSON.parse(jsonLiteral);
   } catch {
-    throw new Error("generated-products.ts não contém um array JSON válido.");
+    throw new Error("generated-products.ts não contém um array JSON compatível com o scanner.");
   }
   if (!Array.isArray(rows)) throw new Error("Catálogo AMB inválido.");
 
