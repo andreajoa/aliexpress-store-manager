@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 import { ingestAmbPaidStripeSession } from "@/lib/amb-backend-bridge";
 import { scanAmbCatalog } from "@/lib/amb-catalog-scan";
 import { prisma } from "@/lib/prisma";
-import { bearerToken, verifyStoreWebhookToken } from "@/lib/store-webhook-auth";
+import {
+  bearerToken,
+  verifySharedWebhookToken,
+  verifyStoreWebhookToken,
+} from "@/lib/store-webhook-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -58,7 +62,7 @@ export async function POST(
     (!webhookEnabled || !webhookTokenHash)
   ) {
     const bootstrapHash = await ambWebhookBootstrapHash().catch(() => "");
-    if (bootstrapHash && verifyStoreWebhookToken(token, bootstrapHash)) {
+    if (bootstrapHash && verifySharedWebhookToken(token, bootstrapHash)) {
       webhookEnabled = true;
       webhookTokenHash = bootstrapHash;
       await prisma.store.update({
@@ -73,7 +77,13 @@ export async function POST(
     }
   }
 
-  if (!webhookEnabled || !token || !verifyStoreWebhookToken(token, webhookTokenHash)) {
+  const tokenValid = token && (
+    storeId === "amb-boutique-store"
+      ? verifySharedWebhookToken(token, webhookTokenHash)
+      : verifyStoreWebhookToken(token, webhookTokenHash)
+  );
+
+  if (!webhookEnabled || !tokenValid) {
     return NextResponse.json({ ok: false, error: "Credencial de webhook inválida." }, { status: 401 });
   }
 
