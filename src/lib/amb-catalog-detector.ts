@@ -71,8 +71,8 @@ function extractJsonArrayAssignment(source: string, names: string[]) {
     const match = marker.exec(source);
     if (!match) continue;
 
-    const start = source.indexOf("[", match.index);
-    if (start < 0) continue;
+    const start = match.index + match[0].lastIndexOf("[");
+    if (start < match.index) continue;
 
     let depth = 0;
     let quote = "";
