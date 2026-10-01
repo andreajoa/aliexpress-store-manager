@@ -90,6 +90,8 @@ async function fetchAmbCatalogFromStore(accessToken: string) {
       sizes,
       stock: Number.isFinite(stockRaw) ? stockRaw : null,
       unitCostUsd: Number.isFinite(costRaw) ? costRaw : null,
+      sourceProductId: text(row.sourceProductId) || null,
+      sourceColor: text(row.sourceColor) || null,
     }];
   });
   if (products.length === 0) {
