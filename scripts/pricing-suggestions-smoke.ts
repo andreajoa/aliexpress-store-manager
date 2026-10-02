@@ -2,6 +2,7 @@ import {
   calculateSaleSuggestion,
   convertSupplierCost,
 } from "../src/lib/product-pricing.ts";
+import { calculateLandedUnitCost } from "../src/lib/aliexpress-landed-cost.ts";
 
 function assert(
   condition: unknown,
@@ -70,3 +71,19 @@ assert(
 );
 
 console.log("PRICING SUGGESTIONS: PASS");
+
+
+const landedExample = calculateLandedUnitCost({
+  itemPrice: 10,
+  itemCurrency: "USD",
+  targetCurrency: "USD",
+  itemRate: 1,
+  freightAmountInTargetCurrency: 10,
+});
+
+assert(
+  landedExample.landedCost === 20,
+  "US$10 de produto + US$10 de frete deve resultar em custo total US$20"
+);
+
+console.log("LANDED COST ITEM + FREIGHT: PASS");
