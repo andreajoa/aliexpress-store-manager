@@ -144,6 +144,25 @@ export function officialDropshipProductToOperationalProduct(
   const videoUrl = normalizeUrl(firstVideo?.media_url || firstVideo?.video_url);
   const images = uniqueUrls(imageUrls);
 
+  const skuCurrencies = Array.from(
+    new Set(
+      official.skus
+        .map((sku) => sku.currencyCode?.trim().toUpperCase())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+  if (skuCurrencies.length > 1) {
+    throw new Error(
+      `AliExpress retornou moedas diferentes entre SKUs: ${skuCurrencies.join(", ")}.`,
+    );
+  }
+  const currency = (
+    skuCurrencies[0] ||
+    official.currency ||
+    text(base.currency_code) ||
+    "USD"
+  ).toUpperCase();
+
   const skuPricing: OmkarSkuPricing[] = official.skus.map((sku) => {
     const price = sku.price ?? null;
     const stock = sku.stock ?? null;
@@ -161,13 +180,13 @@ export function officialDropshipProductToOperationalProduct(
       variant_ids: variantIds,
       list_price: price,
       sale_price: price,
+      currency_code: sku.currencyCode || currency,
       formatted_sale_price: null,
       discount_label: null,
       available_quantity: Math.max(0, Math.trunc(stock)),
     };
   });
 
-  const currency = (official.currency || text(base.currency_code) || "USD").toUpperCase();
   const categoryId = text(base.category_id) || null;
   const packageLength = numberOrNull(packageInfo.package_length);
   const packageWidth = numberOrNull(packageInfo.package_width);
