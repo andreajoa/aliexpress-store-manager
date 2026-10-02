@@ -1,3 +1,4 @@
+import { buildAliExpressImportCosting } from "./aliexpress-import-costing";
 import { getAliExpressOperationalProduct } from "./aliexpress-operational-provider";
 import { prisma } from "./prisma";
 import {
@@ -145,7 +146,36 @@ export async function refreshSupplier(input: {
    * o último estoque conhecido permanece intacto em vez de ser zerado por engano.
    */
   const operational = await getAliExpressOperationalProduct(supplier.sourceProductId);
-  const snapshot = normalizeSupplierProduct(operational.product);
+  const rawSnapshot = normalizeSupplierProduct(operational.product);
+  const costing = await buildAliExpressImportCosting({
+    productId: operational.resolvedProductId,
+    skuPricing: operational.product.sku_pricing || [],
+    itemCurrency: (operational.product.currency || rawSnapshot.sourceCurrency || "USD").toUpperCase(),
+  });
+
+  if (!costing.complete) {
+    throw new Error(
+      costing.warning ||
+      "Atualização bloqueada: o custo total (produto + frete) ainda não foi confirmado.",
+    );
+  }
+
+  const landedBySku = new Map(
+    costing.costedSkus.map((row) => [String(row.sku.sku_id), row.landedCost]),
+  );
+
+  const snapshot = {
+    ...rawSnapshot,
+    sourceCurrency: costing.costCurrency,
+    costMin: costing.costMin,
+    costMax: costing.costMax,
+    variants: rawSnapshot.variants.map((variant) => ({
+      ...variant,
+      price: landedBySku.get(variant.sourceSkuId) ?? null,
+      sourcePrice: landedBySku.get(variant.sourceSkuId) ?? null,
+    })),
+  };
+
   const canonicalVariants = canonicalVariantsForMapping(product.variants);
   const report = suggestSupplierVariantMappings({
     canonicalVariants,
