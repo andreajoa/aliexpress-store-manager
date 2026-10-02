@@ -86,7 +86,7 @@ export function officialSkusFromProductResponse(envelope: Record<string, unknown
 
 
   const skuCurrencies = Array.from(
-    new Set(skus.map((sku) => sku.currency).filter((value): value is string => Boolean(value))),
+    new Set(skus.map((sku) => sku.currencyCode).filter((value): value is string => Boolean(value))),
   );
 
   return {
