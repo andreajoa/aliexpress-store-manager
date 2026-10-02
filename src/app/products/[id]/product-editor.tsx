@@ -28,6 +28,7 @@ type ProductVariant = {
   sourceCurrency: string | null;
   stock: number | null;
   available: boolean;
+  provisional?: boolean;
 };
 
 type Props = {
@@ -376,6 +377,15 @@ export function ProductEditor(props: Props) {
       ) {
         throw new Error(
           "Informe uma reserva percentual válida."
+        );
+      }
+
+      const provisionalVariants = props.variants.filter(
+        (variant) => variant.provisional
+      );
+      if (provisionalVariants.length > 0) {
+        throw new Error(
+          "A precificação está bloqueada porque o custo total ainda não foi confirmado. O Manager precisa obter preço do item + frete do AliExpress para todas as variantes."
         );
       }
 
@@ -878,7 +888,7 @@ export function ProductEditor(props: Props) {
           <button
             type="button"
             onClick={calculateSuggestions}
-            disabled={calculating}
+            disabled={calculating || props.variants.some((variant) => variant.provisional)}
             className="self-end rounded-xl border border-emerald-800 bg-emerald-950/40 px-4 py-2 font-semibold text-emerald-300 disabled:opacity-50"
           >
             {calculating ? "Calculando..." : "Calcular sugestões"}
