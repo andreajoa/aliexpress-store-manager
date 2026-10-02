@@ -81,7 +81,6 @@ export function officialSkusFromProductResponse(envelope: Record<string, unknown
       price,
       stock,
       currencyCode,
-      currencyCode,
     }];
   });
 
