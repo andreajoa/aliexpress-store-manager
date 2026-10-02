@@ -18,6 +18,7 @@ export type OmkarSkuPricing = {
   variant_ids: string;
   list_price: number | null;
   sale_price: number | null;
+  currency_code?: string | null;
   formatted_sale_price?: string | null;
   discount_label?: string | null;
   available_quantity: number | null;
