@@ -42,7 +42,8 @@ const scrapingBeeIndex = provider.indexOf("getAliExpressScrapingBeeProduct(autom
 const browserIndex = provider.indexOf("getAliExpressBrowserProduct(automaticProductId,");
 assert(scrapingBeeIndex >= 0, "managed browser must receive the operational ID");
 assert(browserIndex > scrapingBeeIndex, "local browser must remain an automatic fallback");
-assert(provider.includes("Promise.any([scrapingBeeAttempt, browserAttempt])"), "automatic browsers must run concurrently");
+assert(provider.includes("const winner = await Promise.any(["), "provider race must use Promise.any");
+assert(provider.includes("scrapingBeeAttempt,") && provider.includes("browserAttempt,"), "automatic browsers must participate in the concurrent provider race");
 assert(provider.includes("OMKAR_FAST_TIMEOUT_MS = 20_000"), "Omkar fallback timeout must allow slow scraper responses");
 assert(!route.includes("scrapeAliExpressProduct"), "editorial ScrapingBee cannot block import");
 assert(route.includes("orderSkuAttr: officialSkuAttrs"), "supplier variant must persist official orderSkuAttr");
