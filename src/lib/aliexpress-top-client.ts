@@ -385,6 +385,7 @@ export class AliExpressTopClient {
     sendGoodsCountryCode?: string;
     price?: string | null;
     priceCurrency?: string | null;
+    skuId?: string | null;
   }): Promise<FreightQuote[]> {
     const candidates = await this.freightProductCandidates({
       session: input.session,
@@ -408,6 +409,7 @@ export class AliExpressTopClient {
                 country_code: input.countryCode,
                 product_id: productId,
                 product_num: input.quantity,
+                ...(input.skuId ? { sku_id: input.skuId } : {}),
                 send_goods_country_code: sendGoodsCountryCode,
                 ...(includePrice && input.price ? { price: input.price } : {}),
                 ...(includePrice && input.priceCurrency ? { price_currency: input.priceCurrency } : {}),
