@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { scanAmbCatalog } from "@/lib/amb-catalog-scan";
+import { maintainAliExpressConnection } from "@/lib/aliexpress-connection";
 import { syncAliExpressBatch } from "@/lib/aliexpress-fulfillment";
 import { expireCheckoutReservations } from "@/lib/inventory-reservation";
 import { prisma } from "@/lib/prisma";
@@ -18,6 +19,20 @@ export async function GET(request: NextRequest) {
   if (!authorized(request)) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
+
+  const aliExpressConnection = await maintainAliExpressConnection({
+    refreshWithinMs: 20 * 60 * 60 * 1000,
+  }).catch((error) => ({
+    ok: false,
+    refreshed: false,
+    connected: false,
+    expired: false,
+    needsReauthorization: true,
+    canAutoRefresh: false,
+    refreshExpiresAt: null,
+    connection: null,
+    error: error instanceof Error ? error.message : "AliExpress connection maintenance failed",
+  }));
 
   const expiredReservations = await expireCheckoutReservations();
   const supplierResults: Array<{ id: string; ok: boolean; error?: string }> = [];
@@ -71,6 +86,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
+    aliExpressConnection,
     reservations: expiredReservations,
     suppliers: {
       checked: supplierResults.length,
