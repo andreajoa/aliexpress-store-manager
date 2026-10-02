@@ -262,13 +262,6 @@ export async function buildAliExpressImportCosting(input: {
 
     await Promise.all(currenciesNeedingRate.map((currency) => getRate(currency)));
 
-    const rateForCurrency = (currency: string) => {
-      const normalized = currency.trim().toUpperCase();
-      if (normalized === costCurrency) return 1;
-      const ratePromise = rateCache.get(normalized);
-      return ratePromise ? null : null;
-    };
-
     const resolvedRates = new Map<string, number>();
     for (const currency of currenciesNeedingRate) {
       resolvedRates.set(currency, await getRate(currency));
