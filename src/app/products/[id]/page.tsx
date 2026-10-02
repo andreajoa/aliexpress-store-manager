@@ -222,8 +222,8 @@ export default async function ProductPage({
 
                 {provisionalPricingCount > 0 && (
                   <div className="rounded-2xl border border-amber-700 bg-amber-950/30 p-5 text-sm leading-6 text-amber-200">
-                    <strong>Precificação provisória:</strong>{" "}
-                    {provisionalPricingCount} variante(s) ainda estão com o frete do AliExpress pendente. O botão “Calcular sugestões” usará o preço original do item preservado na importação como custo-base. O frete ainda não está incluído; use “Reserva adicional %” como margem de segurança até a logística ser sincronizada.
+                    <strong>Precificação bloqueada:</strong>{" "}
+                    {provisionalPricingCount} variante(s) ainda não têm custo total confirmado. O Manager só libera “Calcular sugestões” depois de obter preço do item + frete do AliExpress para todas as variantes.
                   </div>
                 )}
 
@@ -252,6 +252,7 @@ export default async function ProductPage({
                     sourceCurrency: variant.sourceCurrency,
                     stock: variant.stock,
                     available: variant.available,
+                    provisional: variant.provisional,
                   }))}
                 />
 
