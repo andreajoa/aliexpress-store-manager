@@ -12,7 +12,8 @@ import {
 type SkuPreview = {
   sku: string;
   attributes: unknown;
-  price: string | null;
+  landedCost: string | null;
+  costCurrency: string | null;
   stock: number | null;
   imageUrl: string | null;
 };
@@ -184,9 +185,9 @@ export function ImportForm() {
         {loading && (
           <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-400">
             Consultando ID, imagens,
-            SKUs, variantes, preços,
-            estoque e informações do
-            fornecedor...
+            SKUs, variantes, preço do produto,
+            frete, custo total, estoque e
+            informações do fornecedor...
           </div>
         )}
 
@@ -313,7 +314,7 @@ export function ImportForm() {
                       </th>
 
                       <th className="px-4 py-3">
-                        Custo
+                        Custo total (produto + frete)
                       </th>
 
                       <th className="px-4 py-3">
@@ -361,10 +362,10 @@ export function ImportForm() {
                           </td>
 
                           <td className="px-4 py-3">
-                            {sku.price ||
+                            {sku.landedCost ||
                               "—"}{" "}
                             {
-                              product.currency
+                              sku.costCurrency || product.currency
                             }
                           </td>
 
