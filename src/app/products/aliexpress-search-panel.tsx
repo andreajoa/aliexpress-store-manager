@@ -99,10 +99,12 @@ export function AliExpressSearchPanel() {
     setImportMessage(null);
 
     try {
-      const response = await fetch('/api/import/aliexpress/omkar-search-import', {
+      const response = await fetch('/api/import/aliexpress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: item.id }),
+        body: JSON.stringify({
+          url: `https://www.aliexpress.com/item/${item.id}.html`,
+        }),
       });
 
       const text = await response.text();
@@ -149,8 +151,8 @@ export function AliExpressSearchPanel() {
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-zinc-400">
-          Usa o catálogo do Omkar para buscar produtos. Depois você pode importar
-          diretamente para o banco.
+          Usa o catálogo do Omkar para buscar produtos. Ao importar, o Manager
+          consulta o produto oficial, suas variantes, moeda e frete antes de liberar a precificação.
         </p>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
