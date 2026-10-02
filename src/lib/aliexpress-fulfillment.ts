@@ -279,6 +279,46 @@ export async function clearUnknownAliExpressPlacement(input: {
   return { cleared: true };
 }
 
+
+export type AliExpressTrackingEvent = {
+  eventDesc: string;
+  status: string;
+  address: string | null;
+  eventDate: string | null;
+};
+
+function trackingEventsFromEnvelope(value: unknown): AliExpressTrackingEvent[] {
+  const root = record(value);
+  const detailsValue = root.details;
+  const detailsRecord = record(detailsValue);
+  const rows = Array.isArray(detailsValue)
+    ? array<Record<string, unknown>>(detailsValue)
+    : array<Record<string, unknown>>(detailsRecord.details || detailsValue);
+
+  const seen = new Set<string>();
+  const events: AliExpressTrackingEvent[] = [];
+  for (const row of rows) {
+    const eventDesc = text(row.event_desc || row.eventDesc);
+    const status = text(row.status);
+    const address = text(row.address) || null;
+    const eventDate = text(row.event_date || row.eventDate) || null;
+    if (!eventDesc && !status && !address && !eventDate) continue;
+    const key = [eventDate || "", status, address || "", eventDesc].join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    events.push({ eventDesc, status, address, eventDate });
+  }
+  return events;
+}
+
+function looksDelivered(events: AliExpressTrackingEvent[]) {
+  const latest = events.slice(-4);
+  return latest.some((event) => {
+    const value = `${event.status} ${event.eventDesc}`.toLowerCase();
+    return /\b(delivered|delivery successful|signed for|received by recipient)\b/.test(value);
+  });
+}
+
 export async function syncAliExpressBatch(orderId: string, batchId: string) {
   const batch = await loadBatch(orderId, batchId);
   if (!batch.externalOrderId) throw new Error("Lote ainda não possui pedido AliExpress.");
@@ -293,8 +333,10 @@ export async function syncAliExpressBatch(orderId: string, batchId: string) {
   const logisticsStatus = text(result.logistics_status);
   const orderStatus = text(result.order_status);
 
+  let trackingUrl: string | null = null;
+  let trackingEvents: AliExpressTrackingEvent[] = [];
+
   if (logisticsNo) {
-    let trackingUrl: string | null = null;
     try {
       const tracking = await client.trackingInfo({
         session,
@@ -304,15 +346,19 @@ export async function syncAliExpressBatch(orderId: string, batchId: string) {
         countryCode: normalizeAliExpressCountryCode(batch.order.shippingAddress?.countryCode || ""),
       });
       trackingUrl = text(tracking.official_website) || null;
+      trackingEvents = trackingEventsFromEnvelope(tracking);
     } catch (error) {
       console.warn("AliExpress tracking detail query failed:", error);
     }
 
-    if (["SELLER_SEND_GOODS", "WAIT_BUYER_ACCEPT_GOODS"].includes(logisticsStatus)) {
+    const shipped = ["SELLER_SEND_GOODS", "WAIT_BUYER_ACCEPT_GOODS"].includes(logisticsStatus);
+    const delivered = looksDelivered(trackingEvents);
+
+    if (shipped || delivered) {
       await updateFulfillmentBatchTracking({
         orderId,
         batchId,
-        status: "SHIPPED",
+        status: delivered ? "DELIVERED" : "SHIPPED",
         trackingCode: logisticsNo,
         trackingUrl,
         carrier: serviceName || batch.logisticsServiceName,
@@ -327,5 +373,7 @@ export async function syncAliExpressBatch(orderId: string, batchId: string) {
     logisticsStatus,
     logisticsNo: logisticsNo || null,
     serviceName: serviceName || batch.logisticsServiceName || null,
+    trackingUrl,
+    trackingEvents,
   };
 }
