@@ -109,6 +109,12 @@ export async function quoteAliExpressBatch(orderId: string, batchId: string) {
   const quantity = batch.items.reduce((sum, item) => sum + item.quantity, 0);
   if (quantity <= 0) throw new Error("Lote sem quantidade válida.");
 
+  const officialSkuIds = [...new Set(batch.items
+    .map((item) => item.fulfillmentSupplierVariant?.sourceSkuId || item.fulfillmentSourceSkuId)
+    .filter((value): value is string => Boolean(value?.trim()))
+  )];
+  const skuId = officialSkuIds.length === 1 ? officialSkuIds[0] : null;
+
   const { session, client } = await requireAliExpressSession();
   const quotes = await client.calculateFreight({
     session,
@@ -117,6 +123,7 @@ export async function quoteAliExpressBatch(orderId: string, batchId: string) {
     countryCode: normalizeAliExpressCountryCode(address.countryCode),
     sendGoodsCountryCode: process.env.ALIEXPRESS_SEND_GOODS_COUNTRY?.trim() || "CN",
     priceCurrency: batch.currency || undefined,
+    skuId,
   });
   if (quotes.length === 0) throw new Error("AliExpress não retornou método de envio disponível para este destino.");
   return { batchId: batch.id, countryCode: normalizeAliExpressCountryCode(address.countryCode), quotes };
