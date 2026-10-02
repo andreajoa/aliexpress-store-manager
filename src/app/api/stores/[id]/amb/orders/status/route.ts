@@ -11,6 +11,15 @@ function sessionIdFrom(request: NextRequest) {
   return request.nextUrl.searchParams.get("session_id")?.trim() || "";
 }
 
+async function ambBootstrapHash() {
+  const baseUrl =
+    process.env.AMB_BOUTIQUE_BASE_URL?.trim().replace(/\/+$/, "") ||
+    "https://www.ambboutique.online";
+  const response = await fetch(`${baseUrl}/api/store-manager/bootstrap`, { cache: "no-store" });
+  const body = await response.json().catch(() => null) as { tokenHash?: string } | null;
+  return response.ok ? body?.tokenHash?.trim() || "" : "";
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -26,14 +35,28 @@ export async function GET(
     select: { status: true, webhookEnabled: true, webhookTokenHash: true },
   });
   const token = bearerToken(request);
-  if (
-    storeId !== "amb-boutique-store" ||
-    !store ||
-    store.status !== "ACTIVE" ||
-    !store.webhookEnabled ||
-    !token ||
-    !verifySharedWebhookToken(token, store.webhookTokenHash)
-  ) {
+  if (storeId !== "amb-boutique-store" || !store || store.status !== "ACTIVE" || !token) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  let tokenValid = store.webhookEnabled && verifySharedWebhookToken(token, store.webhookTokenHash);
+  if (!tokenValid) {
+    const bootstrapHash = await ambBootstrapHash().catch(() => "");
+    if (bootstrapHash && verifySharedWebhookToken(token, bootstrapHash)) {
+      tokenValid = true;
+      await prisma.store.update({
+        where: { id: storeId },
+        data: {
+          baseUrl: "https://www.ambboutique.online",
+          webhookEnabled: true,
+          webhookTokenHash: bootstrapHash,
+          webhookTokenCreatedAt: new Date(),
+        },
+      });
+    }
+  }
+
+  if (!tokenValid) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
