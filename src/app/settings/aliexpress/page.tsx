@@ -59,7 +59,9 @@ export default async function AliExpressSettingsPage({
               <div><dt className="text-zinc-500">Conta</dt><dd className="mt-1">{status.connection.userNick || "—"}</dd></div>
               <div><dt className="text-zinc-500">User ID</dt><dd className="mt-1">{status.connection.userId || "—"}</dd></div>
               <div><dt className="text-zinc-500">Autorizada em</dt><dd className="mt-1">{status.connection.authorizedAt.toLocaleString("pt-BR")}</dd></div>
-              <div><dt className="text-zinc-500">Expira em</dt><dd className="mt-1">{status.connection.expiresAt.toLocaleString("pt-BR")}</dd></div>
+              <div><dt className="text-zinc-500">Access token expira em</dt><dd className="mt-1">{status.connection.expiresAt.toLocaleString("pt-BR")}</dd></div>
+              <div><dt className="text-zinc-500">Renovação automática</dt><dd className="mt-1">{status.canAutoRefresh ? "Ativa" : "Indisponível"}</dd></div>
+              <div><dt className="text-zinc-500">Refresh token expira em</dt><dd className="mt-1">{status.refreshExpiresAt ? status.refreshExpiresAt.toLocaleString("pt-BR") : "—"}</dd></div>
             </dl>
           )}
 
@@ -75,9 +77,14 @@ export default async function AliExpressSettingsPage({
             {status.connection && <DisconnectAliExpressButton />}
           </div>
 
-          {status.needsReauthorization && !status.expired && (
+          {status.canAutoRefresh && (
+            <p className="mt-4 text-sm text-emerald-300">
+              O Manager pode renovar a sessão automaticamente. O cron diário verifica a conexão e renova o access token quando necessário.
+            </p>
+          )}
+          {status.needsReauthorization && (
             <p className="mt-4 text-sm text-amber-300">
-              A autorização está próxima de expirar. Renove antes de criar novos pedidos.
+              A renovação automática não está disponível para esta autorização. Use “Autorizar novamente” quando solicitado pelo AliExpress.
             </p>
           )}
         </section>
