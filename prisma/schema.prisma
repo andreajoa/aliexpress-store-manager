@@ -97,7 +97,7 @@ model Store {
   githubRepo   String?
   githubBranch String?
 
-  currency String      @default("BRL")
+  currency String      @default("USD")
   status   StoreStatus @default(ACTIVE)
 
   webhookTokenHash      String?
@@ -151,7 +151,7 @@ model Product {
 
   recommendedPrice Decimal? @db.Decimal(12, 2)
   compareAtPrice   Decimal? @db.Decimal(12, 2)
-  storeCurrency    String   @default("BRL")
+  storeCurrency    String   @default("USD")
 
   aiCopyVersion String?
   status        ProductStatus @default(IMPORTED)
@@ -401,7 +401,7 @@ model Order {
   sourceOrderTotal      Decimal? @db.Decimal(12, 2)
   checkoutReservationId String?
 
-  currency       String   @default("BRL")
+  currency       String   @default("USD")
   subtotal       Decimal? @db.Decimal(12, 2)
   shippingAmount Decimal? @db.Decimal(12, 2)
   discountAmount Decimal? @db.Decimal(12, 2)

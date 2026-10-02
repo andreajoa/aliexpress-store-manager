@@ -41,7 +41,7 @@ export async function POST(
       return NextResponse.json({
         ok: false,
         error:
-          "Idioma de copy inválido. Escolha Português (Brasil), English, Français ou Deutsch.",
+          "Idioma de copy inválido. O Store Manager usa somente English — USD.",
       }, {
         status: 400,
       });

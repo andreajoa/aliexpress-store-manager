@@ -744,7 +744,7 @@ export async function POST(
           compareAtPrice,
 
           currency:
-            product.storeCurrency.trim().toUpperCase() as StoreProductPayload["product"]["currency"],
+            "USD",
 
           image:
             gallery[0],

@@ -119,7 +119,7 @@ export async function POST(
         recommendedPrice:
           lowestPrice,
 
-        storeCurrency: product.storeCurrency,
+        storeCurrency: "USD",
 
         status: "READY",
       },

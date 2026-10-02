@@ -149,7 +149,7 @@ export function ProductEditor(props: Props) {
       initialPrices(props.variants)
     );
   const [storeCurrency, setStoreCurrency] =
-    useState("BRL");
+    useState("USD");
   const [currencyLoading, setCurrencyLoading] =
     useState(true);
   const [pricingRates, setPricingRates] =

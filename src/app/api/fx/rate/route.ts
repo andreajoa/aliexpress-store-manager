@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       "USD";
     const to =
       request.nextUrl.searchParams.get("to") ||
-      "BRL";
+      "USD";
 
     const quote = await fetchFxRate({
       from,

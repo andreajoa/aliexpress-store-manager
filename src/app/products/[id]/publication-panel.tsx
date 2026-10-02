@@ -136,17 +136,17 @@ type Preview = {
   };
 };
 
-function brlCents(
+function usdCents(
   value: number
 ) {
   return new Intl.NumberFormat(
-    "pt-BR",
+    "en-US",
     {
       style:
         "currency",
 
       currency:
-        "BRL",
+        "USD",
     }
   ).format(
     value / 100
@@ -1516,7 +1516,7 @@ export function PublicationPanel({
               </p>
 
               <p className="mt-1 font-semibold">
-                {brlCents(
+                {usdCents(
                   preview.payload
                     .product.price
                 )}

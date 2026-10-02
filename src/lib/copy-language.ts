@@ -9,39 +9,22 @@ export type CopyLanguage =
   (typeof COPY_LANGUAGES)[number];
 
 export const DEFAULT_COPY_LANGUAGE: CopyLanguage =
-  "pt-BR";
+  "en";
 
 export const COPY_LANGUAGE_OPTIONS: Array<{
   value: CopyLanguage;
   label: string;
 }> = [
   {
-    value: "pt-BR",
-    label: "Português (Brasil) — BRL",
-  },
-  {
     value: "en",
     label: "English — USD",
-  },
-  {
-    value: "fr",
-    label: "Français — EUR",
-  },
-  {
-    value: "de",
-    label: "Deutsch — EUR",
   },
 ];
 
 export function isCopyLanguage(
   value: unknown
 ): value is CopyLanguage {
-  return (
-    typeof value === "string" &&
-    COPY_LANGUAGES.includes(
-      value as CopyLanguage
-    )
-  );
+  return value === "en";
 }
 
 export function copyLanguageFromVersion(

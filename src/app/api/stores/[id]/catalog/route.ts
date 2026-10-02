@@ -114,7 +114,7 @@ export async function GET(
         },
 
         catalog: {
-          currency: store.currency || "BRL",
+          currency: store.currency || "USD",
           priceUnit: null,
           count: 0,
           products: [],
@@ -166,7 +166,7 @@ export async function GET(
         currency:
           data.catalog.currency ||
           store.currency ||
-          "BRL",
+          "USD",
 
         priceUnit:
           data.catalog.priceUnit || null,
