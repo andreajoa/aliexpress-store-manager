@@ -9,8 +9,8 @@ const envelope = {
     ae_item_base_info_dto: { product_id: "3256811750293175", subject: "Official Test Dress", currency_code: "USD", category_id: "200003482", product_status_type: "onSelling" },
     ae_item_sku_info_dtos: {
       ae_item_sku_info_d_t_o: [
-        { id: "14:193;5:100014064", sku_code: "SKU-BLACK-S", sku_available_stock: 7, offer_sale_price: "12.50", ae_sku_property_dtos: { ae_sku_property_d_t_o: [ { sku_property_id: 14, sku_property_name: "Color", property_value_definition_name: "Black" }, { sku_property_id: 5, sku_property_name: "Size", property_value_definition_name: "S" } ] } },
-        { id: "14:193;5:361386", sku_code: "SKU-BLACK-M", sku_available_stock: 3, offer_sale_price: "12.50", ae_sku_property_dtos: { ae_sku_property_d_t_o: [ { sku_property_id: 14, sku_property_name: "Color", property_value_definition_name: "Black" }, { sku_property_id: 5, sku_property_name: "Size", property_value_definition_name: "M" } ] } },
+        { id: "14:193;5:100014064", sku_code: "SKU-BLACK-S", sku_available_stock: 7, offer_sale_price: "12.50", currency_code: "USD", ae_sku_property_dtos: { ae_sku_property_d_t_o: [ { sku_property_id: 14, sku_property_name: "Color", property_value_definition_name: "Black" }, { sku_property_id: 5, sku_property_name: "Size", property_value_definition_name: "S" } ] } },
+        { id: "14:193;5:361386", sku_code: "SKU-BLACK-M", sku_available_stock: 3, offer_sale_price: "12.50", currency_code: "USD", ae_sku_property_dtos: { ae_sku_property_d_t_o: [ { sku_property_id: 14, sku_property_name: "Color", property_value_definition_name: "Black" }, { sku_property_id: 5, sku_property_name: "Size", property_value_definition_name: "M" } ] } },
       ],
     },
     ae_multimedia_info_dto: { image_urls: "https://ae01.alicdn.com/a.jpg;https://ae01.alicdn.com/b.jpg" },
@@ -24,6 +24,8 @@ assert(product.id === "3256811750293175", "wrong product id");
 assert(product.sku_pricing?.length === 2, "official SKUs were not converted");
 assert(product.sku_pricing?.[0]?.available_quantity === 7, "exact stock was not preserved");
 assert(product.sku_pricing?.[0]?.sale_price === 12.5, "exact price was not preserved");
+assert(product.sku_pricing?.[0]?.currency_code === "USD", "SKU currency was not preserved");
+assert(product.currency === "USD", "product currency must follow verified SKU currency");
 const attrs = product.official_sku_attrs as Record<string,string>;
 assert(attrs["SKU-BLACK-S"] === "14:193;5:100014064", "order sku attr was not preserved");
 
