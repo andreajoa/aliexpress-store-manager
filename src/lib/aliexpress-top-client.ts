@@ -275,6 +275,40 @@ function freightGetQuotesFromEnvelope(
   return quotes;
 }
 
+function placeOrderIds(result: Record<string, unknown>) {
+  const ids = new Set<string>();
+
+  function add(value: unknown, depth = 0) {
+    if (depth > 4 || value === null || value === undefined) return;
+
+    if (typeof value === "string" || typeof value === "number") {
+      const candidate = String(value).trim();
+      if (/^\d{8,}$/.test(candidate)) ids.add(candidate);
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) add(item, depth + 1);
+      return;
+    }
+
+    if (typeof value === "object") {
+      const row = value as Record<string, unknown>;
+      for (const key of ["number", "order_id", "orderId", "id"]) {
+        if (key in row) add(row[key], depth + 1);
+      }
+      for (const key of ["order_list", "orders", "orderList"]) {
+        if (key in row) add(row[key], depth + 1);
+      }
+    }
+  }
+
+  add(result.order_list);
+  add(result.order_id);
+  add(result.orderId);
+  return Array.from(ids);
+}
+
 export class AliExpressTopClient {
   private readonly endpoint: string;
   private readonly config: AliExpressTopConfig;
@@ -597,14 +631,13 @@ export class AliExpressTopClient {
       );
     }
 
-    const orderList = asRecord(result.order_list);
-    const numbers = asArray<unknown>(orderList.number).map(scalar).filter(Boolean);
+    const orderIds = placeOrderIds(result);
 
-    if (numbers.length === 0) {
+    if (orderIds.length === 0) {
       throw new Error("AliExpress confirmou o pedido sem retornar número de ordem.");
     }
 
-    return { orderIds: numbers, raw: result };
+    return { orderIds, raw: result };
   }
 
   async getOrder(input: { session: string; orderId: string }) {
