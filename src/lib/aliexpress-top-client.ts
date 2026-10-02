@@ -213,6 +213,68 @@ function freightQuotesFromEnvelope(
   return quotes;
 }
 
+function freightGetQuotesFromEnvelope(
+  envelope: Record<string, unknown>,
+): FreightQuote[] {
+  const result = asRecord(envelope.result);
+  const resultSuccess = scalar(result.success).toLowerCase();
+  if (resultSuccess === "false") {
+    throw new Error(
+      scalar(result.error_desc) ||
+        "AliExpress não conseguiu consultar o frete de dropshipping para este SKU.",
+    );
+  }
+
+  const wrapper =
+    result.aeop_freight_calculate_result_for_buyer_dtolist ??
+    result.aeop_freight_calculate_result_for_buyer_d_t_o_list;
+  const wrapperRecord = asRecord(wrapper);
+  const rowPayload =
+    wrapperRecord.aeop_freight_calculate_result_for_buyer_d_t_o ??
+    wrapperRecord.aeop_freight_calculate_result_for_buyer_dto ??
+    wrapper;
+  const rows = asArray<Record<string, unknown>>(rowPayload);
+  const rowErrors: string[] = [];
+
+  const quotes = rows.flatMap<FreightQuote>((row) => {
+    const rowSuccess = scalar(row.success).toLowerCase();
+    if (row.success === false || rowSuccess === "false") {
+      const detail = scalar(row.error_desc || row.error_message || row.error_code);
+      if (detail) rowErrors.push(detail);
+      return [];
+    }
+
+    const serviceName = scalar(row.service_name || row.shipping_method).trim();
+    if (!serviceName) return [];
+
+    const freight = asRecord(row.freight);
+    let amount: number | null = null;
+    const amountRaw = freight.amount;
+    if (amountRaw !== null && amountRaw !== undefined && amountRaw !== "") {
+      const parsed = Number(amountRaw);
+      if (Number.isFinite(parsed)) amount = parsed;
+    } else if (freight.cent !== null && freight.cent !== undefined && freight.cent !== "") {
+      const cents = Number(freight.cent);
+      if (Number.isFinite(cents)) amount = cents / 100;
+    }
+
+    return [{
+      serviceName,
+      estimatedDeliveryTime: scalar(row.estimated_delivery_time) || null,
+      amount,
+      currency:
+        scalar(freight.currency_code) ||
+        scalar(asRecord(freight.currency).currency_code) ||
+        null,
+    }];
+  });
+
+  if (quotes.length === 0 && rowErrors.length > 0) {
+    throw new Error(Array.from(new Set(rowErrors)).join(" | "));
+  }
+  return quotes;
+}
+
 export class AliExpressTopClient {
   private readonly endpoint: string;
   private readonly config: AliExpressTopConfig;
@@ -377,6 +439,35 @@ export class AliExpressTopClient {
     };
   }
 
+
+  private async calculateFreightBySku(input: {
+    session: string;
+    productId: string;
+    quantity: number;
+    countryCode: string;
+    sendGoodsCountryCode: string;
+    skuId: string;
+    price?: string | null;
+    priceCurrency?: string | null;
+  }): Promise<FreightQuote[]> {
+    const envelope = await this.execute(
+      "aliexpress.logistics.buyer.freight.get",
+      input.session,
+      {
+        aeopFreightCalculateForBuyerDTO: {
+          country_code: input.countryCode,
+          product_id: input.productId,
+          product_num: input.quantity,
+          sku_id: input.skuId,
+          send_goods_country_code: input.sendGoodsCountryCode,
+          ...(input.price ? { price: input.price } : {}),
+          ...(input.priceCurrency ? { price_currency: input.priceCurrency } : {}),
+        },
+      },
+    );
+    return freightGetQuotesFromEnvelope(envelope);
+  }
+
   async calculateFreight(input: {
     session: string;
     productId: string;
@@ -397,6 +488,25 @@ export class AliExpressTopClient {
     const sendGoodsCountryCode = input.sendGoodsCountryCode || "CN";
 
     for (const productId of candidates.productIds) {
+      if (input.skuId) {
+        try {
+          const skuQuotes = await this.calculateFreightBySku({
+            session: input.session,
+            productId,
+            quantity: input.quantity,
+            countryCode: input.countryCode,
+            sendGoodsCountryCode,
+            skuId: input.skuId,
+            price: input.price,
+            priceCurrency: input.priceCurrency,
+          });
+          if (skuQuotes.length > 0) return skuQuotes;
+          failures.push(`${productId}/sku:${input.skuId}: sem opções de frete`);
+        } catch (error) {
+          failures.push(`${productId}/sku:${input.skuId}: ${compactError(error)}`);
+        }
+      }
+
       const pricingModes = input.price ? [true, false] : [false];
 
       for (const includePrice of pricingModes) {
