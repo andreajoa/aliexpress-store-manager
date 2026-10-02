@@ -34,6 +34,20 @@ export async function GET(request: NextRequest) {
     error: error instanceof Error ? error.message : "AliExpress connection maintenance failed",
   }));
 
+  const connection = await maintainAliExpressConnection({
+    refreshWithinMs: 22 * 60 * 60 * 1000,
+  }).catch((error) => ({
+    ok: false,
+    refreshed: false,
+    connected: false,
+    expired: true,
+    needsReauthorization: true,
+    canAutoRefresh: false,
+    refreshExpiresAt: null,
+    connection: null,
+    error: error instanceof Error ? error.message : "AliExpress connection check failed",
+  }));
+
   const expiredReservations = await expireCheckoutReservations();
   const supplierResults: Array<{ id: string; ok: boolean; error?: string }> = [];
   const trackingResults: Array<{ id: string; ok: boolean; error?: string }> = [];
