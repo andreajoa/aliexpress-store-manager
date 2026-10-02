@@ -1,0 +1,35 @@
+name: Landed Cost and Pricing CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/app/api/import/aliexpress/**"
+      - "src/app/api/products/**"
+      - "src/app/products/**"
+      - "src/lib/aliexpress-import-costing.ts"
+      - "src/lib/aliexpress-landed-cost.ts"
+      - "src/lib/product-landed-cost-service.ts"
+      - "src/lib/product-pricing.ts"
+      - "src/lib/aliexpress-official-product-provider.ts"
+      - "src/lib/aliexpress-operational-provider.ts"
+      - "scripts/pricing-suggestions-smoke.ts"
+      - "scripts/official-aliexpress-import-smoke.ts"
+      - ".github/workflows/landed-cost-pricing-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify SKU price and currency import
+        run: node --no-warnings --experimental-strip-types scripts/official-aliexpress-import-smoke.ts
+      - name: Verify item plus freight landed cost and retail pricing
+        run: node --no-warnings --experimental-strip-types scripts/pricing-suggestions-smoke.ts
