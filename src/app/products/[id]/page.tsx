@@ -228,6 +228,8 @@ export default async function ProductPage({
 
                 <ProductEditor
                   productId={product.id}
+                  pricingBlocked={provisionalPricingCount > 0}
+                  pricingBlockedReason="Aguarde a ferramenta confirmar preço da variante + frete oficial do AliExpress antes de calcular o preço de venda."
                   status={product.status}
                   optimizedTitle={product.optimizedTitle || ""}
                   headline={product.headline || ""}
@@ -246,9 +248,9 @@ export default async function ProductPage({
                     id: variant.id,
                     sourceSkuId: variant.sourceSkuId,
                     attributes: variant.attributes,
-                    costPrice: variant.costPrice,
+                    costPrice: variant.provisional ? null : variant.costPrice,
                     salePrice: variant.salePrice,
-                    sourceCurrency: variant.sourceCurrency,
+                    sourceCurrency: variant.provisional ? null : variant.sourceCurrency,
                     stock: variant.stock,
                     available: variant.available,
                     provisional: variant.provisional,
