@@ -87,6 +87,18 @@ export async function markFulfillmentBatchOrdered(input: {
         status: "ORDERED",
         externalOrderId: input.externalOrderId,
         orderedAt: new Date(),
+        ...(batch.provider === "ALIEXPRESS" ? {
+          placementStatus: "COMPLETE",
+          placementLastError: null,
+        } : {}),
+      },
+    });
+  } else if (batch.externalOrderId === input.externalOrderId && batch.provider === "ALIEXPRESS") {
+    await prisma.fulfillmentBatch.update({
+      where: { id: batch.id },
+      data: {
+        placementStatus: "COMPLETE",
+        placementLastError: null,
       },
     });
   }
