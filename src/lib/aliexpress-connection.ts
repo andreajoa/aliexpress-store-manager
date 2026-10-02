@@ -65,12 +65,50 @@ export async function saveAliExpressConnection(input: {
 export async function aliExpressConnectionStatus() {
   const connection = await prisma.aliExpressConnection.findUnique({
     where: { id: "primary" },
-    select: { userId: true, userNick: true, expiresAt: true, authorizedAt: true },
+    select: {
+      userId: true,
+      userNick: true,
+      expiresAt: true,
+      authorizedAt: true,
+      refreshTokenCiphertext: true,
+      refreshTokenIv: true,
+      refreshTokenTag: true,
+      refreshExpiresAt: true,
+    },
   });
-  if (!connection) return { connected: false, expired: false, needsReauthorization: false, connection: null };
+  if (!connection) {
+    return {
+      connected: false,
+      expired: false,
+      needsReauthorization: false,
+      canAutoRefresh: false,
+      refreshExpiresAt: null,
+      connection: null,
+    };
+  }
   const expired = connection.expiresAt.getTime() <= Date.now();
-  const needsReauthorization = connection.expiresAt.getTime() <= Date.now() + 3 * 24 * 60 * 60 * 1000;
-  return { connected: !expired, expired, needsReauthorization, connection };
+  const canAutoRefresh = Boolean(
+    connection.refreshTokenCiphertext &&
+    connection.refreshTokenIv &&
+    connection.refreshTokenTag &&
+    (!connection.refreshExpiresAt || connection.refreshExpiresAt.getTime() > Date.now())
+  );
+  const needsReauthorization = !canAutoRefresh &&
+    connection.expiresAt.getTime() <= Date.now() + 3 * 24 * 60 * 60 * 1000;
+  const publicConnection = {
+    userId: connection.userId,
+    userNick: connection.userNick,
+    expiresAt: connection.expiresAt,
+    authorizedAt: connection.authorizedAt,
+  };
+  return {
+    connected: !expired,
+    expired,
+    needsReauthorization,
+    canAutoRefresh,
+    refreshExpiresAt: connection.refreshExpiresAt,
+    connection: publicConnection,
+  };
 }
 
 async function tryAutoRefresh(): Promise<boolean> {
@@ -114,6 +152,29 @@ async function tryAutoRefresh(): Promise<boolean> {
     console.warn("[AliExpress connection] Auto-refresh falhou:", error);
     return false;
   }
+}
+
+
+export async function maintainAliExpressConnection(input?: { refreshWithinMs?: number }) {
+  const refreshWithinMs = Math.max(
+    5 * 60 * 1000,
+    input?.refreshWithinMs ?? 20 * 60 * 60 * 1000,
+  );
+  const before = await aliExpressConnectionStatus();
+  if (!before.connection) {
+    return { ok: false, refreshed: false, ...before };
+  }
+
+  if (
+    before.connection.expiresAt.getTime() <= Date.now() + refreshWithinMs &&
+    before.canAutoRefresh
+  ) {
+    const refreshed = await tryAutoRefresh();
+    const after = await aliExpressConnectionStatus();
+    return { ok: after.connected, refreshed, ...after };
+  }
+
+  return { ok: before.connected, refreshed: false, ...before };
 }
 
 export async function requireAliExpressSession() {
