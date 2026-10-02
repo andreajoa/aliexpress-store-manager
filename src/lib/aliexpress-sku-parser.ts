@@ -29,6 +29,7 @@ function numberOrNull(value: unknown) {
 
 export type OfficialAliExpressSku = SupplierVariantForMapping & {
   orderSkuAttr: string;
+  currencyCode: string | null;
 };
 
 export function officialSkusFromProductResponse(envelope: Record<string, unknown>) {
@@ -68,6 +69,7 @@ export function officialSkusFromProductResponse(envelope: Record<string, unknown
 
     const stock = numberOrNull(row.sku_available_stock ?? row.ipm_sku_stock);
     const price = numberOrNull(row.offer_sale_price ?? row.sku_price);
+    const currencyCode = text(row.currency_code).toUpperCase() || null;
     const sourceSkuId = text(row.sku_id) || text(row.sku_code) || orderSkuAttr;
 
     return [{
@@ -78,6 +80,7 @@ export function officialSkusFromProductResponse(envelope: Record<string, unknown
       attributes,
       price,
       stock,
+      currencyCode,
     }];
   });
 
