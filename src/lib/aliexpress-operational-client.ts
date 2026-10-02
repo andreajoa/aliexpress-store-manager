@@ -136,6 +136,7 @@ export class AliExpressOperationalClient extends AliExpressTopClient {
     sendGoodsCountryCode?: string;
     price?: string | null;
     priceCurrency?: string | null;
+    skuId?: string | null;
   }): Promise<FreightQuote[]> {
     try {
       return await super.calculateFreight(input);
