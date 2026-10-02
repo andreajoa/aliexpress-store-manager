@@ -84,10 +84,15 @@ export function officialSkusFromProductResponse(envelope: Record<string, unknown
     }];
   });
 
+
+  const skuCurrencies = Array.from(
+    new Set(skus.map((sku) => sku.currency).filter((value): value is string => Boolean(value))),
+  );
+
   return {
     productId: text(baseInfo.product_id) || null,
     productStatus: text(baseInfo.product_status_type) || null,
-    currency: text(baseInfo.currency_code) || null,
+    currency: skuCurrencies.length === 1 ? skuCurrencies[0] : (text(baseInfo.currency_code) || null),
     skus,
   };
 }
