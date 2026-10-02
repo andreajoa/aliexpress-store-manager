@@ -26,14 +26,22 @@ async function verifyAmbSignedRequest(request: NextRequest, sessionId: string) {
   const signature = request.headers.get("x-amb-signature")?.trim() || "";
   const keyId = request.headers.get("x-amb-key-id")?.trim() || "";
   const timestampNumber = Number(timestamp);
-  if (
-    !timestamp ||
-    !signature ||
-    !keyId ||
-    !Number.isFinite(timestampNumber) ||
-    Math.abs(Date.now() - timestampNumber) > 5 * 60 * 1000
-  ) {
-    return false;
+  const timestampFresh = Boolean(
+    timestamp &&
+    Number.isFinite(timestampNumber) &&
+    Math.abs(Date.now() - timestampNumber) <= 5 * 60 * 1000
+  );
+
+  const diagnostic = {
+    headersPresent: Boolean(timestamp && signature && keyId),
+    timestampFresh,
+    keyFetched: false,
+    keyIdMatch: false,
+    signatureValid: false,
+  };
+
+  if (!diagnostic.headersPresent || !timestampFresh) {
+    return { valid: false, diagnostic };
   }
 
   const baseUrl =
@@ -45,13 +53,15 @@ async function verifyAmbSignedRequest(request: NextRequest, sessionId: string) {
     keyId?: string;
     publicKeyPem?: string;
   } | null;
+  diagnostic.keyFetched = Boolean(response.ok && body?.publicKeyPem);
+  diagnostic.keyIdMatch = Boolean(body?.keyId && body.keyId === keyId);
   if (
     !response.ok ||
     body?.algorithm !== "Ed25519" ||
     !body.publicKeyPem ||
     body.keyId !== keyId
   ) {
-    return false;
+    return { valid: false, diagnostic };
   }
 
   const canonical = [
@@ -62,14 +72,15 @@ async function verifyAmbSignedRequest(request: NextRequest, sessionId: string) {
   ].join("\n");
 
   try {
-    return verifySignature(
+    diagnostic.signatureValid = verifySignature(
       null,
       Buffer.from(canonical, "utf8"),
       createPublicKey(body.publicKeyPem),
       Buffer.from(signature, "base64"),
     );
+    return { valid: diagnostic.signatureValid, diagnostic };
   } catch {
-    return false;
+    return { valid: false, diagnostic };
   }
 }
 
@@ -113,12 +124,16 @@ export async function GET(
     }
   }
 
-  const signedValid = tokenValid
-    ? true
+  const signed = tokenValid
+    ? { valid: true, diagnostic: { tokenValid: true } }
     : await verifyAmbSignedRequest(request, sessionId);
 
-  if (!signedValid) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!signed.valid) {
+    return NextResponse.json({
+      ok: false,
+      error: "Unauthorized",
+      authDiagnostic: signed.diagnostic,
+    }, { status: 401 });
   }
 
   const order = await prisma.order.findUnique({
