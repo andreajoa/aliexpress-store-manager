@@ -1,3 +1,4 @@
+import { createPublicKey, verify as verifySignature } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { syncAliExpressBatch } from "@/lib/aliexpress-fulfillment";
@@ -20,6 +21,58 @@ async function ambBootstrapHash() {
   return response.ok ? body?.tokenHash?.trim() || "" : "";
 }
 
+async function verifyAmbSignedRequest(request: NextRequest, sessionId: string) {
+  const timestamp = request.headers.get("x-amb-timestamp")?.trim() || "";
+  const signature = request.headers.get("x-amb-signature")?.trim() || "";
+  const keyId = request.headers.get("x-amb-key-id")?.trim() || "";
+  const timestampNumber = Number(timestamp);
+  if (
+    !timestamp ||
+    !signature ||
+    !keyId ||
+    !Number.isFinite(timestampNumber) ||
+    Math.abs(Date.now() - timestampNumber) > 5 * 60 * 1000
+  ) {
+    return false;
+  }
+
+  const baseUrl =
+    process.env.AMB_BOUTIQUE_BASE_URL?.trim().replace(/\/+$/, "") ||
+    "https://www.ambboutique.online";
+  const response = await fetch(`${baseUrl}/api/fulfillment/public-key`, { cache: "no-store" });
+  const body = await response.json().catch(() => null) as {
+    algorithm?: string;
+    keyId?: string;
+    publicKeyPem?: string;
+  } | null;
+  if (
+    !response.ok ||
+    body?.algorithm !== "Ed25519" ||
+    !body.publicKeyPem ||
+    body.keyId !== keyId
+  ) {
+    return false;
+  }
+
+  const canonical = [
+    "GET",
+    request.nextUrl.pathname,
+    sessionId,
+    timestamp,
+  ].join("\n");
+
+  try {
+    return verifySignature(
+      null,
+      Buffer.from(canonical, "utf8"),
+      createPublicKey(body.publicKeyPem),
+      Buffer.from(signature, "base64"),
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -35,12 +88,16 @@ export async function GET(
     select: { status: true, webhookEnabled: true, webhookTokenHash: true },
   });
   const token = bearerToken(request);
-  if (storeId !== "amb-boutique-store" || !store || store.status !== "ACTIVE" || !token) {
+  if (storeId !== "amb-boutique-store" || !store || store.status !== "ACTIVE") {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  let tokenValid = store.webhookEnabled && verifySharedWebhookToken(token, store.webhookTokenHash);
-  if (!tokenValid) {
+  let tokenValid = Boolean(
+    token &&
+    store.webhookEnabled &&
+    verifySharedWebhookToken(token, store.webhookTokenHash),
+  );
+  if (!tokenValid && token) {
     const bootstrapHash = await ambBootstrapHash().catch(() => "");
     if (bootstrapHash && verifySharedWebhookToken(token, bootstrapHash)) {
       tokenValid = true;
@@ -56,7 +113,11 @@ export async function GET(
     }
   }
 
-  if (!tokenValid) {
+  const signedValid = tokenValid
+    ? true
+    : await verifyAmbSignedRequest(request, sessionId);
+
+  if (!signedValid) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
