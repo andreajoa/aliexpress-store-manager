@@ -33,6 +33,8 @@ type ProductVariant = {
 
 type Props = {
   productId: string;
+  pricingBlocked?: boolean;
+  pricingBlockedReason?: string;
   status: string;
   optimizedTitle: string;
   headline: string;
@@ -352,6 +354,10 @@ export function ProductEditor(props: Props) {
   }
 
   async function calculateSuggestions() {
+    if (props.pricingBlocked) {
+      setError(props.pricingBlockedReason || "A precificação está bloqueada até o custo total do fornecedor, incluindo frete, estar disponível.");
+      return;
+    }
     setCalculating(true);
     setError("");
     setMessage("");
@@ -891,7 +897,11 @@ export function ProductEditor(props: Props) {
             disabled={calculating || props.variants.some((variant) => variant.provisional)}
             className="self-end rounded-xl border border-emerald-800 bg-emerald-950/40 px-4 py-2 font-semibold text-emerald-300 disabled:opacity-50"
           >
-            {calculating ? "Calculando..." : "Calcular sugestões"}
+            {props.pricingBlocked
+              ? "Aguardando custo + frete"
+              : calculating
+                ? "Calculando..."
+                : "Calcular sugestões"}
           </button>
         </div>
 
