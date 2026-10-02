@@ -101,10 +101,8 @@ export default async function ProductPage({
       id: variant.id,
       sourceSkuId: variant.sourceSkuId,
       attributes: variant.attributes as Record<string, string>,
-      costPrice:
-        variant.costPrice?.toString() ||
-        provisional?.price ||
-        null,
+      costPrice: variant.costPrice?.toString() || null,
+      provisionalItemPrice: provisional?.price || null,
       salePrice: variant.salePrice?.toString() || null,
       sourceCurrency:
         variant.sourceCurrency ||
@@ -189,8 +187,9 @@ export default async function ProductPage({
                     <div className="mt-2 flex flex-wrap gap-4 text-xs text-zinc-500">
                       <span>SKU canônico: {variant.sourceSkuId}</span>
                       <span>
-                        {variant.provisional ? "Custo do item" : "Custo base"}: {variant.costPrice || "—"} {variant.sourceCurrency}
-                        {variant.provisional ? " (frete pendente)" : ""}
+                        {variant.provisional
+                          ? `Preço da peça: ${variant.provisionalItemPrice || "—"} ${variant.sourceCurrency || ""} (não usado na precificação; frete pendente)`
+                          : `Custo total peça + frete: ${variant.costPrice || "—"} ${variant.sourceCurrency || ""}`}
                       </span>
                       <span>Estoque seguro: {variant.stock ?? "—"}</span>
                       <span>{variant.available ? "Disponível" : "Indisponível"}</span>
