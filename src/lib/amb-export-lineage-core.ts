@@ -1,3 +1,5 @@
+import { ambVariantSize } from "./amb-variant-attributes.ts";
+
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -48,7 +50,7 @@ export function buildAmbExportLineageEntry(input: {
   for (const variant of input.variants) {
     const attributes = record(variant.attributes);
     const color = text(attributes.Color);
-    const size = text(attributes.Size);
+    const size = ambVariantSize(attributes);
     if (!color || !size) continue;
 
     let group = byColor.get(color);

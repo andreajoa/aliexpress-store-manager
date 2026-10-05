@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 
 import { parseAmbBridgeConfig } from "./amb-bridge-contract";
+import { ambVariantSize } from "./amb-variant-attributes.ts";
 import {
   inferAmbBinding,
   normalizeAmbColor,
@@ -124,7 +125,7 @@ function supplierRowsFromProducts(products: Array<{
   return products.flatMap((product) => product.variants.flatMap((variant) => {
     const attributes = record(variant.attributes);
     const color = text(attributes.Color);
-    const size = text(attributes.Size);
+    const size = ambVariantSize(attributes);
     if (!color || !size) return [];
     const rawCost = variant.costPrice ? Number(variant.costPrice.toString()) : null;
     return [{

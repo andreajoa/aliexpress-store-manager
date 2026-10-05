@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 
 import { normalizeAmbColor, normalizeAmbValue } from "@/lib/amb-catalog-detector";
+import { ambVariantSize } from "@/lib/amb-variant-attributes";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -104,7 +105,7 @@ export async function POST(
     }
 
     const availableSizes = matchingVariants
-      .map((variant) => text(record(variant.attributes).Size))
+      .map((variant) => ambVariantSize(record(variant.attributes)))
       .filter(Boolean);
 
     const missingSizes = expectedSizes.filter((size) =>
@@ -158,7 +159,7 @@ export async function POST(
       availableSizes,
       variants: matchingVariants.map((variant) => ({
         sourceSkuId: variant.sourceSkuId,
-        size: text(record(variant.attributes).Size),
+        size: ambVariantSize(record(variant.attributes)),
         stock: variant.stock,
         available: variant.available,
       })),

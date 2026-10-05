@@ -1,4 +1,5 @@
 import { placeAliExpressBatchOrder, quoteAliExpressBatch } from "./aliexpress-fulfillment";
+import { ambVariantSize, matchesAmbVariantSelection } from "./amb-variant-attributes.ts";
 import {
   chooseAliExpressFreight,
   parseAmbBridgeConfig,
@@ -296,8 +297,7 @@ async function resolveAmbLineItems(storeId: string, session: AmbStripeSession) {
     if (!product) throw new Error(`Produto-fonte ${binding.sourceProductId} não existe no Manager.`);
     const candidates = product.variants.filter((variant) => {
       const attributes = record(variant.attributes);
-      return normalized(attributes.Color) === normalized(binding.color)
-        && normalized(attributes.Size) === normalized(size);
+      return matchesAmbVariantSelection(attributes, binding.color, size);
     });
     if (candidates.length !== 1) {
       throw new Error(
@@ -511,7 +511,7 @@ export async function ambInventorySnapshot(storeId: string) {
       sizes: variants.map((variant) => {
         const attributes = record(variant.attributes);
         return {
-          size: text(attributes.Size),
+          size: ambVariantSize(attributes),
           stock: Math.max(0, variant.stock || 0),
           available: variant.available,
         };
