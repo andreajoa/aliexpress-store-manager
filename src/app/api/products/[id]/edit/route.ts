@@ -143,6 +143,7 @@ export async function PATCH(
       parsed.data.compareAtPrice
     );
 
+    // Saving every price in a large size/colour family must remain atomic.
     await prisma.$transaction([
       prisma.product.update({
         where: { id },
@@ -196,7 +197,7 @@ export async function PATCH(
           },
         })
       ),
-    ]);
+    ], { timeout: 30_000 });
 
     return NextResponse.json({
       ok: true,
