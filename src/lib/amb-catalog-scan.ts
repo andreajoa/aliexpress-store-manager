@@ -6,10 +6,10 @@ import {
   inferAmbBinding,
   normalizeAmbColor,
   normalizeAmbValue,
-  parseAmbGeneratedProductsSource,
   type AmbCatalogProduct,
   type AmbSupplierVariantSnapshot,
 } from "./amb-catalog-detector";
+import { loadAmbGitHubCatalog } from "./amb-catalog-github.ts";
 import { ambExportLineageFromCapabilities } from "./amb-export-lineage";
 import { prisma } from "./prisma";
 
@@ -21,40 +21,6 @@ function record(value: unknown): Record<string, unknown> {
 
 function text(value: unknown) {
   return value === null || value === undefined ? "" : String(value).trim();
-}
-
-function base64Decode(value: string) {
-  return Buffer.from(value.replace(/\n/g, ""), "base64").toString("utf8");
-}
-
-async function fetchGitHubFile(input: {
-  owner: string;
-  repo: string;
-  branch: string;
-  path: string;
-}) {
-  const token = process.env.GITHUB_READ_TOKEN?.trim() || process.env.GITHUB_PUBLISH_TOKEN?.trim();
-  const url = `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents/${input.path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(input.branch)}`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "aliexpress-store-manager",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    cache: "no-store",
-  });
-  const body = await response.json().catch(() => null) as unknown;
-  if (!response.ok) {
-    const message = text(record(body).message);
-    throw new Error(message || `GitHub HTTP ${response.status}.`);
-  }
-  const payload = record(body);
-  const content = text(payload.content);
-  if (!content || text(payload.encoding) !== "base64") {
-    throw new Error(`GitHub não retornou ${input.path} em base64.`);
-  }
-  return { source: base64Decode(content), blobSha: text(payload.sha) };
 }
 
 async function fetchAmbCatalogFromStore(accessToken: string) {
@@ -216,24 +182,22 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean;
       catalogBlobSha = live.version;
     } catch (error) {
       console.warn("AMB authenticated catalog bridge failed, falling back to GitHub:", error);
-      const github = await fetchGitHubFile({
-        owner: store.githubOwner,
-        repo: store.githubRepo,
+      const github = await loadAmbGitHubCatalog({
+        owner: store.githubOwner, repo: store.githubRepo,
         branch: store.githubBranch || "main",
-        path: "app/generated-products.ts",
+        token: process.env.GITHUB_READ_TOKEN?.trim() || process.env.GITHUB_PUBLISH_TOKEN?.trim(),
       });
-      catalog = parseAmbGeneratedProductsSource(github.source);
-      catalogBlobSha = github.blobSha;
+      catalog = github.products;
+      catalogBlobSha = github.catalogBlobSha;
     }
   } else {
-    const github = await fetchGitHubFile({
-      owner: store.githubOwner,
-      repo: store.githubRepo,
+    const github = await loadAmbGitHubCatalog({
+      owner: store.githubOwner, repo: store.githubRepo,
       branch: store.githubBranch || "main",
-      path: "app/generated-products.ts",
+      token: process.env.GITHUB_READ_TOKEN?.trim() || process.env.GITHUB_PUBLISH_TOKEN?.trim(),
     });
-    catalog = parseAmbGeneratedProductsSource(github.source);
-    catalogBlobSha = github.blobSha;
+    catalog = github.products;
+    catalogBlobSha = github.catalogBlobSha;
   }
 
   if (!input.force && catalogBlobSha && catalogBlobSha === text(previousScan.catalogBlobSha)) {

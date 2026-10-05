@@ -22,7 +22,8 @@
     "test:gemini-quota-fallback": "node --no-warnings --experimental-strip-types scripts/gemini-quota-fallback-smoke.ts",
     "test:web-export-currency": "node --no-warnings --experimental-strip-types scripts/web-export-currency-smoke.ts",
     "test:amb-backend-bridge": "node --no-warnings --experimental-strip-types scripts/amb-backend-bridge-smoke.ts",
-    "test:amb-us-size": "node --no-warnings --experimental-strip-types scripts/amb-us-size-smoke.ts"
+    "test:amb-us-size": "node --no-warnings --experimental-strip-types scripts/amb-us-size-smoke.ts",
+    "test:amb-catalog-repository": "node --no-warnings --experimental-strip-types scripts/amb-catalog-repository-smoke.ts"
   },
   "dependencies": {
     "@google/genai": "^2.16.0",
@@ -36,7 +37,8 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sharp": "^0.35.3",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "typescript": "5.9.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -47,8 +49,7 @@
     "eslint-config-next": "16.3.0",
     "prisma": "^7.9.1",
     "puppeteer": "^23.11.0",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "tailwindcss": "^4"
   },
   "type": "module"
 }
