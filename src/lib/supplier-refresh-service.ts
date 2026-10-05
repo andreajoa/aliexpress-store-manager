@@ -8,6 +8,10 @@ import {
 import { deriveCanonicalAvailability } from "./supplier-selection";
 import { suggestSupplierVariantMappings } from "./supplier-variant-mapper";
 
+// Large colour/size families need more than Prisma's default five seconds
+// to commit all SKU changes through the Neon adapter. Keep the writes atomic.
+const supplierTransactionOptions = { timeout: 30_000 };
+
 function reservationMap(rows: Array<{ fulfillmentSupplierVariantId: string | null; quantity: number }>) {
   const result = new Map<string, number>();
   for (const row of rows) {
@@ -109,6 +113,7 @@ export async function syncCanonicalAvailability(productId: string) {
         },
       }),
     ),
+    supplierTransactionOptions,
   );
 
   return availability;
@@ -280,7 +285,7 @@ export async function refreshSupplier(input: {
       where: { id: supplier.id },
       include: { variants: true, mappings: true },
     });
-  });
+  }, supplierTransactionOptions);
 
   const activeMappings = result.mappings.filter((mapping) => mapping.active).length;
   const availability = input.syncAvailability === false
