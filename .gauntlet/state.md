@@ -1,4 +1,4 @@
-# Complete catalog scan — verified locally, awaiting independent review
+# Complete catalog scan — independent review passed
 
 Updated 2026-10-05. Scope: complete GitHub fallback catalog only.
 
@@ -13,9 +13,17 @@ Updated 2026-10-05. Scope: complete GitHub fallback catalog only.
 - PASS: AMB backend bridge, US Size and inventory reservation smoke tests.
 - PASS: TypeScript, ESLint for all four affected TypeScript files, Prisma client
   generation and Next production build (17 static pages). No migrations run.
-- Pending: independent critic result; commit and draft PR.
+- PASS: independent critic closed top-level mutation and inherited-property
+  findings; real-checkout smoke and both quoted/unquoted `__proto__` rejections
+  executed independently. No remaining blocker or major finding in this scope.
+- PR: #51. Initial code commit: 18c734d. Final prototype guard is included in
+  the follow-up commit. User has authorized merge and production verification.
 
-Production scan persistence was not invoked. Existing persistence and binding
-logic remain unchanged. No production readiness claim: merge, deployment and
-manual production scan are outside this phase. Existing unrelated CI failures
-from the prior handoff are not reassessed by these scoped checks.
+Production scan persistence has not yet been invoked. Existing persistence and
+binding logic remain unchanged. Deployment and before/after binding validation
+are the remaining rollout checks. All 11 broad GitHub CI jobs on the initial
+PR commit failed, while the Vercel preview passed. Sampled CI fails at the
+unchanged AliExpress place-order smoke (no order number returned); that test and
+client have no diff from origin/main. The handoff already records unrelated
+broad CI failures; scoped checks above passed and the final rollout report must
+retain this limitation.

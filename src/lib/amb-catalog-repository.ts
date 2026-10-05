@@ -59,6 +59,7 @@ function requireDataExpression(node: ts.Expression, factories: string[]) {
   if (ts.isObjectLiteralExpression(node)) {
     for (const property of node.properties) {
       if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) fail("dados com propriedade executável");
+      if ((ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) && property.name.text === "__proto__") fail("protótipos não são permitidos nos dados do catálogo");
       requireDataExpression(property.initializer, factories);
     }
     return;

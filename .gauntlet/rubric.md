@@ -14,4 +14,6 @@
   covered by existing smoke tests; scan persistence loop is unchanged.
 - MAJOR: TypeScript, affected-file ESLint and production build pass; independent
   critic finds no unresolved blocker or major issue.
-- Production deployment and live manual scan require a separate authorized step.
+- MAJOR: authorized production deployment serves the merged SHA and the live
+  scan covers the current release while preserving all historical bindings;
+  verify health, deployment metadata, scan and raw before/after binding equality.

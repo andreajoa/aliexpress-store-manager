@@ -24,3 +24,9 @@ initializer expression including fields omitted from Manager snapshots. Tests
 now reject top-level calls, mutating initializers, side-effect imports and
 executable data fields. Both reviewed catalogs and the production build passed
 again after the guard change.
+
+The second independent pass closed the top-level mutation finding and reproduced
+an inherited-stock mismatch using an object-literal `__proto__` property. The
+reader now rejects that key in every passive object, with a regression case
+replacing an actual stock field by inherited stock. Prototype semantics are not
+part of the supported catalog DSL.

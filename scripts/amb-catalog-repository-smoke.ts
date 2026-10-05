@@ -70,6 +70,15 @@ await assert.rejects(() => loadAmbRepositoryCatalog(async (path) => {
     : value;
 }), /Catálogo AMB não suportado/);
 
+// JS object-literal __proto__ changes inherited runtime fields; this DSL only
+// accepts ordinary own data properties, including in fields it does not read.
+await assert.rejects(() => loadAmbRepositoryCatalog(async (path) => {
+  const value = await read(path);
+  if (path !== "app/october-color-products.ts") return value;
+  assert.ok(value.source.includes('"stock": 939,'));
+  return { ...value, source: value.source.replace('"stock": 939,', '"__proto__": { "stock": 939 },') };
+}), /Catálogo AMB não suportado/);
+
 for (const [path, before, after] of [
   ["app/generated-products.ts", "...august2026Products,", "...untrustedProducts,"],
   ["app/generated-products.ts", '"./generated-august-2026-products"', '"../../outside"'],

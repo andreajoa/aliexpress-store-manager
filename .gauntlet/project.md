@@ -7,6 +7,7 @@ dresses, shoes, bags, workwear and October color products.
 
 Current reviewed catalogs: 451 published and 452 local, including all 444
 established products. New approved products may increase these totals. Keep
-existing binding behavior, US Size identity and reservation behavior. No
-repricing, production writes, merge, deployment, email or CRM actions in this
-verification phase.
+existing binding behavior, US Size identity and reservation behavior. Following
+independent approval, the user authorized merge, automatic production deployment
+and a before/after binding check around the production scan. Repricing, email
+and CRM remain outside scope.
