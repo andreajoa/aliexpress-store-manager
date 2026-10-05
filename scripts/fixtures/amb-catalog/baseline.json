@@ -1,0 +1,7457 @@
+[
+  {
+    "slug": "maris-belted-romper",
+    "name": "Maris Belted Romper",
+    "color": "Blue",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 2940,
+    "unitCostUsd": 18.13,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "vesper-belted-romper",
+    "name": "Vesper Belted Romper",
+    "color": "Black",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 2938,
+    "unitCostUsd": 18.13,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "capri-utility-romper",
+    "name": "Capri Utility Romper",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3198,
+    "unitCostUsd": 26.44,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "luma-utility-romper",
+    "name": "Luma Utility Romper",
+    "color": "Off-White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3200,
+    "unitCostUsd": 26.44,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "arden-utility-romper",
+    "name": "Arden Utility Romper",
+    "color": "Olive Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3199,
+    "unitCostUsd": 26.44,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "cove-wide-leg-jumpsuit",
+    "name": "Cove Wide-Leg Jumpsuit",
+    "color": "Light  Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 4994,
+    "unitCostUsd": 13.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "siena-wide-leg-jumpsuit",
+    "name": "Siena Wide-Leg Jumpsuit",
+    "color": "Brown",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 4994,
+    "unitCostUsd": 13.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noa-wide-leg-jumpsuit",
+    "name": "Noa Wide-Leg Jumpsuit",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 4994,
+    "unitCostUsd": 13.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "alba-wide-leg-jumpsuit",
+    "name": "Alba Wide-Leg Jumpsuit",
+    "color": "Ivory",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 4995,
+    "unitCostUsd": 13.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "celeste-utility-jumpsuit",
+    "name": "Celeste Utility Jumpsuit",
+    "color": "Beige",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 593,
+    "unitCostUsd": 20.95,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sloane-print-jumpsuit",
+    "name": "Sloane Print Jumpsuit",
+    "color": "Black Print",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 582,
+    "unitCostUsd": 21.97,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "marina-utility-jumpsuit",
+    "name": "Marina Utility Jumpsuit",
+    "color": "Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 594,
+    "unitCostUsd": 21.92,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "bordeaux-utility-jumpsuit",
+    "name": "Bordeaux Utility Jumpsuit",
+    "color": "Claret",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 590,
+    "unitCostUsd": 20.96,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "riviera-stripe-jumpsuit",
+    "name": "Riviera Stripe Jumpsuit",
+    "color": "Multi Stripe",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 590,
+    "unitCostUsd": 22,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "aster-utility-jumpsuit",
+    "name": "Aster Utility Jumpsuit",
+    "color": "Deep Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 591,
+    "unitCostUsd": 21.85,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "greer-utility-jumpsuit",
+    "name": "Greer Utility Jumpsuit",
+    "color": "Gray",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 582,
+    "unitCostUsd": 24.02,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rosalie-utility-jumpsuit",
+    "name": "Rosalie Utility Jumpsuit",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 597,
+    "unitCostUsd": 21.14,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "skye-utility-jumpsuit",
+    "name": "Skye Utility Jumpsuit",
+    "color": "Sky Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 594,
+    "unitCostUsd": 21.78,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "hudson-utility-jumpsuit",
+    "name": "Hudson Utility Jumpsuit",
+    "color": "Army Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 591,
+    "unitCostUsd": 24.11,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "onyx-utility-jumpsuit",
+    "name": "Onyx Utility Jumpsuit",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 589,
+    "unitCostUsd": 21.77,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nera-linen-romper",
+    "name": "Nera Linen Romper",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 390,
+    "unitCostUsd": 20.1,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "palma-linen-romper",
+    "name": "Palma Linen Romper",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 394,
+    "unitCostUsd": 20.1,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "dune-linen-romper",
+    "name": "Dune Linen Romper",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 395,
+    "unitCostUsd": 20.1,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "fleur-linen-romper",
+    "name": "Fleur Linen Romper",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 394,
+    "unitCostUsd": 20.1,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "solana-linen-romper",
+    "name": "Solana Linen Romper",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 390,
+    "unitCostUsd": 20.1,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "isla-linen-romper",
+    "name": "Isla Linen Romper",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 394,
+    "unitCostUsd": 20.1,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sabine-tailored-romper",
+    "name": "Sabine Tailored Romper",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2494,
+    "unitCostUsd": 19.3,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "monaco-tailored-romper",
+    "name": "Monaco Tailored Romper",
+    "color": "Dark Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2496,
+    "unitCostUsd": 19.3,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "vera-tailored-romper",
+    "name": "Vera Tailored Romper",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2492,
+    "unitCostUsd": 19.3,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "camille-tailored-romper",
+    "name": "Camille Tailored Romper",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2496,
+    "unitCostUsd": 19.3,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "valencia-tailored-romper",
+    "name": "Valencia Tailored Romper",
+    "color": "Orange Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2499,
+    "unitCostUsd": 19.3,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "bianca-tailored-romper",
+    "name": "Bianca Tailored Romper",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2494,
+    "unitCostUsd": 19.3,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sable-stripe-romper",
+    "name": "Sable Stripe Romper",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 11,
+    "unitCostUsd": 14.72,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "azure-stripe-romper",
+    "name": "Azure Stripe Romper",
+    "color": "Light Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 14,
+    "unitCostUsd": 14.55,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "soleil-pleat-romper",
+    "name": "Soleil Pleat Romper",
+    "color": "Apricot",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 499993,
+    "unitCostUsd": 15.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "blaire-pleat-romper",
+    "name": "Blaire Pleat Romper",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 499993,
+    "unitCostUsd": 15.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "celine-pleat-romper",
+    "name": "Celine Pleat Romper",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 499989,
+    "unitCostUsd": 15.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "indigo-ribbed-tank",
+    "name": "Indigo Ribbed Tank",
+    "color": "Royal Blue",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 26,
+    "unitCostUsd": 6.39,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "elle-ribbed-tank",
+    "name": "Elle Ribbed Tank",
+    "color": "White",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 33,
+    "unitCostUsd": 6.27,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rue-ribbed-tank",
+    "name": "Rue Ribbed Tank",
+    "color": "Light Pink",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 31,
+    "unitCostUsd": 6.61,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "maren-ribbed-tank",
+    "name": "Maren Ribbed Tank",
+    "color": "Light Yellow",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 33,
+    "unitCostUsd": 6.36,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "tess-knit-vest",
+    "name": "Tess Knit Vest",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 50,
+    "unitCostUsd": 10.12,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ada-knit-vest",
+    "name": "Ada Knit Vest",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 29,
+    "unitCostUsd": 9.97,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nola-knit-vest",
+    "name": "Nola Knit Vest",
+    "color": "Navy Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 46,
+    "unitCostUsd": 9.99,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "livia-knit-vest",
+    "name": "Livia Knit Vest",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 39,
+    "unitCostUsd": 10.05,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "maeve-knit-vest",
+    "name": "Maeve Knit Vest",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 50,
+    "unitCostUsd": 9.8,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "elodie-knit-vest",
+    "name": "Elodie Knit Vest",
+    "color": "Apricot",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 47,
+    "unitCostUsd": 10.01,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nora-rib-tank",
+    "name": "Nora Rib Tank",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 160,
+    "unitCostUsd": 7.19,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "etta-rib-tank",
+    "name": "Etta Rib Tank",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 100,
+    "unitCostUsd": 7.25,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nia-rib-tank",
+    "name": "Nia Rib Tank",
+    "color": "Grey",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 86,
+    "unitCostUsd": 6.89,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "kaia-halter-top",
+    "name": "Kaia Halter Top",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 142,
+    "unitCostUsd": 8.11,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mila-halter-top",
+    "name": "Mila Halter Top",
+    "color": "White",
+    "sizes": [
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 127,
+    "unitCostUsd": 8.19,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "leni-cami",
+    "name": "Leni Cami",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 45,
+    "unitCostUsd": 4.76,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ava-cami",
+    "name": "Ava Cami",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 70,
+    "unitCostUsd": 4.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "zoe-square-neck-top",
+    "name": "Zoe Square-Neck Top",
+    "color": "Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XS（old）"
+    ],
+    "stock": 221,
+    "unitCostUsd": 4.32,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sienna-square-neck-top",
+    "name": "Sienna Square-Neck Top",
+    "color": "Orange",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XS（old）"
+    ],
+    "stock": 217,
+    "unitCostUsd": 4.22,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "romy-square-neck-top",
+    "name": "Romy Square-Neck Top",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XS（old）"
+    ],
+    "stock": 215,
+    "unitCostUsd": 4.46,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ivy-square-neck-top",
+    "name": "Ivy Square-Neck Top",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XS（old）"
+    ],
+    "stock": 118,
+    "unitCostUsd": 4.46,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "cora-square-neck-top",
+    "name": "Cora Square-Neck Top",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XS（old）"
+    ],
+    "stock": 184,
+    "unitCostUsd": 4.42,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noemi-midi-dress",
+    "name": "Noemi Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 29982,
+    "unitCostUsd": 24.63,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "colette-midi-dress",
+    "name": "Colette Midi Dress",
+    "color": "Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 29992,
+    "unitCostUsd": 24.63,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "amara-midi-dress",
+    "name": "Amara Midi Dress",
+    "color": "Purple",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 29979,
+    "unitCostUsd": 24.63,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "juliette-midi-dress",
+    "name": "Juliette Midi Dress",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 29979,
+    "unitCostUsd": 24.63,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "aurelia-midi-dress",
+    "name": "Aurelia Midi Dress",
+    "color": "Yellow",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 29974,
+    "unitCostUsd": 24.63,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "margaux-shirt-dress",
+    "name": "Margaux Shirt Dress",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 1144,
+    "unitCostUsd": 44.03,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sahara-relaxed-dress",
+    "name": "Sahara Relaxed Dress",
+    "color": "Cinnamon",
+    "sizes": [
+      "2XL",
+      "4XL",
+      "5XL"
+    ],
+    "stock": 67,
+    "unitCostUsd": 9.51,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "aline-relaxed-dress",
+    "name": "Aline Relaxed Dress",
+    "color": "White",
+    "sizes": [
+      "3XL",
+      "4XL"
+    ],
+    "stock": 36,
+    "unitCostUsd": 9.37,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "raven-wrap-romper",
+    "name": "Raven Wrap Romper",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2497,
+    "unitCostUsd": 23.16,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "opal-wrap-romper",
+    "name": "Opal Wrap Romper",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2498,
+    "unitCostUsd": 22.87,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "azalea-wrap-romper",
+    "name": "Azalea Wrap Romper",
+    "color": "Rose Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2500,
+    "unitCostUsd": 22.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sandrine-wrap-romper",
+    "name": "Sandrine Wrap Romper",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2499,
+    "unitCostUsd": 21.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "clementine-wrap-romper",
+    "name": "Clementine Wrap Romper",
+    "color": "Orange",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2498,
+    "unitCostUsd": 22.86,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "palais-flare-trousers",
+    "name": "Palais Flare Trousers",
+    "color": "Beige",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 103,
+    "unitCostUsd": 18.45,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "selene-satin-maxi-dress",
+    "name": "Selene Satin Maxi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5982,
+    "unitCostUsd": 9.56,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mira-satin-maxi-dress",
+    "name": "Mira Satin Maxi Dress",
+    "color": "Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5991,
+    "unitCostUsd": 9.56,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mocha-satin-maxi-dress",
+    "name": "Mocha Satin Maxi Dress",
+    "color": "Coffee",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5984,
+    "unitCostUsd": 9.56,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "solea-satin-maxi-dress",
+    "name": "Solea Satin Maxi Dress",
+    "color": "Orange",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5979,
+    "unitCostUsd": 9.56,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "brielle-satin-maxi-dress",
+    "name": "Brielle Satin Maxi Dress",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5984,
+    "unitCostUsd": 9.56,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rosa-satin-maxi-dress",
+    "name": "Rosa Satin Maxi Dress",
+    "color": "Rose Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5988,
+    "unitCostUsd": 9.56,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "emerald-satin-maxi-dress",
+    "name": "Emerald Satin Maxi Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5940,
+    "unitCostUsd": 9.56,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "seraphina-tulle-bridal-dress",
+    "name": "Seraphina White Tulle Bridal Dress",
+    "color": "White",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16"
+    ],
+    "stock": 4484,
+    "unitCostUsd": 23.85,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "calla-maxi-dress",
+    "name": "Calla Maxi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 5192,
+    "unitCostUsd": 2.12,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "talia-wide-leg-trousers",
+    "name": "Talia Tailored Two-Piece Set",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.12,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mira-wide-leg-trousers",
+    "name": "Mira Tailored Two-Piece Set",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.12,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "unity-wide-leg-trousers",
+    "name": "Unity Tailored Two-Piece Set",
+    "color": "Sky Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.12,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "xyla-wide-leg-trousers",
+    "name": "Xyla Tailored Two-Piece Set",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.12,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "kira-wide-leg-trousers",
+    "name": "Kira Tailored Two-Piece Set",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.12,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "natasha-wide-leg-trousers",
+    "name": "Natasha Tailored Two-Piece Set",
+    "color": "Ivory",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 26,
+    "unitCostUsd": 2.21,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "venus-trousers",
+    "name": "Venus Tailored Two-Piece Set",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 1535,
+    "unitCostUsd": 4,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "vela-ivory-tailored-set",
+    "name": "Vela Ivory Tailored Two-Piece Set",
+    "color": "Ivory",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 1534,
+    "unitCostUsd": 4,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "flora-pleated-dress",
+    "name": "Flora Meadow Iris Pleated Maxi Dress",
+    "color": "Meadow Green Iris",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 3333,
+    "unitCostUsd": 4.18,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "camelia-blush-iris-dress",
+    "name": "Camelia Blush Iris Pleated Maxi Dress",
+    "color": "Blush Iris",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 3333,
+    "unitCostUsd": 4.18,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "azura-sky-iris-dress",
+    "name": "Azura Sky Iris Pleated Maxi Dress",
+    "color": "Sky Blue Iris",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 3333,
+    "unitCostUsd": 4.18,
+    "sourceProductId": "3256810409992186",
+    "sourceColor": "3"
+  },
+  {
+    "slug": "nola-a-line-dress",
+    "name": "Nola A-Line Dress",
+    "color": "White Floral",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 2876,
+    "unitCostUsd": 4.95,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "tamsin-maxi-skirt",
+    "name": "Tamsin Maxi Skirt",
+    "color": "Black",
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "2XL",
+      "3XL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "petra-maxi-skirt",
+    "name": "Petra Maxi Skirt",
+    "color": "Wine Red",
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "2XL",
+      "3XL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "harlow-maxi-skirt",
+    "name": "Harlow Maxi Skirt",
+    "color": "Deep Blue",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 593,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "flor-maxi-skirt",
+    "name": "Flor Maxi Skirt",
+    "color": "Black",
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "2XL",
+      "3XL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "thea-maxi-skirt",
+    "name": "Thea Maxi Skirt",
+    "color": "Wine Red",
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "2XL",
+      "3XL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "reina-maxi-skirt",
+    "name": "Reina Maxi Skirt",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 50,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "fleur-maxi-skirt",
+    "name": "Fleur Maxi Skirt",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ulla-maxi-skirt",
+    "name": "Ulla Maxi Skirt",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "zelda-maxi-skirt",
+    "name": "Zelda Maxi Skirt",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ximena-maxi-skirt",
+    "name": "Ximena Maxi Skirt",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "elise-maxi-skirt",
+    "name": "Elise Maxi Skirt",
+    "color": "Dark Brown",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "eden-maxi-skirt",
+    "name": "Eden Maxi Skirt",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "vita-maxi-skirt",
+    "name": "Vita Maxi Skirt",
+    "color": "Gray",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ilana-blazer",
+    "name": "Ilana Double-Breasted Maxi Jacket",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 89,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "dalia-mini-dress",
+    "name": "Dalia Mini Dress",
+    "color": "Brown",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "vega-mini-dress",
+    "name": "Vega Mini Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "odette-mini-dress",
+    "name": "Odette Mini Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lana-mini-dress",
+    "name": "Lana Mini Dress",
+    "color": "Gray",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "gloria-maxi-skirt",
+    "name": "Gloria Draped Two-Piece Set",
+    "color": "Champagne",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 7994,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "gaia-midi-dress",
+    "name": "Gaia Midi Dress",
+    "color": "Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "fia-midi-dress",
+    "name": "Fia Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "zinnia-midi-dress",
+    "name": "Zinnia Midi Dress",
+    "color": "Rose Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ines-midi-dress",
+    "name": "Ines Midi Dress",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "aria-midi-dress",
+    "name": "Aria Midi Dress",
+    "color": "Orange",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "halcyon-midi-skirt",
+    "name": "Halcyon Draped Cape Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 4994,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "birdie-midi-skirt",
+    "name": "Birdie Draped Cape Midi Dress",
+    "color": "Malachite Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 4978,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "maeve-midi-skirt",
+    "name": "Maeve Draped Cape Midi Dress",
+    "color": "Navy Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 4993,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lotus-midi-skirt",
+    "name": "Lotus Draped Cape Midi Dress",
+    "color": "Burgundy",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 4989,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "stella-tailored-shorts",
+    "name": "Stella Studded Mesh Stiletto Boot",
+    "color": "Black",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41"
+    ],
+    "stock": 2947,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "fern-trousers",
+    "name": "Fern Tailored Two-Piece Set",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 700,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "tessa-midi-dress",
+    "name": "Tessa Rose-Print Midi Dress",
+    "color": "Apricot Ivory",
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 10,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "opal-mini-dress",
+    "name": "Opal Botanical One-Shoulder Mini Dress",
+    "color": "White Botanical",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 36,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "demi-dress",
+    "name": "Demi Dress",
+    "color": "Purple",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 281,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rae-dress",
+    "name": "Rae Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 281,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "kai-tank-top",
+    "name": "Kai Tank Top",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "stock": 3154,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "hope-tank-top",
+    "name": "Hope Tank Top",
+    "color": "Light Grey",
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "stock": 3154,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "britt-tank-top",
+    "name": "Britt Tank Top",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M"
+    ],
+    "stock": 3154,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "indie-tank-top",
+    "name": "Indie Sky Ribbed Tank Top",
+    "color": "Sky Blue",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 63,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lumi-pearl-ribbed-tank-top",
+    "name": "Lumi Pearl Ribbed Tank Top",
+    "color": "Pearl White",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 62,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nox-black-ribbed-tank-top",
+    "name": "Nox Black Ribbed Tank Top",
+    "color": "Black",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 62,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mist-slate-ribbed-tank-top",
+    "name": "Mist Slate Ribbed Tank Top",
+    "color": "Heather Grey",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 62,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "leia-denim-shorts",
+    "name": "Leia Denim Shorts",
+    "color": "Light Blue",
+    "sizes": [
+      "2XL",
+      "3XL"
+    ],
+    "stock": 47,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "remi-denim-shorts",
+    "name": "Remi Denim Shorts",
+    "color": "Light Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 46,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "honor-denim-shorts",
+    "name": "Honor Denim Shorts",
+    "color": "Deep Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 955,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "kenza-denim-shorts",
+    "name": "Kenza Denim Shorts",
+    "color": "Light Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 116,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "wisteria-denim-shorts",
+    "name": "Wisteria Denim Shorts",
+    "color": "Navy Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 116,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "bonnie-denim-shorts",
+    "name": "Bonnie Denim Shorts",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "pearl-denim-shorts",
+    "name": "Pearl Denim Shorts",
+    "color": "Rose Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "briar-denim-shorts",
+    "name": "Briar Denim Shorts",
+    "color": "Light Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 998,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sol-denim-shorts",
+    "name": "Sol Denim Shorts",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2900,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "elara-denim-shorts",
+    "name": "Elara Denim Shorts",
+    "color": "Yellow",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2900,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "daria-denim-shorts",
+    "name": "Daria Denim Shorts",
+    "color": "Hot Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 2900,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "jaya-denim-shorts",
+    "name": "Jaya Denim Shorts",
+    "color": "Black",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 1589,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "paloma-denim-shorts",
+    "name": "Paloma Denim Shorts",
+    "color": "Light Blue",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 1589,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "yvette-denim-shorts",
+    "name": "Yvette Denim Shorts",
+    "color": "Light Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 5182,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "livia-denim-shorts",
+    "name": "Livia Denim Shorts",
+    "color": "Light Blue",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 4990,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "tallulah-pleated-skirt",
+    "name": "Tallulah Halter Mini Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 3200,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "celine-pleated-skirt",
+    "name": "Celine Powder-Blue Halter Mini Dress",
+    "color": "Light Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 3200,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "cleo-pleated-skirt",
+    "name": "Cleo White Halter Mini Dress",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 3200,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "olympia-romper",
+    "name": "Olympia Eyelet Romper",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 4000,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "gianna-maxi-skirt",
+    "name": "Gianna Ivory Eyelet Two-Piece Set",
+    "color": "Ivory",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 998,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "anais-trousers",
+    "name": "Anais Lace Two-Piece Set",
+    "color": "Natural Ivory",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 563,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "aster-trousers",
+    "name": "Aster Eyelet Two-Piece Set",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "jade-knit-top",
+    "name": "Jade Tiger Maxi Kaftan",
+    "color": "Tiger Stripe",
+    "sizes": [
+      "One size fits all"
+    ],
+    "stock": 2500,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rio-mosaic-maxi-kaftan",
+    "name": "Rio Mosaic Maxi Kaftan",
+    "color": "Multicolor Mosaic",
+    "sizes": [
+      "One size fits all"
+    ],
+    "stock": 2500,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "solara-sunset-maxi-kaftan",
+    "name": "Solara Sunset Maxi Kaftan",
+    "color": "Coral Sunset",
+    "sizes": [
+      "One size fits all"
+    ],
+    "stock": 2500,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "leona-leopard-maxi-kaftan",
+    "name": "Leona Leopard Maxi Kaftan",
+    "color": "Brown Leopard",
+    "sizes": [
+      "One size fits all"
+    ],
+    "stock": 2499,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "orla-dress",
+    "name": "Orla Sheer Maxi Kaftan",
+    "color": "Charcoal",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 985,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "wynn-maxi-dress",
+    "name": "Wynn Metallic Maxi Kaftan",
+    "color": "Gold",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ivy-wide-leg-trousers",
+    "name": "Ivy Eyelet Two-Piece Set",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 46,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "suki-maxi-skirt",
+    "name": "Suki Leopard Satin Maxi Set",
+    "color": "Beige",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 597,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "maven-maxi-skirt",
+    "name": "Maven Ruby Leopard Satin Maxi Set",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 596,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "valentina-wide-leg-trousers",
+    "name": "Valentina Black Polka-Dot Resort Set",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nadia-wide-leg-trousers",
+    "name": "Nadia Red Polka-Dot Resort Set",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "willow-maxi-skirt",
+    "name": "Willow Spotted Slip Maxi Dress",
+    "color": "Natural",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 293,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nyx-slip-dress",
+    "name": "Nyx Slip Dress",
+    "color": "Natural",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 38,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nell-maxi-dress",
+    "name": "Nell Maxi Dress",
+    "color": "Natural",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 1375,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "oceane-print-dress",
+    "name": "Oceane Brown Geometric Mini Dress",
+    "color": "Brown Geometric",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ilaria-dress",
+    "name": "Ilaria Teal Abstract Maxi Dress",
+    "color": "Teal Abstract",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "zara-dress",
+    "name": "Zara Tan Geometric Midi Dress",
+    "color": "Tan Geometric",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "greer-maxi-dress",
+    "name": "Greer Turquoise Swirl Maxi Dress",
+    "color": "Turquoise Swirl",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 5398,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mabel-print-dress",
+    "name": "Mabel Tropical Leaf Tie-Front Midi Dress",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 99,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "dune-print-dress",
+    "name": "Dune Graphic Floral Tie-Front Midi Dress",
+    "color": "Silver",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 100,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "reva-print-dress",
+    "name": "Reva Tropical Floral Tie-Front Midi Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 100,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lavinia-print-dress",
+    "name": "Lavinia Lavender Rose Tie-Front Midi Dress",
+    "color": "Lavender",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 100,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "halle-print-dress",
+    "name": "Halle Sunset Palm Maxi Dress",
+    "color": "Orange",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3982,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "uma-print-dress",
+    "name": "Uma Sky Palm Maxi Dress",
+    "color": "Sky Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3987,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "drew-print-dress",
+    "name": "Drew Golden Palm Maxi Dress",
+    "color": "Yellow",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3994,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "faye-print-dress",
+    "name": "Faye Emerald Palm Maxi Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3976,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "winter-print-dress",
+    "name": "Winter Blue Porcelain Floral Maxi Dress",
+    "color": "Blue Floral",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "bliss-mini-dress",
+    "name": "Bliss Blush Mosaic Mini Dress",
+    "color": "Blush Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 1320,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "zuri-mini-dress",
+    "name": "Zuri Neon Stripe Mini Dress",
+    "color": "Bright Yellow",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 1291,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "kaia-mini-dress",
+    "name": "Kaia Mint Mosaic Mini Dress",
+    "color": "Mint Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 1325,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "liora-mini-dress",
+    "name": "Liora Neon Mosaic Mini Dress",
+    "color": "Neon Yellow",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 1320,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "yuna-dress",
+    "name": "Yuna Black Linen Button Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5903,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ember-dress",
+    "name": "Ember Sky Linen Button Dress",
+    "color": "Sky Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5829,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "imani-dress",
+    "name": "Imani Sage Linen Button Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5838,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rowan-dress",
+    "name": "Rowan Burgundy Linen Button Dress",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5935,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "alina-button-front-dress",
+    "name": "Alina Sand Linen Button Dress",
+    "color": "Beige",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5782,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "maren-button-front-dress",
+    "name": "Maren Tangerine Linen Button Dress",
+    "color": "Orange",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5952,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "soleil-button-front-dress",
+    "name": "Soleil Golden Linen Button Dress",
+    "color": "Yellow",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5916,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "kendra-button-front-dress",
+    "name": "Kendra Khaki Linen Button Dress",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 5914,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ursula-maxi-dress",
+    "name": "Ursula Botanical Maxi Dress",
+    "color": "Beige",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 200,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ursa-print-dress",
+    "name": "Ursa Print Dress",
+    "color": "Orange",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9938,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lux-print-dress",
+    "name": "Lux Print Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9938,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "olive-maxi-skirt",
+    "name": "Olive Black Gingham Maxi Skirt",
+    "color": "Black Gingham",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ondine-midi-skirt",
+    "name": "Ondine Black Layered Mesh Midi Skirt",
+    "color": "Black",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 776,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "elodie-maxi-skirt",
+    "name": "Elodie Ruched Two-Piece Set",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 37,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "clara-maxi-dress",
+    "name": "Clara Maxi Dress",
+    "color": "Yellow",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "xiomara-maxi-dress",
+    "name": "Xiomara Maxi Dress",
+    "color": "Light Green",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nico-maxi-dress",
+    "name": "Nico Maxi Dress",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9000,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noemi-maxi-dress",
+    "name": "Noemi Maxi Dress",
+    "color": "Coffee",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9000,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "jules-maxi-dress",
+    "name": "Jules Maxi Dress",
+    "color": "Olive",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 1392,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "haven-backless-dress",
+    "name": "Haven Backless Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "pippa-backless-dress",
+    "name": "Pippa Backless Dress",
+    "color": "Khaki",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "kali-backless-dress",
+    "name": "Kali Backless Dress",
+    "color": "Gray",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "wren-maxi-dress",
+    "name": "Wren Corset Maxi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 407,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "adele-maxi-dress",
+    "name": "Adele Olive Draped Open-Back Maxi Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 29986,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "josie-maxi-dress",
+    "name": "Josie Coffee Draped Open-Back Maxi Dress",
+    "color": "Coffee",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 29991,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lyra-mini-dress",
+    "name": "Lyra Mini Dress",
+    "color": "Coral",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "cosima-bodycon-dress",
+    "name": "Cosima Bodycon Dress",
+    "color": "Brown",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 7,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "celeste-bodycon-dress",
+    "name": "Celeste Bodycon Dress",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "xara-bodycon-dress",
+    "name": "Xara Bodycon Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 9999,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "xiomara-mini-dress",
+    "name": "Xiomara Mini Dress",
+    "color": "White",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 43,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "tessa-mini-dress",
+    "name": "Tessa Black Draped Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "maven-mini-dress",
+    "name": "Maven Blue Draped Midi Dress",
+    "color": "Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "jules-mini-dress",
+    "name": "Jules Green Draped Midi Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lila-mini-dress-2",
+    "name": "Lila Apricot Draped Midi Dress",
+    "color": "Apricot",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "poppy-draped-midi-dress",
+    "name": "Poppy Pink Draped Midi Dress",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sunny-draped-midi-dress",
+    "name": "Sunny Yellow Draped Midi Dress",
+    "color": "Yellow",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": 2.08,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "alessa-milky-halter-midi-dress",
+    "name": "Alessa Milky Halter Midi Dress",
+    "color": "Milky",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "briony-sage-halter-midi-dress",
+    "name": "Briony Sage Halter Midi Dress",
+    "color": "Light Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "coralie-rose-halter-midi-dress",
+    "name": "Coralie Rose Halter Midi Dress",
+    "color": "Rose Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3995,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "danika-black-halter-midi-dress",
+    "name": "Danika Black Halter Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "evora-navy-halter-midi-dress",
+    "name": "Evora Navy Halter Midi Dress",
+    "color": "Navy Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "amara-apricot-satin-midi-dress",
+    "name": "Amara Apricot Satin Midi Dress",
+    "color": "Apricot",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 53981,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "bellamy-black-satin-midi-dress",
+    "name": "Bellamy Black Satin Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 53998,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "carys-army-green-satin-midi-dress",
+    "name": "Carys Army Green Satin Midi Dress",
+    "color": "Army Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 53989,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "davina-navy-satin-midi-dress",
+    "name": "Davina Navy Satin Midi Dress",
+    "color": "Navy Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 53999,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "elowen-pink-satin-midi-dress",
+    "name": "Elowen Pink Satin Midi Dress",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 53989,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "fiora-sage-satin-midi-dress",
+    "name": "Fiora Sage Satin Midi Dress",
+    "color": "Light Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 53998,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "giselle-rose-satin-midi-dress",
+    "name": "Giselle Rose Satin Midi Dress",
+    "color": "Rose Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 53998,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "helena-wine-satin-midi-dress",
+    "name": "Helena Wine Satin Midi Dress",
+    "color": "Wine Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 53998,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "inez-blue-pleated-maxi-dress",
+    "name": "Inez Blue Pleated Maxi Dress",
+    "color": "Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 299,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "jovina-black-pleated-maxi-dress",
+    "name": "Jovina Black Pleated Maxi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 299,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "kalina-white-pleated-maxi-dress",
+    "name": "Kalina White Pleated Maxi Dress",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 292,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "loretta-navy-floral-maxi-dress",
+    "name": "Loretta Navy Floral Maxi Dress",
+    "color": "Navy Blue Floral",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 241,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "maelle-champagne-satin-midi-dress",
+    "name": "Maelle Champagne Satin Midi Dress",
+    "color": "Champagne",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 16,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nerina-blue-satin-midi-dress",
+    "name": "Nerina Blue Satin Midi Dress",
+    "color": "Blue",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 12,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "oriana-green-satin-midi-dress",
+    "name": "Oriana Green Satin Midi Dress",
+    "color": "Green",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 6,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "pascale-black-satin-midi-dress",
+    "name": "Pascale Black Satin Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 11,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "romilly-beige-pleated-midi-dress",
+    "name": "Romilly Beige Pleated Midi Dress",
+    "color": "Beige",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 18,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "selene-pink-pleated-midi-dress",
+    "name": "Selene Pink Pleated Midi Dress",
+    "color": "Pink",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 47,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "thalia-blue-pleated-midi-dress",
+    "name": "Thalia Blue Pleated Midi Dress",
+    "color": "Blue",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 38,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "vienna-gray-pleated-midi-dress",
+    "name": "Vienna Gray Pleated Midi Dress",
+    "color": "Gray",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 41,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "winslet-black-pleated-midi-dress",
+    "name": "Winslet Black Pleated Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 35,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "yara-mint-pleated-midi-dress",
+    "name": "Yara Mint Pleated Midi Dress",
+    "color": "Mint",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 45,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "adelia-light-blue-lace-gown",
+    "name": "Adelia Light Blue Lace Gown",
+    "color": "Light Blue",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 2995,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "beatrice-black-lace-gown",
+    "name": "Beatrice Black Lace Gown",
+    "color": "Black",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 2999,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "celestine-navy-lace-gown",
+    "name": "Celestine Navy Lace Gown",
+    "color": "Navy",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 2999,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "dorothea-sage-lace-gown",
+    "name": "Dorothea Sage Lace Gown",
+    "color": "Sage Green",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 2995,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "eleanora-blush-lace-gown",
+    "name": "Eleanora Blush Lace Gown",
+    "color": "Blush Pink",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 2997,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "francesca-champagne-lace-gown",
+    "name": "Francesca Champagne Lace Gown",
+    "color": "Champagne",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 2999,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "georgina-purple-lace-gown",
+    "name": "Georgina Purple Lace Gown",
+    "color": "Purple",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 3000,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "henrietta-pink-lace-gown",
+    "name": "Henrietta Pink Lace Gown",
+    "color": "Pink",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 2997,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "juliette-red-lace-gown",
+    "name": "Juliette Red Lace Gown",
+    "color": "Red",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 3000,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "katarina-silver-lace-gown",
+    "name": "Katarina Silver Lace Gown",
+    "color": "Silver",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 3000,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "leonora-white-lace-gown",
+    "name": "Leonora White Lace Gown",
+    "color": "White",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 2999,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "magnolia-yellow-lace-gown",
+    "name": "Magnolia Yellow Lace Gown",
+    "color": "Yellow",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 3000,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mirella-pink-pleated-midi-dress",
+    "name": "Mirella Pink Pleated Midi Dress",
+    "color": "Pink",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "novalie-purple-pleated-midi-dress",
+    "name": "Novalie Purple Pleated Midi Dress",
+    "color": "Purple",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3995,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ottilie-rose-pleated-midi-dress",
+    "name": "Ottilie Rose Pleated Midi Dress",
+    "color": "Rose Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "primrose-champagne-pleated-midi-dress",
+    "name": "Primrose Champagne Pleated Midi Dress",
+    "color": "Champagne",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "renata-black-pleated-midi-dress",
+    "name": "Renata Black Pleated Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "saskia-blue-pleated-midi-dress",
+    "name": "Saskia Blue Pleated Midi Dress",
+    "color": "Blue",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "tatiana-brick-red-pleated-midi-dress",
+    "name": "Tatiana Brick Red Pleated Midi Dress",
+    "color": "Brick Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "valencia-brown-pleated-midi-dress",
+    "name": "Valencia Brown Pleated Midi Dress",
+    "color": "Brown",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "winona-gray-pleated-midi-dress",
+    "name": "Winona Gray Pleated Midi Dress",
+    "color": "Gray",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "zosia-green-pleated-midi-dress",
+    "name": "Zosia Green Pleated Midi Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "amoret-green-ruffle-maxi-dress",
+    "name": "Amoret Green Ruffle Maxi Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 393,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "blythe-black-ruffle-maxi-dress",
+    "name": "Blythe Black Ruffle Maxi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "cosette-red-ruffle-maxi-dress",
+    "name": "Cosette Red Ruffle Maxi Dress",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 394,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "desirae-black-draped-midi-dress",
+    "name": "Desirae Black Draped Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 599,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "elara-claret-print-maxi-dress",
+    "name": "Elara Claret Print Maxi Dress",
+    "color": "Claret",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 2494,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "freya-deep-blue-print-maxi-dress",
+    "name": "Freya Deep Blue Print Maxi Dress",
+    "color": "Deep Blue",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 2499,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "galatea-black-pleated-evening-gown",
+    "name": "Galatea Black Pleated Evening Gown",
+    "color": "Black",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "heloise-burgundy-pleated-evening-gown",
+    "name": "Heloise Burgundy Pleated Evening Gown",
+    "color": "Burgundy",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "isabeau-gray-pleated-evening-gown",
+    "name": "Isabeau Gray Pleated Evening Gown",
+    "color": "Gray",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "jessamine-olive-pleated-evening-gown",
+    "name": "Jessamine Olive Pleated Evening Gown",
+    "color": "Olive Green",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "kerensa-pink-pleated-evening-gown",
+    "name": "Kerensa Pink Pleated Evening Gown",
+    "color": "Pink",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lysandra-purple-pleated-evening-gown",
+    "name": "Lysandra Purple Pleated Evening Gown",
+    "color": "Purple",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "marceline-royal-blue-pleated-evening-gown",
+    "name": "Marceline Royal Blue Pleated Evening Gown",
+    "color": "Royal Blue",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "nerissa-white-pleated-evening-gown",
+    "name": "Nerissa White Pleated Evening Gown",
+    "color": "White",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ophelia-yellow-pleated-evening-gown",
+    "name": "Ophelia Yellow Pleated Evening Gown",
+    "color": "Yellow",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "opaline-ice-blue-crystal-mermaid-gown",
+    "name": "Opaline Ice Blue Crystal Mermaid Gown",
+    "color": "Ice Blue",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1196,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "aurelia-yellow-crystal-mermaid-gown",
+    "name": "Aurelia Yellow Crystal Mermaid Gown",
+    "color": "Yellow",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "bianca-white-crystal-mermaid-gown",
+    "name": "Bianca White Crystal Mermaid Gown",
+    "color": "White",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "celeste-silver-crystal-mermaid-gown",
+    "name": "Celeste Silver Crystal Mermaid Gown",
+    "color": "Silver",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "delphine-red-crystal-mermaid-gown",
+    "name": "Delphine Red Crystal Mermaid Gown",
+    "color": "Red",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "estelle-purple-crystal-mermaid-gown",
+    "name": "Estelle Purple Crystal Mermaid Gown",
+    "color": "Purple",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "fiora-pink-crystal-mermaid-gown",
+    "name": "Fiora Pink Crystal Mermaid Gown",
+    "color": "Pink",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "giselle-orange-crystal-mermaid-gown",
+    "name": "Giselle Orange Crystal Mermaid Gown",
+    "color": "Orange",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "helena-khaki-crystal-mermaid-gown",
+    "name": "Helena Khaki Crystal Mermaid Gown",
+    "color": "Khaki",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "isadora-ivory-crystal-mermaid-gown",
+    "name": "Isadora Ivory Crystal Mermaid Gown",
+    "color": "Ivory",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "juliana-green-crystal-mermaid-gown",
+    "name": "Juliana Green Crystal Mermaid Gown",
+    "color": "Green",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "katarina-gray-crystal-mermaid-gown",
+    "name": "Katarina Gray Crystal Mermaid Gown",
+    "color": "Gray",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lucienne-brown-crystal-mermaid-gown",
+    "name": "Lucienne Brown Crystal Mermaid Gown",
+    "color": "Brown",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "marielle-blue-crystal-mermaid-gown",
+    "name": "Marielle Blue Crystal Mermaid Gown",
+    "color": "Blue",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noelle-black-crystal-mermaid-gown",
+    "name": "Noelle Black Crystal Mermaid Gown",
+    "color": "Black",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1200,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "elowen-champagne-corset-mermaid-gown",
+    "name": "Elowen Champagne Corset Mermaid Gown",
+    "color": "Champagne",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "14W",
+      "16",
+      "16W",
+      "18W"
+    ],
+    "stock": 1198,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "fabienne-red-tassel-mini-dress",
+    "name": "Fabienne Red Tassel Mini Dress",
+    "color": "Red",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 115,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ravenna-black-tiered-mermaid-gown",
+    "name": "Ravenna Black Tiered Mermaid Gown",
+    "color": "Black",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1399,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sabine-gray-tiered-mermaid-gown",
+    "name": "Sabine Gray Tiered Mermaid Gown",
+    "color": "Gray",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "tallulah-purple-tiered-mermaid-gown",
+    "name": "Tallulah Purple Tiered Mermaid Gown",
+    "color": "Purple",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "umbria-sky-blue-tiered-mermaid-gown",
+    "name": "Umbria Sky Blue Tiered Mermaid Gown",
+    "color": "Sky Blue",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "valeria-pink-tiered-mermaid-gown",
+    "name": "Valeria Pink Tiered Mermaid Gown",
+    "color": "Pink",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "wisteria-blue-tiered-mermaid-gown",
+    "name": "Wisteria Blue Tiered Mermaid Gown",
+    "color": "Blue",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "xenia-navy-tiered-mermaid-gown",
+    "name": "Xenia Navy Tiered Mermaid Gown",
+    "color": "Navy Blue",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "yvette-yellow-tiered-mermaid-gown",
+    "name": "Yvette Yellow Tiered Mermaid Gown",
+    "color": "Yellow",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "zahara-champagne-tiered-mermaid-gown",
+    "name": "Zahara Champagne Tiered Mermaid Gown",
+    "color": "Champagne",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "alessandra-red-tiered-mermaid-gown",
+    "name": "Alessandra Red Tiered Mermaid Gown",
+    "color": "Red",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "briseis-green-tiered-mermaid-gown",
+    "name": "Briseis Green Tiered Mermaid Gown",
+    "color": "Green",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "cordelia-burgundy-tiered-mermaid-gown",
+    "name": "Cordelia Burgundy Tiered Mermaid Gown",
+    "color": "Burgundy",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "dominique-ivory-tiered-mermaid-gown",
+    "name": "Dominique Ivory Tiered Mermaid Gown",
+    "color": "Ivory",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "galina-sage-fringe-evening-gown",
+    "name": "Galina Sage Fringe Evening Gown",
+    "color": "Sage Green",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "14W",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 788,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "honora-red-glitter-mermaid-gown",
+    "name": "Honora Red Glitter Mermaid Gown",
+    "color": "Red",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "14W",
+      "16",
+      "16W",
+      "18",
+      "18W"
+    ],
+    "stock": 451,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ilaria-pink-sequin-halter-gown",
+    "name": "Ilaria Pink Sequin Halter Gown",
+    "color": "Pink",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "14W",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1399,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "jacinta-navy-sequin-halter-gown",
+    "name": "Jacinta Navy Sequin Halter Gown",
+    "color": "Navy Blue",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "14W",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W"
+    ],
+    "stock": 1400,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "kallista-black-cutout-midi-dress",
+    "name": "Kallista Black Cutout Midi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 235,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "celeste-polka-dot-midi-dress",
+    "name": "Celeste Polka Dot Midi Dress",
+    "color": "Ivory",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 169,
+    "unitCostUsd": 42.05,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as1"
+  },
+  {
+    "slug": "mirelle-halter-polka-dot-maxi-dress",
+    "name": "Mirelle Halter Polka Dot Maxi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 48,
+    "unitCostUsd": 29.18,
+    "sourceProductId": "3256808746217270",
+    "sourceColor": "BLACK"
+  },
+  {
+    "slug": "aurelia-spotted-maxi-dress",
+    "name": "Aurelia Spotted Maxi Dress",
+    "color": "Multi",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 2932,
+    "unitCostUsd": 31.15,
+    "sourceProductId": "3256812237893090",
+    "sourceColor": "MULTI"
+  },
+  {
+    "slug": "violette-scarf-polka-dot-maxi-dress",
+    "name": "Violette Scarf Polka Dot Maxi Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 29533,
+    "unitCostUsd": 34.96,
+    "sourceProductId": "3256809057494964",
+    "sourceColor": "black"
+  },
+  {
+    "slug": "noelle-polka-dot-mini-dress",
+    "name": "Noelle Polka Dot Mini Dress",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 10,
+    "unitCostUsd": 9.59,
+    "sourceProductId": "1005010734251631",
+    "sourceColor": "black"
+  },
+  {
+    "slug": "amelie-lace-halter-maxi-dress",
+    "name": "Amelie Lace Halter Maxi Dress",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 29358,
+    "unitCostUsd": 31.76,
+    "sourceProductId": "3256809998682147",
+    "sourceColor": "WHITE"
+  },
+  {
+    "slug": "seraphine-polka-dot-maxi-dress",
+    "name": "Seraphine Polka Dot Maxi Dress",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 31,
+    "unitCostUsd": 34.67,
+    "sourceProductId": "3256806795175477",
+    "sourceColor": "WHITE"
+  },
+  {
+    "slug": "colette-lace-halter-mini-dress",
+    "name": "Colette Lace Halter Mini Dress",
+    "color": "Ivory",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 1615,
+    "unitCostUsd": 28.54,
+    "sourceProductId": "3256808748036289",
+    "sourceColor": "as  picture"
+  },
+  {
+    "slug": "rosalie-polka-dot-sundress",
+    "name": "Rosalie Polka Dot Sundress",
+    "color": "Red",
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 15,
+    "unitCostUsd": 9.52,
+    "sourceProductId": "3256806831941342",
+    "sourceColor": "Red"
+  },
+  {
+    "slug": "elara-halter-polka-dot-mini-dress",
+    "name": "Elara Halter Polka Dot Mini Dress",
+    "color": "Ivory",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 616,
+    "unitCostUsd": 33.5,
+    "sourceProductId": "3256808172061368",
+    "sourceColor": "as  picture"
+  },
+  {
+    "slug": "camille-polka-dot-halter-mini-dress",
+    "name": "Camille Polka Dot Halter Mini Dress — Black",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 68,
+    "unitCostUsd": 12.41,
+    "sourceProductId": "3256809107787633",
+    "sourceColor": "Black"
+  },
+  {
+    "slug": "camille-polka-dot-halter-mini-dress-white",
+    "name": "Camille Polka Dot Halter Mini Dress — White",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 43,
+    "unitCostUsd": 12.49,
+    "sourceProductId": "3256809107787633",
+    "sourceColor": "White"
+  },
+  {
+    "slug": "camille-polka-dot-halter-mini-dress-red",
+    "name": "Camille Polka Dot Halter Mini Dress — Red",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 43,
+    "unitCostUsd": 12.3,
+    "sourceProductId": "3256809107787633",
+    "sourceColor": "Red"
+  },
+  {
+    "slug": "juliette-ruffle-polka-dot-blouse",
+    "name": "Juliette Ruffle Polka Dot Blouse",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 59963,
+    "unitCostUsd": 18.25,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "vivienne-chiffon-polka-dot-blouse",
+    "name": "Vivienne Chiffon Polka Dot Blouse",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+      "XXXL"
+    ],
+    "stock": 1773,
+    "unitCostUsd": 15.99,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "eloise-bow-polka-dot-blouse",
+    "name": "Eloise Bow Polka Dot Blouse — White",
+    "color": "White",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 142,
+    "unitCostUsd": 19.18,
+    "sourceProductId": "3256811859732538",
+    "sourceColor": "WH"
+  },
+  {
+    "slug": "eloise-bow-polka-dot-blouse-coffee",
+    "name": "Eloise Bow Polka Dot Blouse — Coffee",
+    "color": "Coffee",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 119,
+    "unitCostUsd": 19.21,
+    "sourceProductId": "3256811859732538",
+    "sourceColor": "Coffee"
+  },
+  {
+    "slug": "margaux-ruffle-polka-dot-blouse",
+    "name": "Margaux Ruffle Polka Dot Blouse",
+    "color": "Ivory",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 3539,
+    "unitCostUsd": 13.98,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sabine-ruched-jumpsuit",
+    "name": "Sabine Ruched Jumpsuit — Black",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 70,
+    "unitCostUsd": 26.83,
+    "sourceProductId": "3256809714237127",
+    "sourceColor": "Black"
+  },
+  {
+    "slug": "sabine-ruched-jumpsuit-champagne",
+    "name": "Sabine Ruched Jumpsuit — Champagne",
+    "color": "Champagne",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 70,
+    "unitCostUsd": 26.83,
+    "sourceProductId": "3256809714237127",
+    "sourceColor": "Champagne"
+  },
+  {
+    "slug": "sabine-ruched-jumpsuit-fuchsia",
+    "name": "Sabine Ruched Jumpsuit — Fuchsia",
+    "color": "Fuchsia",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 70,
+    "unitCostUsd": 26.83,
+    "sourceProductId": "3256809714237127",
+    "sourceColor": "Fuchsia"
+  },
+  {
+    "slug": "sabine-ruched-jumpsuit-taupe",
+    "name": "Sabine Ruched Jumpsuit — Taupe",
+    "color": "Taupe",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 70,
+    "unitCostUsd": 26.83,
+    "sourceProductId": "3256809714237127",
+    "sourceColor": "Taupe"
+  },
+  {
+    "slug": "solene-woven-slingback",
+    "name": "Solene Woven Slingback",
+    "color": "Cream Ivory",
+    "sizes": [
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42"
+    ],
+    "stock": 1334,
+    "unitCostUsd": 36.7,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "valentina-crystal-sandal",
+    "name": "Valentina Crystal Sandal",
+    "color": "Red",
+    "sizes": [
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45"
+    ],
+    "stock": 437,
+    "unitCostUsd": 21.03,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "luna-crystal-sandal",
+    "name": "Luna Crystal Sandal",
+    "color": "Beige",
+    "sizes": [
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45"
+    ],
+    "stock": 437,
+    "unitCostUsd": 21.57,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noir-crystal-sandal",
+    "name": "Noir Crystal Sandal",
+    "color": "Black",
+    "sizes": [
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45"
+    ],
+    "stock": 425,
+    "unitCostUsd": 21.44,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "elodie-crystal-slingback",
+    "name": "Elodie Crystal Slingback",
+    "color": "Champagne",
+    "sizes": [
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42"
+    ],
+    "stock": 130,
+    "unitCostUsd": 43.07,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "monaco-buckle-slingback",
+    "name": "Monaco Buckle Slingback",
+    "color": "Black",
+    "sizes": [
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 19,
+    "unitCostUsd": 50.44,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "bianca-buckle-slingback",
+    "name": "Bianca Buckle Slingback",
+    "color": "White",
+    "sizes": [
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 25,
+    "unitCostUsd": 50.47,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "celeste-buckle-slingback",
+    "name": "Celeste Buckle Slingback",
+    "color": "Champagne",
+    "sizes": [
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 35,
+    "unitCostUsd": 50.52,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mosaic-buckle-pump",
+    "name": "Mosaic Buckle Pump",
+    "color": "Metallic Mix",
+    "sizes": [
+      "37",
+      "40"
+    ],
+    "stock": 5,
+    "unitCostUsd": 57.13,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sable-buckle-pump",
+    "name": "Sable Buckle Pump",
+    "color": "Beige",
+    "sizes": [
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 24,
+    "unitCostUsd": 58.59,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "onyx-buckle-pump",
+    "name": "Onyx Buckle Pump",
+    "color": "Black",
+    "sizes": [
+      "36",
+      "37",
+      "38",
+      "39"
+    ],
+    "stock": 13,
+    "unitCostUsd": 57.32,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rouge-buckle-pump",
+    "name": "Rouge Buckle Pump",
+    "color": "Red",
+    "sizes": [
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 49,
+    "unitCostUsd": 58.7,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "cognac-buckle-pump",
+    "name": "Cognac Buckle Pump",
+    "color": "Cognac",
+    "sizes": [
+      "36",
+      "37",
+      "39",
+      "40"
+    ],
+    "stock": 18,
+    "unitCostUsd": 57.72,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "aurelia-patent-slingback",
+    "name": "Aurelia Patent Slingback — 6 cm",
+    "color": "Nude",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43"
+    ],
+    "stock": 1070,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "aurelia-patent-slingback-8cm",
+    "name": "Aurelia Patent Slingback — 8 cm",
+    "color": "Nude",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46"
+    ],
+    "stock": 1337,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "aurelia-patent-slingback-10cm",
+    "name": "Aurelia Patent Slingback — 10 cm",
+    "color": "Nude",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46"
+    ],
+    "stock": 1354,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "aurelia-patent-slingback-12cm",
+    "name": "Aurelia Patent Slingback — 12 cm",
+    "color": "Nude",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46"
+    ],
+    "stock": 1370,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rouge-patent-slingback",
+    "name": "Rouge Patent Slingback — 6 cm",
+    "color": "Laser Red",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43"
+    ],
+    "stock": 1087,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rouge-patent-slingback-8cm",
+    "name": "Rouge Patent Slingback — 8 cm",
+    "color": "Laser Red",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46"
+    ],
+    "stock": 1383,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rouge-patent-slingback-10cm",
+    "name": "Rouge Patent Slingback — 10 cm",
+    "color": "Laser Red",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46"
+    ],
+    "stock": 1384,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rouge-patent-slingback-12cm",
+    "name": "Rouge Patent Slingback — 12 cm",
+    "color": "Laser Red",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46"
+    ],
+    "stock": 1383,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "onyx-patent-slingback",
+    "name": "Onyx Patent Slingback — 6 cm",
+    "color": "Black",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43"
+    ],
+    "stock": 1077,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "onyx-patent-slingback-8cm",
+    "name": "Onyx Patent Slingback — 8 cm",
+    "color": "Black",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46"
+    ],
+    "stock": 1367,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "onyx-patent-slingback-10cm",
+    "name": "Onyx Patent Slingback — 10 cm",
+    "color": "Black",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46"
+    ],
+    "stock": 1378,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "onyx-patent-slingback-12cm",
+    "name": "Onyx Patent Slingback — 12 cm",
+    "color": "Black",
+    "sizes": [
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46"
+    ],
+    "stock": 1383,
+    "unitCostUsd": 49.41,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lucia-gloss-slingback",
+    "name": "Lucia Gloss Slingback — 8 cm",
+    "color": "Nude Gloss",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41"
+    ],
+    "stock": 7054,
+    "unitCostUsd": 81.34,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "lucia-gloss-slingback-10cm",
+    "name": "Lucia Gloss Slingback — 10 cm",
+    "color": "Nude Gloss",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41"
+    ],
+    "stock": 7054,
+    "unitCostUsd": 81.34,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "pearl-gloss-slingback",
+    "name": "Pearl Gloss Slingback — 8 cm",
+    "color": "Pearl Grey",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41"
+    ],
+    "stock": 7056,
+    "unitCostUsd": 81.34,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "pearl-gloss-slingback-10cm",
+    "name": "Pearl Gloss Slingback — 10 cm",
+    "color": "Pearl Grey",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41"
+    ],
+    "stock": 7055,
+    "unitCostUsd": 81.34,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noir-matte-slingback",
+    "name": "Noir Matte Slingback — 8 cm",
+    "color": "Black Matte",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41"
+    ],
+    "stock": 7050,
+    "unitCostUsd": 81.34,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noir-matte-slingback-10cm",
+    "name": "Noir Matte Slingback — 10 cm",
+    "color": "Black Matte",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41"
+    ],
+    "stock": 7055,
+    "unitCostUsd": 81.34,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noir-gloss-slingback",
+    "name": "Noir Gloss Slingback — 8 cm",
+    "color": "Black Gloss",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41"
+    ],
+    "stock": 7052,
+    "unitCostUsd": 81.34,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noir-gloss-slingback-10cm",
+    "name": "Noir Gloss Slingback — 10 cm",
+    "color": "Black Gloss",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41"
+    ],
+    "stock": 7056,
+    "unitCostUsd": 81.34,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "soleil-bow-pump",
+    "name": "Soleil Bow Pump — 7.5 cm",
+    "color": "Yellow",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6209,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "soleil-bow-pump-10-5cm",
+    "name": "Soleil Bow Pump — 10.5 cm",
+    "color": "Yellow",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6195,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "pearl-bow-pump",
+    "name": "Pearl Bow Pump — 7.5 cm",
+    "color": "White",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6204,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "pearl-bow-pump-10-5cm",
+    "name": "Pearl Bow Pump — 10.5 cm",
+    "color": "White",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6151,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rouge-bow-pump",
+    "name": "Rouge Bow Pump — 7.5 cm",
+    "color": "Red",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6214,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "rouge-bow-pump-10-5cm",
+    "name": "Rouge Bow Pump — 10.5 cm",
+    "color": "Red",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6183,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "blush-bow-pump",
+    "name": "Blush Bow Pump — 7.5 cm",
+    "color": "Blush Pink",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6212,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "blush-bow-pump-10-5cm",
+    "name": "Blush Bow Pump — 10.5 cm",
+    "color": "Blush Pink",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6126,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mist-bow-pump",
+    "name": "Mist Bow Pump — 7.5 cm",
+    "color": "Grey",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6204,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mist-bow-pump-10-5cm",
+    "name": "Mist Bow Pump — 10.5 cm",
+    "color": "Grey",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6180,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sky-bow-pump",
+    "name": "Sky Bow Pump — 7.5 cm",
+    "color": "Powder Blue",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6211,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "sky-bow-pump-10-5cm",
+    "name": "Sky Bow Pump — 10.5 cm",
+    "color": "Powder Blue",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6150,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noir-bow-pump",
+    "name": "Noir Bow Pump — 7.5 cm",
+    "color": "Black",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6209,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noir-bow-pump-10-5cm",
+    "name": "Noir Bow Pump — 10.5 cm",
+    "color": "Black",
+    "sizes": [
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40"
+    ],
+    "stock": 6170,
+    "unitCostUsd": 17.65,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "portofino-carryall-black",
+    "name": "Portofino Carryall — Black",
+    "color": "Black",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 2,
+    "unitCostUsd": 25.67,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "noir-lace-crossbody-black",
+    "name": "Noir Lace Crossbody — Black",
+    "color": "Black",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 28,
+    "unitCostUsd": 6.81,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "camille-multi-pocket-crossbody-green",
+    "name": "Camille Crossbody — Forest",
+    "color": "Forest Green",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 1,
+    "unitCostUsd": 9.86,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "florence-mini-backpack-apricot",
+    "name": "Florence Mini — Apricot",
+    "color": "Apricot",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 123,
+    "unitCostUsd": 10.78,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "avery-bow-satchel-pink",
+    "name": "Avery Bow Satchel — Rose",
+    "color": "Dusty Rose",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 16,
+    "unitCostUsd": 11.98,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "siena-signature-satchel-kangaroo-brown",
+    "name": "Siena Signature — Espresso",
+    "color": "Espresso",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 1,
+    "unitCostUsd": 34.12,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "celeste-chain-crossbody-black",
+    "name": "Celeste Chain — Black",
+    "color": "Black",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 2,
+    "unitCostUsd": 29.94,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "marina-structured-tote-brown",
+    "name": "Marina Tote — Cognac",
+    "color": "Cognac",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 4,
+    "unitCostUsd": 32.64,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "portofino-carryall-burgundy",
+    "name": "Portofino Carryall — Burgundy",
+    "color": "Burgundy",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 3,
+    "unitCostUsd": 24.07,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "florence-mini-backpack-pink",
+    "name": "Florence Mini — Pink",
+    "color": "Pink",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 145,
+    "unitCostUsd": 10.78,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "portofino-carryall-army-green",
+    "name": "Portofino Carryall — Olive",
+    "color": "Olive",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 990,
+    "unitCostUsd": 25.68,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "florence-mini-backpack-dark-brown",
+    "name": "Florence Mini — Dark Brown",
+    "color": "Dark Brown",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 242,
+    "unitCostUsd": 9.11,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "portofino-carryall-light-brown",
+    "name": "Portofino Carryall — Cognac",
+    "color": "Cognac",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 994,
+    "unitCostUsd": 24.77,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "florence-mini-backpack-black",
+    "name": "Florence Mini — Black",
+    "color": "Black",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 113,
+    "unitCostUsd": 10.84,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "portofino-carryall-brown",
+    "name": "Portofino Carryall — Espresso",
+    "color": "Espresso",
+    "sizes": [
+      "One Size"
+    ],
+    "stock": 4,
+    "unitCostUsd": 25.74,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "white-crochet-fringe-dress",
+    "name": "White Crochet Fringe Dress",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 1998,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "apricot-crochet-fringe-dress",
+    "name": "Apricot Crochet Fringe Dress",
+    "color": "Apricot",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 2000,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "orange-crochet-fringe-dress",
+    "name": "Orange Crochet Fringe Dress",
+    "color": "Orange",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 2000,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "black-lace-mermaid-gown",
+    "name": "Black Lace Mermaid Gown",
+    "color": "Black",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W"
+    ],
+    "stock": 939,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "fuchsia-chiffon-halter-gown",
+    "name": "Fuchsia Chiffon Halter Gown",
+    "color": "Fuchsia",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "Custom Size"
+    ],
+    "stock": 2996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "navy-crinkle-halter-maxi-dress",
+    "name": "Navy Crinkle Halter Maxi Dress",
+    "color": "Navy",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": 20,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "champagne-pleated-halter-gown",
+    "name": "Champagne Pleated Halter Gown",
+    "color": "Champagne",
+    "sizes": [
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16",
+      "16W",
+      "18W",
+      "20W",
+      "22W",
+      "24W",
+      "26W",
+      "Custom Size"
+    ],
+    "stock": 1487,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "bronze-brown-halter-gown",
+    "name": "Bronze Brown Halter Gown",
+    "color": "Brown",
+    "sizes": [
+      "US 2",
+      "US 4",
+      "US 6",
+      "US 8",
+      "US 10",
+      "US 12",
+      "US 14",
+      "US 16",
+      "US 16W",
+      "US 18W",
+      "US 20W",
+      "US 22W",
+      "US 24W",
+      "US 26W",
+      "Custom Size"
+    ],
+    "stock": 15982,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "ruby-red-halter-gown",
+    "name": "Ruby Red Halter Gown",
+    "color": "Red",
+    "sizes": [
+      "US 2",
+      "US 4",
+      "US 6",
+      "US 8",
+      "US 10",
+      "US 12",
+      "US 14",
+      "US 16",
+      "US 16W",
+      "US 18W",
+      "US 20W",
+      "US 22W",
+      "US 24W",
+      "US 26W",
+      "Custom Size"
+    ],
+    "stock": 15984,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "black-halter-gown",
+    "name": "Black Halter Gown",
+    "color": "Black",
+    "sizes": [
+      "US 2",
+      "US 4",
+      "US 6",
+      "US 8",
+      "US 10",
+      "US 12",
+      "US 14",
+      "US 16",
+      "US 16W",
+      "US 18W",
+      "US 20W",
+      "US 22W",
+      "US 24W",
+      "US 26W",
+      "Custom Size"
+    ],
+    "stock": 15983,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "mint-beaded-boho-set",
+    "name": "Mint Beaded Boho Two-Piece Set",
+    "color": "Mint Green",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 2963,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "burgundy-ruched-one-shoulder-maxi-dress",
+    "name": "Burgundy Ruched One-Shoulder Maxi Dress",
+    "color": "Burgundy",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 29996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "olive-ruched-asymmetric-maxi-dress",
+    "name": "Olive Ruched Asymmetric Maxi Dress",
+    "color": "Green",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 29996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "fuchsia-backless-maxi-dress",
+    "name": "Fuchsia Backless Maxi Dress",
+    "color": "Rose Red",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "white-backless-maxi-dress",
+    "name": "White Backless Maxi Dress",
+    "color": "White",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "black-asymmetric-maxi-dress",
+    "name": "Black Asymmetric Maxi Dress",
+    "color": "Black",
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 3996,
+    "unitCostUsd": null,
+    "sourceProductId": null,
+    "sourceColor": null
+  },
+  {
+    "slug": "elara-halter-mini-dress-black",
+    "name": "Elara Halter Mini Dress — Black",
+    "color": "Black",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 939,
+    "unitCostUsd": 33.5,
+    "sourceProductId": "3256808172061368",
+    "sourceColor": "black"
+  },
+  {
+    "slug": "elara-halter-mini-dress-beige",
+    "name": "Elara Halter Mini Dress — Beige",
+    "color": "Beige",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 959,
+    "unitCostUsd": 33.5,
+    "sourceProductId": "3256808172061368",
+    "sourceColor": "Beige"
+  },
+  {
+    "slug": "elara-halter-mini-dress-red",
+    "name": "Elara Halter Mini Dress — Red",
+    "color": "Red",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 969,
+    "unitCostUsd": 33.5,
+    "sourceProductId": "3256808172061368",
+    "sourceColor": "Red"
+  },
+  {
+    "slug": "elara-leopard-halter-mini-dress",
+    "name": "Elara Leopard Halter Mini Dress",
+    "color": "Leopard",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 1001,
+    "unitCostUsd": 33.5,
+    "sourceProductId": "3256808172061368",
+    "sourceColor": "Navy Blue"
+  },
+  {
+    "slug": "elara-floral-halter-mini-dress",
+    "name": "Elara Floral Halter Mini Dress",
+    "color": "Ivory Floral",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 1004,
+    "unitCostUsd": 33.5,
+    "sourceProductId": "3256808172061368",
+    "sourceColor": "MULTI"
+  },
+  {
+    "slug": "rosalie-polka-dot-sundress-black",
+    "name": "Rosalie Polka Dot Sundress — Black",
+    "color": "Black",
+    "sizes": [
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "stock": 51,
+    "unitCostUsd": 9.52,
+    "sourceProductId": "3256806831941342",
+    "sourceColor": "black"
+  },
+  {
+    "slug": "mirelle-halter-polka-dot-maxi-dress-white",
+    "name": "Mirelle Halter Polka Dot Maxi Dress — White",
+    "color": "White",
+    "sizes": [
+      "S",
+      "M",
+      "L"
+    ],
+    "stock": 428,
+    "unitCostUsd": 25.67,
+    "sourceProductId": "3256808746217270",
+    "sourceColor": "WHITE"
+  },
+  {
+    "slug": "celeste-polka-dot-midi-dress-black",
+    "name": "Celeste Polka Dot Midi Dress — Black",
+    "color": "Black",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 281,
+    "unitCostUsd": 35.94,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as2"
+  },
+  {
+    "slug": "celeste-floral-midi-dress-navy",
+    "name": "Celeste Floral Midi Dress — Navy",
+    "color": "Navy Floral",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 300,
+    "unitCostUsd": 35.94,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as3"
+  },
+  {
+    "slug": "celeste-floral-midi-dress-red",
+    "name": "Celeste Floral Midi Dress — Red",
+    "color": "Red Floral",
+    "sizes": [
+      "M"
+    ],
+    "stock": 1,
+    "unitCostUsd": 35.94,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as4"
+  },
+  {
+    "slug": "celeste-polka-dot-midi-dress-lilac",
+    "name": "Celeste Polka Dot Midi Dress — Lilac",
+    "color": "Lilac",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 300,
+    "unitCostUsd": 38.41,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as5"
+  },
+  {
+    "slug": "celeste-ditsy-floral-midi-dress-yellow",
+    "name": "Celeste Ditsy Floral Midi Dress — Yellow",
+    "color": "Yellow Floral",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 298,
+    "unitCostUsd": 38.41,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as6"
+  },
+  {
+    "slug": "celeste-heart-print-midi-dress-mint",
+    "name": "Celeste Heart Print Midi Dress — Mint",
+    "color": "Mint Hearts",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 299,
+    "unitCostUsd": 40.12,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as7"
+  },
+  {
+    "slug": "celeste-floral-midi-dress-mauve",
+    "name": "Celeste Floral Midi Dress — Mauve",
+    "color": "Mauve Floral",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 300,
+    "unitCostUsd": 40.12,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as8"
+  },
+  {
+    "slug": "celeste-textured-midi-dress-lavender",
+    "name": "Celeste Textured Midi Dress — Lavender",
+    "color": "Lavender",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 298,
+    "unitCostUsd": 40.12,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as9"
+  },
+  {
+    "slug": "celeste-midi-dress-lime",
+    "name": "Celeste Midi Dress — Lime",
+    "color": "Lime",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 296,
+    "unitCostUsd": 40.12,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as10"
+  },
+  {
+    "slug": "celeste-floral-midi-dress-cream",
+    "name": "Celeste Floral Midi Dress — Cream",
+    "color": "Cream Floral",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 299,
+    "unitCostUsd": 40.12,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as11"
+  },
+  {
+    "slug": "celeste-rose-print-midi-dress-pink",
+    "name": "Celeste Rose Print Midi Dress — Pink",
+    "color": "Pink Rose",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 298,
+    "unitCostUsd": 40.12,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as12"
+  },
+  {
+    "slug": "celeste-ditsy-floral-midi-dress-peach",
+    "name": "Celeste Ditsy Floral Midi Dress — Peach",
+    "color": "Peach Floral",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 298,
+    "unitCostUsd": 42.05,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as13"
+  },
+  {
+    "slug": "celeste-floral-midi-dress-violet",
+    "name": "Celeste Floral Midi Dress — Violet",
+    "color": "Violet Floral",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 300,
+    "unitCostUsd": 42.05,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as14"
+  },
+  {
+    "slug": "celeste-watercolor-floral-midi-dress-peach",
+    "name": "Celeste Watercolor Floral Midi Dress — Peach",
+    "color": "Peach Watercolor",
+    "sizes": [
+      "XS",
+      "S",
+      "M"
+    ],
+    "stock": 299,
+    "unitCostUsd": 42.05,
+    "sourceProductId": "3256808350251270",
+    "sourceColor": "as15"
+  }
+]
