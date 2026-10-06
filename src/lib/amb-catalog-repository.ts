@@ -33,7 +33,7 @@ const dataInitializers: Record<string, string[]> = {
   "app/october-source-lineage.ts": ["octoberSourceLineage"],
 };
 const moduleShapeHashes: Record<string, string> = {
-  "app/data.ts": "6f6011472e816fc636978100a4c4aeea6b5742cfd8921d75cd92a3bce8963766",
+  "app/data.ts": "b6b38da97572b20bd63f651af003c06df804eff771a66400b7600a044082c2f8",
   "app/generated-products.ts": "6a9341e80a9a508230915148c45eae5fc09292d04481a946c4308bd47bb7c019",
   "app/generated-august-2026-products.ts": "c23fc5c02acc89bc0a882abc88568ee0a25536b42a7af8b58af9d4ff7f7293f7",
   "app/generated-september-2026-products.ts": "fb12224c8e70cd04ffaee5785a99e2a9fdd158eda5b063a7268c729665b4f682",

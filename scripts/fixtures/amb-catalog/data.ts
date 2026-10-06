@@ -31,6 +31,7 @@ export type Product = {
   colorNames?: string[];
   images?: string[];
   stock?: number;
+  fulfillment?: { kind: "made-to-order" | "extended-preparation"; notice: string };
   weightOz?: number;
   unitCostUsd?: number;
   inboundFreightUsd?: number;
