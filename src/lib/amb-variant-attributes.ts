@@ -14,6 +14,10 @@ function normalized(value: unknown): string {
 export function matchesAmbVariantSelection(
   attributes: Record<string, unknown>, color: string, size: string,
 ): boolean {
-  return normalized(attributes.Color) === normalized(color)
-    && normalized(ambVariantSize(attributes)) === normalized(size);
+  if (normalized(attributes.Color) !== normalized(color)) return false;
+  // Bags are sold as "One Size" in the store; the supplier may carry a single
+  // descriptive Size ("Luxury Bag", "29x23x10cm") or none. Colour decides, and
+  // the bridge still blocks the order unless exactly one variant matches.
+  if (normalized(size) === "one size") return true;
+  return normalized(ambVariantSize(attributes)) === normalized(size);
 }

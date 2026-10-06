@@ -11,6 +11,10 @@ assert.equal(matchesAmbVariantSelection({ Color: "Gold", "US Size": "6" }, "gold
 assert.equal(matchesAmbVariantSelection({ Color: "Gold", "US Size": "6" }, "gold", "8"), false);
 assert.equal(matchesAmbVariantSelection({ Color: "Gold", "US Size": "18 W" }, "gold", "18 W"), true);
 assert.equal(matchesAmbVariantSelection({ Color: "Red", "US Size": "6" }, "gold", "6"), false);
+assert.equal(matchesAmbVariantSelection({ Color: "Big Green Bag", Size: "Luxury Bag" }, "Big Green Bag", "One Size"), true);
+assert.equal(matchesAmbVariantSelection({ Color: "Latte Small" }, "latte small", "One Size"), true);
+assert.equal(matchesAmbVariantSelection({ Color: "Latte Large" }, "Latte Small", "One Size"), false);
+assert.equal([{ Color: "Black" }, { Color: "Black" }].filter((a) => matchesAmbVariantSelection(a, "Black", "One Size")).length, 2, "Duplicated colours stay ambiguous");
 const variants = [
   { sourceSkuId: "gold-6", attributes: { Color: "Gold", "US Size": "6" }, stock: 12, costPrice: { toString: () => "75.91" } },
   { sourceSkuId: "gold-8", attributes: { Color: "Gold", "US Size": "8" }, stock: 11, costPrice: { toString: () => "75.91" } },
