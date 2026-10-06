@@ -23,7 +23,8 @@
     "test:web-export-currency": "node --no-warnings --experimental-strip-types scripts/web-export-currency-smoke.ts",
     "test:amb-backend-bridge": "node --no-warnings --experimental-strip-types scripts/amb-backend-bridge-smoke.ts",
     "test:amb-us-size": "node --no-warnings --experimental-strip-types scripts/amb-us-size-smoke.ts",
-    "test:amb-catalog-repository": "node --no-warnings --experimental-strip-types scripts/amb-catalog-repository-smoke.ts"
+    "test:amb-catalog-repository": "node --no-warnings --experimental-strip-types scripts/amb-catalog-repository-smoke.ts",
+    "test:store-capabilities": "node --no-warnings --experimental-strip-types scripts/store-capabilities-smoke.ts"
   },
   "dependencies": {
     "@google/genai": "^2.16.0",

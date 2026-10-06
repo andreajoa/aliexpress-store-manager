@@ -1,3 +1,4 @@
+import { mergeScannedCapabilities } from "@/lib/store-capabilities";
 import {
   NextResponse,
 } from "next/server";
@@ -270,7 +271,7 @@ export async function POST(
 
           connectorCapabilities:
             jsonSafe(
-              intelligence.capabilities
+              mergeScannedCapabilities(store.connectorCapabilities, intelligence.capabilities)
             ),
 
           connectorVersion:
