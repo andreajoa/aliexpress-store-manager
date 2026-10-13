@@ -333,11 +333,18 @@ export async function syncAliExpressBatch(orderId: string, batchId: string) {
   const { session, client } = await requireAliExpressSession();
   const envelope = await client.getOrder({ session, orderId: batch.externalOrderId });
   const result = record(envelope.result);
-  const logisticsContainer = record(result.logistics_info_list);
-  const logisticsRows = array<Record<string, unknown>>(logisticsContainer.aeop_order_logistics_info);
-  const logistics = logisticsRows[0] || null;
-  const logisticsNo = (logistics ? text(logistics.logistics_no) : "") || batch.trackingCode || "";
-  const serviceName = logistics ? text(logistics.logistics_service) : "";
+  // The order API may return logistics_info_list as an array or a wrapper.
+  const logisticsValue = result.logistics_info_list;
+  const logisticsContainer = record(logisticsValue);
+  const logisticsRows = (Array.isArray(logisticsValue)
+    ? logisticsValue
+    : array(logisticsContainer.aeop_order_logistics_info ?? logisticsContainer.logistics_info ?? logisticsValue))
+    .map((item) => record(item));
+  const logistics = logisticsRows.find((item) =>
+    text(item.logistics_no ?? item.logisticsNo ?? item.tracking_number)) || logisticsRows[0] || null;
+  const logisticsNo = (logistics ? text(logistics.logistics_no ?? logistics.logisticsNo ?? logistics.tracking_number) : "") ||
+    text(result.logistics_no ?? result.tracking_number) || batch.trackingCode || "";
+  const serviceName = logistics ? text(logistics.logistics_service ?? logistics.service_name) : "";
   const logisticsStatus = text(result.logistics_status);
   const orderStatus = text(result.order_status);
 
@@ -359,7 +366,8 @@ export async function syncAliExpressBatch(orderId: string, batchId: string) {
       console.warn("AliExpress tracking detail query failed:", error);
     }
 
-    const shipped = ["SELLER_SEND_GOODS", "WAIT_BUYER_ACCEPT_GOODS"].includes(logisticsStatus);
+    const shipped = ["SELLER_SEND_GOODS", "WAIT_BUYER_ACCEPT_GOODS"].includes(logisticsStatus) ||
+      trackingEvents.some((event) => /in transit|awaiting flight|heading to|departed|customs|shipped/i.test(event.status+" "+event.eventDesc));
     const delivered = looksDelivered(trackingEvents);
 
     if (shipped || delivered) {
