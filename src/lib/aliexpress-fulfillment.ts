@@ -288,26 +288,34 @@ export type AliExpressTrackingEvent = {
 };
 
 function trackingEventsFromEnvelope(value: unknown): AliExpressTrackingEvent[] {
+  // TOP logistics responses may wrap the result and details as objects or arrays.
   const root = record(value);
-  const detailsValue = root.details;
-  const detailsRecord = record(detailsValue);
-  const rows = Array.isArray(detailsValue)
-    ? array<Record<string, unknown>>(detailsValue)
-    : array<Record<string, unknown>>(detailsRecord.details || detailsValue);
-
+  const result = record(root.result);
+  const payload = Object.keys(result).length ? result : root;
+  const details = payload.details ?? payload.detail ?? payload.tracking_details;
+  const nested = record(details);
+  const rows = Array.isArray(details) ? details :
+    array(nested.details ?? nested.detail ?? nested.tracking_details ?? details);
   const seen = new Set<string>();
   const events: AliExpressTrackingEvent[] = [];
-  for (const row of rows) {
-    const eventDesc = text(row.event_desc || row.eventDesc);
-    const status = text(row.status);
-    const address = text(row.address) || null;
-    const eventDate = text(row.event_date || row.eventDate) || null;
+  for (const candidate of rows) {
+    const row = record(candidate);
+    const eventDesc = text(row.event_desc ?? row.eventDesc ?? row.description);
+    const status = text(row.status ?? row.event_status);
+    const address = text(row.address ?? row.location) || null;
+    const eventDate = text(row.event_date ?? row.eventDate ?? row.event_time) || null;
     if (!eventDesc && !status && !address && !eventDate) continue;
     const key = [eventDate || "", status, address || "", eventDesc].join("|");
     if (seen.has(key)) continue;
     seen.add(key);
     events.push({ eventDesc, status, address, eventDate });
   }
+  // API payloads can arrive in either direction. Customer UI assumes oldest first.
+  events.sort((a,b) => {
+    const ta = Date.parse(a.eventDate || "");
+    const tb = Date.parse(b.eventDate || "");
+    return Number.isFinite(ta) && Number.isFinite(tb) ? ta - tb : 0;
+  });
   return events;
 }
 
@@ -328,7 +336,7 @@ export async function syncAliExpressBatch(orderId: string, batchId: string) {
   const logisticsContainer = record(result.logistics_info_list);
   const logisticsRows = array<Record<string, unknown>>(logisticsContainer.aeop_order_logistics_info);
   const logistics = logisticsRows[0] || null;
-  const logisticsNo = logistics ? text(logistics.logistics_no) : "";
+  const logisticsNo = (logistics ? text(logistics.logistics_no) : "") || batch.trackingCode || "";
   const serviceName = logistics ? text(logistics.logistics_service) : "";
   const logisticsStatus = text(result.logistics_status);
   const orderStatus = text(result.order_status);
