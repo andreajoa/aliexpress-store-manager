@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 
-import { parseAmbBridgeConfig } from "./amb-bridge-contract";
+import { parseAmbBridgeConfig, type AmbProductBinding } from "./amb-bridge-contract";
+import { resolveAmbBoundVariant } from "./amb-bound-variant.ts";
 import { ambVariantSize } from "./amb-variant-attributes.ts";
 import {
   inferAmbBinding,
@@ -84,18 +85,23 @@ function supplierRowsFromProducts(products: Array<{
   sourceProductId: string;
   variants: Array<{
     attributes: unknown;
+    sourceSkuId: string | null;
+    available: boolean;
     stock: number | null;
     costPrice: { toString(): string } | null;
   }>;
-}>): AmbSupplierVariantSnapshot[] {
+}>): Array<AmbSupplierVariantSnapshot & { sourceSkuId: string | null; attributes: unknown; available: boolean }> {
   return products.flatMap((product) => product.variants.flatMap((variant) => {
     const attributes = record(variant.attributes);
     const color = text(attributes.Color);
     const size = ambVariantSize(attributes);
-    if (!color || !size) return [];
+    if (!color) return [];
     const rawCost = variant.costPrice ? Number(variant.costPrice.toString()) : null;
     return [{
       sourceProductId: product.sourceProductId,
+      sourceSkuId: variant.sourceSkuId,
+      attributes: variant.attributes,
+      available: variant.available,
       color,
       size,
       stock: Math.max(0, variant.stock || 0),
@@ -112,17 +118,17 @@ function sameSizes(left: string[], right: string[]) {
 
 function validateBinding(input: {
   product: AmbCatalogProduct;
-  binding: { sourceProductId: string; color: string };
-  supplierRows: AmbSupplierVariantSnapshot[];
+  binding: AmbProductBinding;
+  supplierRows: ReturnType<typeof supplierRowsFromProducts>;
 }) {
   const rows = input.supplierRows.filter((row) =>
     row.sourceProductId === input.binding.sourceProductId &&
     normalizeAmbColor(row.color) === normalizeAmbColor(input.binding.color),
   );
-  const supplierSizes = rows.map((row) => row.size);
-  const missingSizes = input.product.sizes.filter((size) =>
-    !supplierSizes.some((candidate) => normalizeAmbValue(candidate) === normalizeAmbValue(size)),
-  );
+  const missingSizes = input.product.sizes.filter((size) => {
+    try { resolveAmbBoundVariant(input.binding, size, rows); return false; }
+    catch { return true; }
+  });
   return { valid: rows.length > 0 && missingSizes.length === 0, missingSizes };
 }
 
@@ -219,7 +225,7 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean;
     where: { sourceProvider: "ALIEXPRESS" },
     select: {
       sourceProductId: true,
-      variants: { select: { attributes: true, stock: true, costPrice: true } },
+      variants: { select: { attributes: true, sourceSkuId: true, available: true, stock: true, costPrice: true } },
     },
   });
   const supplierRows = supplierRowsFromProducts(managerProducts);
@@ -233,8 +239,20 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean;
 
   for (const product of catalog) {
     if (product.sourceProductId && product.sourceColor) {
-      nextBindings[product.slug] = { sourceProductId: product.sourceProductId, color: product.sourceColor };
-      autoMapped += 1;
+      const existing = nextBindings[product.slug];
+      const sameIdentity = existing?.sourceProductId === product.sourceProductId
+        && normalizeAmbColor(existing.color) === normalizeAmbColor(product.sourceColor);
+      const binding = {
+        sourceProductId: product.sourceProductId, color: product.sourceColor,
+        ...(sameIdentity && existing.sourceSkuIdsBySize ? { sourceSkuIdsBySize: existing.sourceSkuIdsBySize } : {}),
+      };
+      const validation = validateBinding({ product, binding, supplierRows });
+      nextBindings[product.slug] = binding;
+      if (validation.valid) autoMapped += 1;
+      else {
+        changedVariants += 1;
+        pending.push({ slug: product.slug, reason: "EXPLICIT_BINDING_VARIANTS_CHANGED", binding, missingSizes: validation.missingSizes });
+      }
       continue;
     }
 
@@ -254,19 +272,10 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean;
     }
 
     const fromLineage = inferFromLineage(product, capabilities);
-    if (fromLineage.safe && fromLineage.binding) {
-      nextBindings[product.slug] = fromLineage.binding;
-      autoMapped += 1;
-      continue;
-    }
-
     const fallback = inferAmbBinding(product, supplierRows);
-    if (fallback.safe && fallback.binding) {
-      nextBindings[product.slug] = fallback.binding;
-      autoMapped += 1;
-      continue;
-    }
-
+    // Matching color/size/stock/cost is a suggestion, not product identity.
+    // Different garments frequently share those values. Only explicit source
+    // provenance or a reviewed manual binding may create an operational link.
     pending.push({
       slug: product.slug,
       name: product.name,
@@ -274,7 +283,7 @@ export async function scanAmbCatalog(input: { storeId?: string; force?: boolean;
       sizes: product.sizes,
       stock: product.stock,
       unitCostUsd: product.unitCostUsd,
-      reason: "NEW_PRODUCT_BINDING_AMBIGUOUS",
+      reason: "PRODUCT_IDENTITY_REQUIRES_REVIEW",
       lineageCandidates: fromLineage.candidates,
       fallbackCandidates: fallback.candidates,
     });

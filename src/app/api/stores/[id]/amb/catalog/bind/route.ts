@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 
-import { normalizeAmbColor, normalizeAmbValue } from "@/lib/amb-catalog-detector";
+import { normalizeAmbColor } from "@/lib/amb-catalog-detector";
 import { ambVariantSize } from "@/lib/amb-variant-attributes";
+import { resolveAmbBoundVariant } from "@/lib/amb-bound-variant";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -12,6 +13,7 @@ const payloadSchema = z.object({
   slug: z.string().trim().min(1).max(200),
   sourceProductId: z.string().trim().min(1).max(100),
   color: z.string().trim().min(1).max(160),
+  sourceSkuIdsBySize: z.record(z.string().trim().min(1).max(80), z.string().trim().min(1).max(160)).optional(),
 });
 
 function record(value: unknown): Record<string, unknown> {
@@ -46,7 +48,8 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Loja não disponível." }, { status: 404 });
     }
 
-    const { slug, sourceProductId, color } = parsed.data;
+    const { slug, sourceProductId, color, sourceSkuIdsBySize } = parsed.data;
+    const binding = { sourceProductId, color, ...(sourceSkuIdsBySize ? { sourceSkuIdsBySize } : {}) };
     const capabilities = record(store.connectorCapabilities);
     const scan = record(capabilities.ambCatalogScan);
     const catalog = record(scan.catalog);
@@ -108,15 +111,20 @@ export async function POST(
       .map((variant) => ambVariantSize(record(variant.attributes)))
       .filter(Boolean);
 
-    const missingSizes = expectedSizes.filter((size) =>
-      !availableSizes.some((candidate) => normalizeAmbValue(candidate) === normalizeAmbValue(size)),
-    );
+    const missingSizes = expectedSizes.filter((size) => {
+      try {
+        resolveAmbBoundVariant(binding, size, product.variants);
+        return false;
+      } catch {
+        return true;
+      }
+    });
 
     if (missingSizes.length) {
       return NextResponse.json(
         {
           ok: false,
-          error: "O vínculo foi bloqueado porque faltam tamanhos do catálogo AMB.",
+          error: "Cada tamanho AMB precisa resolver exatamente um SKU disponível do produto e da cor escolhidos.",
           missingSizes,
           availableSizes,
         },
@@ -136,7 +144,7 @@ export async function POST(
         ...bridge,
         products: {
           ...products,
-          [slug]: { sourceProductId, color },
+          [slug]: binding,
         },
       },
       ambCatalogScan: {
@@ -153,7 +161,7 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       slug,
-      binding: { sourceProductId, color },
+      binding,
       sourceTitle: product.sourceTitle,
       expectedSizes,
       availableSizes,
