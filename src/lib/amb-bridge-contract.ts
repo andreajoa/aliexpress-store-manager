@@ -1,6 +1,8 @@
 export type AmbProductBinding = {
   sourceProductId: string;
   color: string;
+  /** Explicit supplier SKU for each storefront size when attributes collide. */
+  sourceSkuIdsBySize?: Record<string, string>;
 };
 
 export type AmbBridgeConfig = {
@@ -39,7 +41,15 @@ export function parseAmbBridgeConfig(value: unknown): AmbBridgeConfig | null {
     const sourceProductId = text(binding.sourceProductId);
     const color = text(binding.color);
     if (!slug.trim() || !sourceProductId || !color) continue;
-    parsed[slug] = { sourceProductId, color };
+    const rawSkuMap = record(binding.sourceSkuIdsBySize);
+    const skuEntries = Object.entries(rawSkuMap).flatMap(([size, sku]) => {
+      return size.trim() && typeof sku === "string" && sku.trim()
+        ? [[size.trim(), sku.trim()] as const] : [];
+    });
+    parsed[slug] = {
+      sourceProductId, color,
+      ...(skuEntries.length ? { sourceSkuIdsBySize: Object.fromEntries(skuEntries) } : {}),
+    };
   }
   if (Object.keys(parsed).length === 0) return null;
   return {

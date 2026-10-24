@@ -2,9 +2,9 @@ function text(value: unknown): string {
   return value === null || value === undefined ? "" : String(value).trim();
 }
 
-/** Keep canonical Size unchanged; official formalwear SKUs can use US Size. */
+/** Keep canonical Size unchanged; formalwear and shoes use other size labels. */
 export function ambVariantSize(attributes: Record<string, unknown>): string {
-  return text(attributes.Size) || text(attributes["US Size"]);
+  return text(attributes.Size) || text(attributes["US Size"]) || text(attributes["Shoe Size"]);
 }
 
 function normalized(value: unknown): string {

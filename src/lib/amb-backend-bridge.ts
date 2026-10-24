@@ -1,5 +1,5 @@
 import { placeAliExpressBatchOrder, quoteAliExpressBatch } from "./aliexpress-fulfillment";
-import { ambVariantSize, matchesAmbVariantSelection } from "./amb-variant-attributes.ts";
+import { ambBoundInventory, resolveAmbBoundVariant } from "./amb-bound-variant.ts";
 import {
   chooseAliExpressFreight,
   parseAmbBridgeConfig,
@@ -295,16 +295,7 @@ async function resolveAmbLineItems(storeId: string, session: AmbStripeSession) {
   return requested.map(({ line, slug, size, binding }) => {
     const product = bySource.get(binding.sourceProductId);
     if (!product) throw new Error(`Produto-fonte ${binding.sourceProductId} não existe no Manager.`);
-    const candidates = product.variants.filter((variant) => {
-      const attributes = record(variant.attributes);
-      return matchesAmbVariantSelection(attributes, binding.color, size);
-    });
-    if (candidates.length !== 1) {
-      throw new Error(
-        `${slug}/${size} resolveu ${candidates.length} variantes para ${binding.sourceProductId}/${binding.color}; fulfillment bloqueado.`,
-      );
-    }
-    const variant = candidates[0];
+    const variant = resolveAmbBoundVariant(binding, size, product.variants, line.quantity);
     const supplierProduct = product.supplierProducts[0];
     if (!supplierProduct) throw new Error(`Produto ${slug} não possui fornecedor AliExpress ativo.`);
     return { line, slug, size, binding, product, variant, supplierProductId: supplierProduct.id };
@@ -492,30 +483,17 @@ export async function ambInventorySnapshot(storeId: string) {
   const sourceIds = [...new Set(Object.values(bridge.products).map((binding) => binding.sourceProductId))];
   const products = await prisma.product.findMany({
     where: { sourceProvider: "ALIEXPRESS", sourceProductId: { in: sourceIds } },
-    select: { sourceProductId: true, variants: { select: { attributes: true, stock: true, available: true } } },
+    select: { sourceProductId: true, variants: { select: { sourceSkuId: true, attributes: true, stock: true, available: true } } },
   });
   const bySource = new Map(products.map((product) => [product.sourceProductId, product]));
 
   return Object.entries(bridge.products).map(([slug, binding]) => {
     const product = bySource.get(binding.sourceProductId);
-    const variants = (product?.variants || []).filter((variant) => {
-      const attributes = record(variant.attributes);
-      return normalized(attributes.Color) === normalized(binding.color);
-    });
     return {
       slug,
       sourceProductId: binding.sourceProductId,
       supplierColor: binding.color,
-      stock: variants.reduce((sum, variant) => sum + Math.max(0, variant.stock || 0), 0),
-      available: variants.some((variant) => variant.available && (variant.stock || 0) > 0),
-      sizes: variants.map((variant) => {
-        const attributes = record(variant.attributes);
-        return {
-          size: ambVariantSize(attributes),
-          stock: Math.max(0, variant.stock || 0),
-          available: variant.available,
-        };
-      }).filter((variant) => variant.size),
+      ...ambBoundInventory(binding, product?.variants || []),
     };
   });
 }
