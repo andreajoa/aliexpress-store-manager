@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { getOmkarProduct, resolveAliExpressProductId } from "@/lib/omkar";
+import { resolveAliExpressProductId } from "@/lib/omkar";
+import { aliExpressProductIdAliases } from "@/lib/aliexpress-catalog-id";
+import { getAliExpressOperationalProduct } from "@/lib/aliexpress-operational-provider";
+import { buildAliExpressImportCosting } from "@/lib/aliexpress-import-costing";
 import {
   canonicalVariantsForMapping,
   normalizeSupplierProduct,
@@ -15,6 +18,16 @@ const createSchema = z.object({
   url: z.string().trim().url(),
   role: z.enum(["PRIMARY", "BACKUP", "ALTERNATIVE"]).default("ALTERNATIVE"),
 });
+
+class DuplicateSupplierError extends Error {
+  constructor(readonly supplierId: string) {
+    super("Este fornecedor já está vinculado ao produto.");
+  }
+}
+
+function confirmedCost(value: number | null): value is number {
+  return value !== null && Number.isFinite(value) && value >= 0;
+}
 
 function supplierJson(supplier: {
   id: string;
@@ -139,24 +152,74 @@ export async function POST(
     }
 
     const sourceProductId = await resolveAliExpressProductId(parsed.data.url);
+    const sourceAliases = aliExpressProductIdAliases(sourceProductId);
+    const duplicateWhere = {
+      productId: id,
+      provider: "ALIEXPRESS" as const,
+      sourceProductId: { in: sourceAliases },
+    };
     const duplicate = await prisma.supplierProduct.findFirst({
-      where: {
-        productId: id,
-        provider: "ALIEXPRESS",
-        sourceProductId,
-      },
+      where: duplicateWhere,
       select: { id: true },
     });
 
     if (duplicate) {
-      return NextResponse.json(
-        { ok: false, duplicate: true, supplierId: duplicate.id, error: "Este fornecedor já está vinculado ao produto." },
-        { status: 409 },
-      );
+      throw new DuplicateSupplierError(duplicate.id);
     }
 
-    const omkar = await getOmkarProduct(sourceProductId);
-    const snapshot = normalizeSupplierProduct(omkar);
+    const operational = await getAliExpressOperationalProduct(sourceProductId);
+    const rawSnapshot = normalizeSupplierProduct(operational.product);
+    if (
+      !sourceAliases.includes(operational.resolvedProductId) ||
+      !sourceAliases.includes(rawSnapshot.sourceProductId)
+    ) {
+      throw new Error("O fornecedor retornou um produto diferente do solicitado.");
+    }
+
+    const costing = await buildAliExpressImportCosting({
+      productId: operational.resolvedProductId,
+      skuPricing: operational.product.sku_pricing || [],
+      itemCurrency: (operational.product.currency || rawSnapshot.sourceCurrency || "USD").toUpperCase(),
+    });
+    if (!costing.complete) {
+      throw new Error(costing.warning || "Cadastro bloqueado: o custo total (produto + frete) ainda não foi confirmado.");
+    }
+
+    const landedBySku = new Map(
+      costing.costedSkus.map((row) => [String(row.sku.sku_id), row]),
+    );
+    if (
+      costing.snapshot.status !== "COMPLETE" ||
+      costing.snapshot.freight.status !== "AVAILABLE" ||
+      !confirmedCost(costing.costMin) || !confirmedCost(costing.costMax) ||
+      landedBySku.size !== costing.costedSkus.length ||
+      rawSnapshot.variants.some((variant) => {
+        const row = landedBySku.get(variant.sourceSkuId);
+        return !row || !confirmedCost(row.landedCost) ||
+          !confirmedCost(row.itemCostInCostCurrency) ||
+          !confirmedCost(row.freightCostInCostCurrency) ||
+          row.costCurrency !== costing.costCurrency;
+      })
+    ) {
+      throw new Error("Cadastro bloqueado: nem todos os SKUs têm custo total e frete confirmados.");
+    }
+
+    const snapshot = {
+      ...rawSnapshot,
+      sourceCurrency: costing.costCurrency,
+      costMin: costing.costMin,
+      costMax: costing.costMax,
+      variants: rawSnapshot.variants.map((variant) => ({
+        ...variant,
+        price: landedBySku.get(variant.sourceSkuId)!.landedCost,
+        sourcePrice: landedBySku.get(variant.sourceSkuId)!.landedCost,
+      })),
+    };
+    const officialSkuAttrs = operational.product.official_sku_attrs &&
+      typeof operational.product.official_sku_attrs === "object" &&
+      !Array.isArray(operational.product.official_sku_attrs)
+      ? operational.product.official_sku_attrs as Record<string, unknown>
+      : {};
     const canonicalVariants = canonicalVariantsForMapping(product.variants);
     const report = suggestSupplierVariantMappings({
       canonicalVariants,
@@ -164,6 +227,14 @@ export async function POST(
     });
 
     const supplier = await prisma.$transaction(async (tx) => {
+      // Recheck after external calls; a concurrent request may have linked the
+      // supplier while this request was calculating its freight.
+      const linked = await tx.supplierProduct.findFirst({
+        where: duplicateWhere,
+        select: { id: true },
+      });
+      if (linked) throw new DuplicateSupplierError(linked.id);
+
       if (parsed.data.role === "PRIMARY") {
         await tx.supplierProduct.updateMany({
           where: { productId: id, role: "PRIMARY", status: "ACTIVE" },
@@ -186,11 +257,21 @@ export async function POST(
           sourceCurrency: snapshot.sourceCurrency,
           costMin: snapshot.costMin,
           costMax: snapshot.costMax,
-          rawPayload: JSON.parse(JSON.stringify(snapshot.rawPayload)),
+          rawPayload: JSON.parse(JSON.stringify({
+            operationalProvider: operational.provider,
+            operationalWarnings: operational.warnings,
+            requestedProductId: operational.requestedProductId,
+            resolvedProductId: operational.resolvedProductId,
+            product: snapshot.rawPayload,
+            costSnapshot: costing.snapshot,
+          })),
           lastCheckedAt: new Date(),
           variants: {
             create: snapshot.variants.map((variant) => ({
               sourceSkuId: variant.sourceSkuId,
+              orderSkuAttr: typeof officialSkuAttrs[variant.sourceSkuId] === "string"
+                ? officialSkuAttrs[variant.sourceSkuId] as string
+                : null,
               name: variant.name,
               sourcePrice: variant.sourcePrice,
               stock: variant.stock,
@@ -235,7 +316,7 @@ export async function POST(
           mappings: { orderBy: { createdAt: "asc" } },
         },
       });
-    });
+    }, { timeout: 30_000, isolationLevel: "Serializable" });
 
     return NextResponse.json(
       {
@@ -247,6 +328,12 @@ export async function POST(
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof DuplicateSupplierError) {
+      return NextResponse.json(
+        { ok: false, duplicate: true, supplierId: error.supplierId, error: error.message },
+        { status: 409 },
+      );
+    }
     console.error("Supplier create failed:", error);
     return NextResponse.json(
       {
