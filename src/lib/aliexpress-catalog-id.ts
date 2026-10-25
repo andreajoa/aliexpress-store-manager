@@ -18,3 +18,11 @@ export function globalAliExpressProductId(productId: string): string | null {
   const converted = (numeric - US_CATALOG_ID_OFFSET).toString();
   return /^\d{10,}$/.test(converted) ? converted : null;
 }
+
+// Both catalog URLs identify the same supplier, regardless of which URL was
+// submitted or which catalog the operational provider returned.
+export function aliExpressProductIdAliases(productId: string): string[] {
+  if (!/^\d{10,}$/.test(productId)) return [];
+  const globalId = globalAliExpressProductId(productId) || productId;
+  return [globalId, (BigInt(globalId) + US_CATALOG_ID_OFFSET).toString()];
+}
