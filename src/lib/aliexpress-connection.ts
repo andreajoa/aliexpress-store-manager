@@ -177,12 +177,15 @@ export async function maintainAliExpressConnection(input?: { refreshWithinMs?: n
   return { ok: before.connected, refreshed: false, ...before };
 }
 
-export async function requireAliExpressSession() {
+export async function requireAliExpressSession(options?: { readOnly?: boolean }) {
   const connection = await prisma.aliExpressConnection.findUnique({ where: { id: "primary" } });
   if (!connection) throw new Error("Conta AliExpress ainda não autorizada.");
 
   // Se o token expirou ou está prestes a expirar, tenta renovar automaticamente.
   if (connection.expiresAt.getTime() <= Date.now() + 5 * 60 * 1000) {
+    if (options?.readOnly) {
+      throw new Error("A sessão AliExpress exige renovação; a cotação somente leitura não renova nem grava credenciais.");
+    }
     const refreshed = await tryAutoRefresh();
     if (!refreshed) {
       throw new Error("Autorização AliExpress expirada. Autorize novamente em Configurações → AliExpress.");

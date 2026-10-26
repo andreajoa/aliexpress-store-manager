@@ -77,8 +77,8 @@ function validOperationalProduct(value: unknown): value is OmkarProduct {
   );
 }
 
-async function getOfficialProduct(productId: string): Promise<OmkarProduct> {
-  const { session, client } = await requireAliExpressSession();
+async function getOfficialProduct(productId: string, readOnlySession = false): Promise<OmkarProduct> {
+  const { session, client } = await requireAliExpressSession(readOnlySession ? { readOnly: true } : undefined);
   const envelope = await client.getDropshipProduct({
     session,
     productId,
@@ -131,6 +131,7 @@ export function getAliExpressProviderHealth() {
 
 export async function getAliExpressOperationalProduct(
   productId: string,
+  options?: { readOnlySession?: boolean; officialOnly?: boolean },
 ): Promise<AliExpressOperationalProduct> {
   if (!/^\d{10,}$/.test(productId)) {
     throw new Error("Product ID do AliExpress inválido.");
@@ -155,7 +156,9 @@ export async function getAliExpressOperationalProduct(
     failures.official = compactError(error);
     officialLastFailure = failures.official;
     console.warn(
-      "[AliExpress provider] Could not read official connection status; using automatic providers.",
+      options?.officialOnly
+        ? "[AliExpress provider] Could not read official connection status; automatic providers disabled."
+        : "[AliExpress provider] Could not read official connection status; using automatic providers.",
       { productId, error: failures.official },
     );
   }
@@ -166,7 +169,7 @@ export async function getAliExpressOperationalProduct(
       const startedAt = Date.now();
 
       try {
-        const product = await getOfficialProduct(candidate);
+        const product = await getOfficialProduct(candidate, options?.readOnlySession);
         officialLastFailure = "";
         console.info("[AliExpress provider] Official provider succeeded.", {
           productId: candidate,
@@ -195,7 +198,9 @@ export async function getAliExpressOperationalProduct(
         }
 
         console.warn(
-          "[AliExpress provider] Official provider failed; using automatic providers.",
+          options?.officialOnly
+            ? "[AliExpress provider] Official provider failed; automatic providers disabled."
+            : "[AliExpress provider] Official provider failed; using automatic providers.",
           {
             productId: candidate,
             durationMs: providerDurationMs(startedAt),
@@ -212,6 +217,14 @@ export async function getAliExpressOperationalProduct(
     console.info(
       "[AliExpress provider] Official provider skipped because no active session exists.",
       { productId, reason: failures.official },
+    );
+  }
+
+  // Keep this gate before constructing fallback promises: they start network
+  // calls immediately, even if their result would later be rejected by dryRun.
+  if (options?.officialOnly) {
+    throw new AliExpressProviderUnavailableError(
+      `API oficial do AliExpress indisponível; provedores alternativos desativados nesta consulta. ${failures.official}`,
     );
   }
 

@@ -1,7 +1,6 @@
 import { requireAliExpressSession } from "./aliexpress-connection";
 import {
   calculateLandedUnitCost,
-  convertCostAmount,
   selectCheapestFreightQuote,
 } from "./aliexpress-landed-cost";
 import { fetchFxRate } from "./fx-rate";
@@ -175,6 +174,7 @@ export async function buildAliExpressImportCosting(input: {
   productId: string;
   skuPricing: OmkarSkuPricing[];
   itemCurrency: string;
+  readOnlySession?: boolean;
 }): Promise<AliExpressImportCosting> {
   validateSkuPrices(input.skuPricing);
 
@@ -188,7 +188,7 @@ export async function buildAliExpressImportCosting(input: {
   let session: string;
   let client;
   try {
-    const connection = await requireAliExpressSession();
+    const connection = await requireAliExpressSession(input.readOnlySession ? { readOnly: true } : undefined);
     session = connection.session;
     client = connection.client;
   } catch (error) {

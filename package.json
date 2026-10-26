@@ -15,6 +15,7 @@
     "test:github-pr-lifecycle": "node --no-warnings --experimental-strip-types scripts/github-pr-lifecycle-smoke.ts",
     "test:aliexpress-open-platform": "node --no-warnings --experimental-strip-types scripts/aliexpress-open-platform-smoke.ts",
     "test:aliexpress-provider-failover": "node --no-warnings --experimental-strip-types scripts/aliexpress-provider-failover-smoke.ts",
+    "test:supplier-refresh-dry-run": "node scripts/supplier-refresh-dry-run-smoke.mjs",
     "test:supplier-create": "node scripts/supplier-create-handler-smoke.mjs",
     "test:serverless-browser-runtime": "node --no-warnings --experimental-strip-types scripts/serverless-browser-runtime-smoke.ts",
     "test:vercel-function-bundle": "node --no-warnings --experimental-strip-types scripts/vercel-function-bundle-smoke.ts",

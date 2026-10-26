@@ -1,5 +1,8 @@
 import { buildAliExpressImportCosting } from "./aliexpress-import-costing";
 import { getAliExpressOperationalProduct } from "./aliexpress-operational-provider";
+import { aliExpressProductIdAliases } from "./aliexpress-catalog-id";
+import { calculateSaleSuggestion } from "./product-pricing";
+import { parseSupplierRefreshOptions, SupplierRefreshInputError } from "./supplier-refresh-options";
 import { prisma } from "./prisma";
 import {
   canonicalVariantsForMapping,
@@ -123,7 +126,13 @@ export async function refreshSupplier(input: {
   productId: string;
   supplierId: string;
   syncAvailability?: boolean;
+  dryRun?: boolean;
+  sourceSkuIds?: string[];
 }) {
+  const options = parseSupplierRefreshOptions({
+    dryRun: input.dryRun,
+    sourceSkuIds: input.sourceSkuIds,
+  });
   const [product, supplier] = await Promise.all([
     prisma.product.findUnique({
       where: { id: input.productId },
@@ -150,12 +159,38 @@ export async function refreshSupplier(input: {
    * Se todas as fontes externas falharem, esta função lança antes da transação:
    * o último estoque conhecido permanece intacto em vez de ser zerado por engano.
    */
-  const operational = await getAliExpressOperationalProduct(supplier.sourceProductId);
-  const rawSnapshot = normalizeSupplierProduct(operational.product);
+  const operational = await getAliExpressOperationalProduct(
+    supplier.sourceProductId,
+    options.dryRun ? { readOnlySession: true, officialOnly: true } : undefined,
+  );
+  const requestedSkus = options.sourceSkuIds ? new Set(options.sourceSkuIds) : null;
+  if (options.dryRun && operational.provider !== "ALIEXPRESS_OPEN_PLATFORM") {
+    throw new SupplierRefreshInputError("A cotação dryRun exige dados da fonte oficial.", 422);
+  }
+  const allSkus = operational.product.sku_pricing || [];
+  if (requestedSkus) {
+    const known = new Set(allSkus.map((sku) => String(sku.sku_id)));
+    const missing = [...requestedSkus].filter((sku) => !known.has(sku));
+    if (missing.length) {
+      throw new SupplierRefreshInputError(`SKUs ausentes na fonte oficial: ${missing.join(", ")}.`);
+    }
+  }
+  const quotedSkus = requestedSkus ? allSkus.filter((sku) => requestedSkus.has(String(sku.sku_id))) : allSkus;
+  const rawSnapshot = normalizeSupplierProduct({ ...operational.product, sku_pricing: quotedSkus });
+  if (options.dryRun) {
+    const aliases = aliExpressProductIdAliases(supplier.sourceProductId);
+    if (!aliases.includes(rawSnapshot.sourceProductId) || !aliases.includes(operational.resolvedProductId)) {
+      throw new SupplierRefreshInputError("A fonte retornou outro produto; cotação bloqueada.", 422);
+    }
+    if (quotedSkus.some((sku) => typeof sku.available_quantity !== "number" || !Number.isInteger(sku.available_quantity) || sku.available_quantity < 0)) {
+      throw new SupplierRefreshInputError("A fonte não retornou estoque verificável para todos os SKUs cotados.", 422);
+    }
+  }
   const costing = await buildAliExpressImportCosting({
     productId: operational.resolvedProductId,
-    skuPricing: operational.product.sku_pricing || [],
+    skuPricing: quotedSkus,
     itemCurrency: (operational.product.currency || rawSnapshot.sourceCurrency || "USD").toUpperCase(),
+    ...(options.dryRun ? { readOnlySession: true } : {}),
   });
 
   if (!costing.complete) {
@@ -168,6 +203,75 @@ export async function refreshSupplier(input: {
   const landedBySku = new Map(
     costing.costedSkus.map((row) => [String(row.sku.sku_id), row.landedCost]),
   );
+
+  if (options.dryRun) {
+    const costs = new Map(costing.costedSkus.map((row) => [String(row.sku.sku_id), row]));
+    const validCost = (value: number | null) => value !== null && Number.isFinite(value) && value >= 0;
+    if (
+      costing.snapshot.status !== "COMPLETE" || costing.snapshot.freight.status !== "AVAILABLE" ||
+      costs.size !== quotedSkus.length || costing.costedSkus.length !== quotedSkus.length ||
+      rawSnapshot.variants.some((variant) => {
+        const row = costs.get(variant.sourceSkuId);
+        return !row || !validCost(row.landedCost) || !validCost(row.itemCostInCostCurrency) ||
+          !validCost(row.freightCostInCostCurrency) || row.costCurrency !== costing.costCurrency;
+      })
+    ) {
+      throw new SupplierRefreshInputError("Cotação incompleta: todos os SKUs exigem custo do item e frete confirmados.", 422);
+    }
+    const selectedCanonical = requestedSkus
+      ? product.variants.filter((variant) => variant.sourceSkuId && requestedSkus.has(variant.sourceSkuId))
+      : product.variants;
+    const quotedVariants = rawSnapshot.variants.map((variant) => {
+      const row = costs.get(variant.sourceSkuId)!;
+      const landedCost = row.landedCost!;
+      const officialSkuAttrs = operational.product.official_sku_attrs as Record<string, unknown> | undefined;
+      return {
+        sourceSkuId: variant.sourceSkuId,
+        name: variant.name,
+        attributes: variant.attributes,
+        imageUrl: variant.imageUrl,
+        orderSkuAttr: typeof officialSkuAttrs?.[variant.sourceSkuId] === "string"
+          ? officialSkuAttrs[variant.sourceSkuId] as string : null,
+        stock: variant.stock,
+        available: variant.stock > 0,
+        itemPrice: row.itemPrice,
+        itemCurrency: row.itemCurrency,
+        itemCostInCostCurrency: row.itemCostInCostCurrency,
+        freightCostInCostCurrency: row.freightCostInCostCurrency,
+        freightServiceName: costing.snapshot.perSku?.find((sku) => sku.skuId === variant.sourceSkuId)?.freightServiceName
+          ?? costing.snapshot.freight.selectedServiceName,
+        landedCost,
+        costCurrency: costing.costCurrency,
+        countryCode: costing.snapshot.countryCode,
+        verifiedAt: costing.snapshot.calculatedAt,
+        minimumRetail3x: Math.round(landedCost * 300) / 100,
+        suggestedRetail3x90: landedCost > 0 ? calculateSaleSuggestion({
+          cost: landedCost, sourceCurrency: costing.costCurrency, sellingCurrency: costing.costCurrency,
+          multiplier: 3, reservePercent: 0, ending: "90",
+        }).suggestedPrice : null,
+      };
+    });
+    return {
+      dryRun: true as const,
+      persisted: false as const,
+      supplierId: supplier.id,
+      sourceProductId: rawSnapshot.sourceProductId,
+      requestedProductId: operational.requestedProductId,
+      resolvedProductId: operational.resolvedProductId,
+      operationalProvider: operational.provider,
+      warnings: operational.warnings,
+      refreshedAt: new Date(costing.snapshot.calculatedAt),
+      variants: quotedVariants.length,
+      quotedSkus: quotedVariants,
+      costSnapshot: costing.snapshot,
+      suggestedMapping: suggestSupplierVariantMappings({
+        canonicalVariants: canonicalVariantsForMapping(selectedCanonical),
+        supplierVariants: rawSnapshot.variants.map((variant) => ({
+          ...variant, price: costs.get(variant.sourceSkuId)!.landedCost,
+        })),
+      }),
+    };
+  }
 
   const snapshot = {
     ...rawSnapshot,
