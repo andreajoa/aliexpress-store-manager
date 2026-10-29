@@ -1,4 +1,5 @@
-import { buildAliExpressImportCosting } from "./aliexpress-import-costing";
+import { buildAliExpressImportCosting, unavailableScopedImportCosting } from "./aliexpress-import-costing";
+import { supplierCostingSourceSkuIds, selectScopedCostingSkus } from "./supplier-costing-scope";
 import { getAliExpressOperationalProduct } from "./aliexpress-operational-provider";
 import { aliExpressProductIdAliases } from "./aliexpress-catalog-id";
 import { calculateSaleSuggestion } from "./product-pricing";
@@ -159,12 +160,13 @@ export async function refreshSupplier(input: {
    * Se todas as fontes externas falharem, esta função lança antes da transação:
    * o último estoque conhecido permanece intacto em vez de ser zerado por engano.
    */
+  const costingScope = options.dryRun ? null : supplierCostingSourceSkuIds(supplier.rawPayload);
   const operational = await getAliExpressOperationalProduct(
     supplier.sourceProductId,
-    options.dryRun ? { readOnlySession: true, officialOnly: true } : undefined,
+    options.dryRun ? { readOnlySession: true, officialOnly: true } : costingScope ? { officialOnly: true } : undefined,
   );
   const requestedSkus = options.sourceSkuIds ? new Set(options.sourceSkuIds) : null;
-  if (options.dryRun && operational.provider !== "ALIEXPRESS_OPEN_PLATFORM") {
+  if ((options.dryRun || costingScope) && operational.provider !== "ALIEXPRESS_OPEN_PLATFORM") {
     throw new SupplierRefreshInputError("A cotação dryRun exige dados da fonte oficial.", 422);
   }
   const allSkus = operational.product.sku_pricing || [];
@@ -186,14 +188,20 @@ export async function refreshSupplier(input: {
       throw new SupplierRefreshInputError("A fonte não retornou estoque verificável para todos os SKUs cotados.", 422);
     }
   }
-  const costing = await buildAliExpressImportCosting({
+  const scoped = costingScope ? selectScopedCostingSkus(quotedSkus, costingScope) : null;
+  const itemCurrency = (operational.product.currency || rawSnapshot.sourceCurrency || "USD").toUpperCase();
+  const scopedSoldOut = Boolean(scoped && scoped.available.length === 0);
+  const costing = scopedSoldOut ? unavailableScopedImportCosting({ skuPricing: scoped!.rows, itemCurrency }) : await buildAliExpressImportCosting({
     productId: operational.resolvedProductId,
-    skuPricing: quotedSkus,
-    itemCurrency: (operational.product.currency || rawSnapshot.sourceCurrency || "USD").toUpperCase(),
+    skuPricing: scoped ? scoped.available : quotedSkus,
+    itemCurrency,
     ...(options.dryRun ? { readOnlySession: true } : {}),
   });
 
-  if (!costing.complete) {
+  if (costingScope && (costing.costCurrency !== "USD" || costing.snapshot.countryCode !== "US")) {
+    throw new SupplierRefreshInputError("O escopo de custo exige cotação oficial US/USD.", 422);
+  }
+  if (!costing.complete && !scopedSoldOut) {
     throw new Error(
       costing.warning ||
       "Atualização bloqueada: o custo total (produto + frete) ainda não foi confirmado.",
@@ -310,6 +318,7 @@ export async function refreshSupplier(input: {
           operationalProvider: operational.provider,
           operationalWarnings: operational.warnings,
           product: snapshot.rawPayload,
+          ...(costingScope ? { costingSourceSkuIds: costingScope, costSnapshot: costing.snapshot } : {}),
         })),
         lastCheckedAt: refreshedAt,
       },

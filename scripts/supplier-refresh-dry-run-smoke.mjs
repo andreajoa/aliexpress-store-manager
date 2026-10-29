@@ -18,6 +18,8 @@ function loadTs(file, imports = {}) {
   return loaded.exports;
 }
 const options = loadTs('src/lib/supplier-refresh-options.ts');
+const costingScope = loadTs('src/lib/supplier-costing-scope.ts', {'./supplier-refresh-options': options});
+const costHelpers = loadTs('src/lib/aliexpress-import-costing.ts', {'./aliexpress-connection': {}, './aliexpress-landed-cost': {}, './fx-rate': {}});
 const aliases = loadTs('src/lib/aliexpress-catalog-id.ts');
 const catalog = loadTs('src/lib/supplier-catalog.ts');
 const mapper = loadTs('src/lib/supplier-variant-mapper.ts');
@@ -104,6 +106,7 @@ function harness({ allowWrites = false, actualCosting = false } = {}) {
         calls.sessions.push(opt);
         return { session: 'mock-session', client: { calculateFreight: async (input) => {
           calls.freight.push(input);
+          if (input.skuId === 'sku-c') throw new Error('Zero-stock SKU cannot quote freight');
           return [{ serviceName: 'Mock official shipping', amount: 4, currency: 'USD', estimatedDeliveryTime: '7' }];
         } } };
       } },
@@ -117,6 +120,7 @@ function harness({ allowWrites = false, actualCosting = false } = {}) {
         complete: true, costedSkus: rows, costMin: Math.min(...rows.map((r) => r.landedCost)), costMax: Math.max(...rows.map((r) => r.landedCost)), costCurrency: 'USD', warning: null,
         snapshot: { status: 'COMPLETE', basis: 'ITEM_PLUS_FREIGHT', countryCode: 'US', calculatedAt: '2026-10-26T05:00:00.000Z', freight: { status: 'AVAILABLE' } },
       };
+      if (state.costFailure === 'foreign') { result.costCurrency = 'EUR'; result.snapshot.countryCode = 'FR'; }
       if (state.costFailure === 'pending') { result.complete = false; result.warning = 'US freight unavailable'; }
       if (state.costFailure === 'missing') result.costedSkus.pop();
       if (state.costFailure === 'null-freight') result.costedSkus[0].freightCostInCostCurrency = null;
@@ -127,11 +131,11 @@ function harness({ allowWrites = false, actualCosting = false } = {}) {
   }
   const service = loadTs('src/lib/supplier-refresh-service.ts', {
     './prisma': { prisma }, './supplier-catalog': catalog, './supplier-variant-mapper': mapper, './supplier-selection': selection,
-    './supplier-refresh-options': options, './aliexpress-catalog-id': aliases, './product-pricing': pricing,
+    './supplier-refresh-options': options, './supplier-costing-scope': costingScope, './aliexpress-catalog-id': aliases, './product-pricing': pricing,
     './aliexpress-operational-provider': { getAliExpressOperationalProduct: async (...args) => {
       calls.provider.push(args); if (state.providerFailure) throw new Error('Provider unavailable'); return operational;
     } },
-    './aliexpress-import-costing': { buildAliExpressImportCosting: async (input) => { calls.costing.push(input); return costing(input); } },
+    './aliexpress-import-costing': { unavailableScopedImportCosting: costHelpers.unavailableScopedImportCosting, aliExpressImportCostBreakdown: costHelpers.aliExpressImportCostBreakdown, buildAliExpressImportCosting: async (input) => { calls.costing.push(input); return costing(input); } },
   });
   const route = loadTs(routeFile, { '@/lib/supplier-refresh-service': service, '@/lib/supplier-refresh-options': options });
   return { state, calls, service, async post(body = '', raw = false) {
@@ -363,4 +367,61 @@ test('normal provider chain still uses fallbacks when officialOnly is omitted', 
 test('unfiltered dryRun also refuses nonofficial data defensively', async () => {
   const h = harness(); h.state.operational.provider = 'OMKAR';
   assert.equal((await h.post({ dryRun: true })).status, 422); assert.deepEqual(h.calls.costing, []); assert.deepEqual(h.calls.writes, []);
+});
+
+
+function scopedFixture({actualCosting=true}={}) {
+  const h=harness({allowWrites:true,actualCosting});
+  h.state.supplier.rawPayload={costingSourceSkuIds:['sku-a','sku-b']};
+  h.state.operational.product.sku_pricing[1].available_quantity=5;
+  h.state.operational.product.variants.find(g=>g.attribute_name==='Size').options.push({value_id:'l',name:'L'});
+  const variant={id:'canonical-c',sourceSkuId:'sku-c',attributes:{Color:'Red',Size:'L'},stock:0,available:false};
+  h.state.product.variants.push(variant);
+  h.state.supplier.variants.push({id:'supplier-2',sourceSkuId:'sku-c',attributes:variant.attributes,stock:0,sourcePrice:null});
+  h.state.supplier.mappings.push({id:'mapping-2',canonicalVariantId:'canonical-c',supplierVariantId:'supplier-2',active:true});
+  h.state.operational.product.sku_pricing.push({sku_id:'sku-c',sale_price:1,available_quantity:0,variant_ids:'red,l',currency_code:'USD'});
+  return h;
+}
+test('opt-in paid-flow refresh preserves all inventory and prices only available configured SKUs on repeated refresh',async()=>{
+  const h=scopedFixture();
+  for(let i=0;i<2;i++){
+    const r=await h.service.refreshSupplier({productId:'product-1',supplierId:'supplier-1',syncAvailability:false});
+    assert.equal(r.variants,3);assert.equal(r.activeMappings,3);
+    assert.deepEqual(h.calls.costing[i].skuPricing.map(s=>s.sku_id),['sku-a','sku-b']);
+    assert.deepEqual(h.state.supplier.rawPayload.costingSourceSkuIds,['sku-a','sku-b']);
+    assert.equal(h.state.supplier.rawPayload.costSnapshot.status,'COMPLETE');
+    assert.equal(h.state.supplier.variants.find(v=>v.sourceSkuId==='sku-a').sourcePrice,14);
+    assert.equal(h.state.supplier.variants.find(v=>v.sourceSkuId==='sku-b').sourcePrice,24);
+    assert.equal(h.state.supplier.variants.find(v=>v.sourceSkuId==='sku-c').sourcePrice,null);
+    assert.equal(h.state.supplier.variants.find(v=>v.sourceSkuId==='sku-c').stock,0);
+    assert.deepEqual(h.calls.provider[i],[sourceId,{officialOnly:true}]);
+  }
+  assert.equal(h.calls.freight.length,4);assert.ok(h.calls.freight.every(x=>x.skuId!=='sku-c'));assert.deepEqual(h.calls.syncReads,[]);
+});
+test('scoped sold-out inventory updates to zero with no freight requests or invented prices',async()=>{
+  const h=scopedFixture();for(const s of h.state.operational.product.sku_pricing)s.available_quantity=0;
+  await h.service.refreshSupplier({productId:'product-1',supplierId:'supplier-1',syncAvailability:false});
+  assert.equal(h.calls.freight.length,0);assert.equal(h.calls.costing.length,0);
+  for(const s of h.state.supplier.variants){assert.equal(s.stock,0);assert.equal(s.sourcePrice,null);}
+  assert.equal(h.state.supplier.rawPayload.costSnapshot.status,'PENDING_FREIGHT');
+  assert.deepEqual(h.state.supplier.rawPayload.costingSourceSkuIds,['sku-a','sku-b']);
+});
+test('scope with only one available configured SKU does not request freight for a newly sold-out sibling',async()=>{
+  const h=scopedFixture();h.state.operational.product.sku_pricing[0].available_quantity=0;
+  await h.service.refreshSupplier({productId:'product-1',supplierId:'supplier-1',syncAvailability:false});
+  assert.deepEqual(h.calls.costing[0].skuPricing.map(s=>s.sku_id),['sku-b']);assert.equal(h.calls.freight.length,1);
+  assert.equal(h.state.supplier.variants.find(v=>v.sourceSkuId==='sku-a').stock,0);
+  assert.equal(h.state.supplier.variants.find(v=>v.sourceSkuId==='sku-b').sourcePrice,24);
+});
+for(const scope of [[],['sku-a','sku-a'],['missing'],[' sku-a']])test('invalid or missing scoped identity rejects without source writes: '+JSON.stringify(scope),async()=>{
+  const h=scopedFixture();h.state.supplier.rawPayload={costingSourceSkuIds:scope};const r=await h.post({});assert.equal(r.status,422);assert.deepEqual(h.calls.writes,[]);
+});
+test('unknown scoped stock rejects without guessing sold-out inventory',async()=>{
+  const h=scopedFixture();h.state.operational.product.sku_pricing[0].available_quantity=null;const r=await h.post({});assert.equal(r.status,422);assert.deepEqual(h.calls.writes,[]);
+});
+test('scoped refresh rejects non-US/USD costs before any write',async()=>{
+  const h=scopedFixture({actualCosting:false});h.state.costFailure='foreign';const r=await h.post({});assert.equal(r.status,422);assert.deepEqual(h.calls.writes,[]);
+});
+test('explicit dry-run selection keeps read-only semantics even when supplier has a configured normal-refresh scope',async()=>{
+  const h=scopedFixture({actualCosting:false});const r=await h.post({dryRun:true,sourceSkuIds:['sku-a']});assert.equal(r.status,200);assert.equal(r.body.persisted,false);assert.deepEqual(h.calls.writes,[]);assert.deepEqual(h.calls.provider[0],[sourceId,{readOnlySession:true,officialOnly:true}]);assert.deepEqual(h.calls.costing[0].skuPricing.map(s=>s.sku_id),['sku-a']);
 });
