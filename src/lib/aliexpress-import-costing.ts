@@ -170,6 +170,17 @@ function pendingCosting(input: {
   };
 }
 
+/** No freight request or cost invention when every explicitly scoped SKU is sold out. */
+export function unavailableScopedImportCosting(input: { skuPricing: OmkarSkuPricing[]; itemCurrency: string }) {
+  return pendingCosting({
+    ...input,
+    itemCurrency: input.itemCurrency.trim().toUpperCase(),
+    countryCode: normalizeCostCountry(process.env.ALIEXPRESS_COST_COUNTRY),
+    sendGoodsCountryCode: normalizeCostCountry(process.env.ALIEXPRESS_SEND_GOODS_COUNTRY || "CN"),
+    error: "Todos os SKUs do escopo estão sem estoque; custo de frete não consultado.",
+  });
+}
+
 export async function buildAliExpressImportCosting(input: {
   productId: string;
   skuPricing: OmkarSkuPricing[];
