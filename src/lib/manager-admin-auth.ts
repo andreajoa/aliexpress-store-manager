@@ -3,7 +3,16 @@ export type ManagerAdminCredentials = {
   password: string;
 };
 
-function safeEqual(a: string, b: string) {
+export const ACCESS_COOKIE = "manager_access";
+export const ACCESS_QUERY = "acesso";
+
+/** Long random secret for the owner's private link; shorter values are ignored so a weak link never opens the manager. */
+export function managerAccessTokenFromEnv(env: Record<string, string | undefined>) {
+  const token = env.MANAGER_ACCESS_TOKEN?.trim() || "";
+  return token.length >= 32 ? token : "";
+}
+
+export function safeEqual(a: string, b: string) {
   const left = new TextEncoder().encode(a);
   const right = new TextEncoder().encode(b);
   const max = Math.max(left.length, right.length);
