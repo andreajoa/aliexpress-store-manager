@@ -1,0 +1,121 @@
+name: Deploy NexaCloud
+on:
+  push:
+    branches: [nexacloud-acesso-por-link]
+  pull_request:
+  repository_dispatch:
+    types: [nexacloud-redeploy]
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.client_payload.ref || github.ref }}" }
+      - name: Load settings and environment variables
+        run: |
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://app.nexaclouds.online" | jq -r .value)
+          for i in $(seq 1 40); do
+            res=$(curl -sS -H "Authorization: Bearer $OIDC" "https://app.nexaclouds.online/api/deploy/store-manager/env")
+            if [ "$(echo "$res" | jq -r '.wait // false')" != "true" ]; then break; fi
+            echo "::notice::$(echo "$res" | jq -r '.message')"
+            sleep 15
+            OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://app.nexaclouds.online" | jq -r .value)
+          done
+          vars=$(echo "$res" | jq -c '.vars // {}')
+          echo "$vars" > "$RUNNER_TEMP/nc-vars.json"
+          for k in $(echo "$vars" | jq -r 'keys[]'); do v=$(echo "$vars" | jq -r --arg k "$k" '.[$k]'); echo "::add-mask::$v"; echo "$k=$v" >> "$GITHUB_ENV"; done
+          echo "NC_INSTALL=$(echo "$res" | jq -r '.build.install // ""')" >> "$GITHUB_ENV"
+          echo "NC_BUILD=$(echo "$res" | jq -r '.build.build // ""')" >> "$GITHUB_ENV"
+          echo "NC_OUTPUT=$(echo "$res" | jq -r '.build.output // ""')" >> "$GITHUB_ENV"
+          echo "NC_NODE=$(echo "$res" | jq -r '.build.node // "22"')" >> "$GITHUB_ENV"
+          echo "NC_SKIP_INSTALL=$(echo "$res" | jq -r '.build.skipInstall // false')" >> "$GITHUB_ENV"
+          echo "NC_SERVER=$(echo "$res" | jq -r '.build.server // false')" >> "$GITHUB_ENV"
+          echo "NC_ROOT=$(echo "$res" | jq -r '.build.root // "."')" >> "$GITHUB_ENV"
+      - name: Build the server app and send it to NexaCloud
+        if: env.NC_SERVER == 'true'
+        id: server
+        env:
+          PREVIEW: ${{ github.event_name == 'pull_request' && '?preview=1' || '' }}
+        run: |
+          cd "${NC_ROOT:-.}"
+          if [ -n "$PREVIEW" ]; then echo "Previews of server apps are not available yet; merging the pull request deploys it."; exit 0; fi
+          # The image is built here, on the CI machine; the NexaCloud server only loads and runs it.
+          DF=Dockerfile
+          if [ ! -f Dockerfile ]; then curl -fsS https://app.nexaclouds.online/ci/dockerfile.mjs -o "$RUNNER_TEMP/ncdf.mjs" && node "$RUNNER_TEMP/ncdf.mjs" "$NC_NODE" > "$RUNNER_TEMP/Dockerfile.nexacloud"; DF="$RUNNER_TEMP/Dockerfile.nexacloud"; fi
+          jq -r 'to_entries[] | "\(.key)=\(.value|@sh)"' "$RUNNER_TEMP/nc-vars.json" > "$RUNNER_TEMP/nc.env"
+          ARGS=(--build-arg "NC_ENV_HASH=$(sha256sum "$RUNNER_TEMP/nc-vars.json" | cut -c1-64)")
+          for k in $(grep -oE '^[[:space:]]*ARG[[:space:]]+[A-Za-z_][A-Za-z0-9_]*' "$DF" | awk '{print $2}' | sort -u); do
+            if jq -e --arg k "$k" 'has($k)' "$RUNNER_TEMP/nc-vars.json" >/dev/null; then ARGS+=(--build-arg "$k=$(jq -r --arg k "$k" '.[$k]' "$RUNNER_TEMP/nc-vars.json")"); fi
+          done
+          docker buildx build --load --secret id=ncenv,src="$RUNNER_TEMP/nc.env" "${ARGS[@]}" -t nexacloud-app:build -f "$DF" .
+          CFG=$(jq -cn --argjson n "$(cat nexacloud.json 2>/dev/null || echo null)" --argjson v "$(cat vercel.json 2>/dev/null || echo null)" '{nexacloud:$n,vercel:$v}' | base64 -w0)
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://app.nexaclouds.online" | jq -r .value)
+          res=$(curl --fail-with-body -sS -X POST "https://app.nexaclouds.online/api/deploy/store-manager/server?image=1" -H "Authorization: Bearer $OIDC")
+          id=$(echo "$res" | jq -r .deploymentId)
+          echo "Sending the image to NexaCloud (deployment $id)"
+          docker save nexacloud-app:build | gzip -1 | curl --fail-with-body -sS -X POST -T - "$(echo "$res" | jq -r .uploadUrl)" -H "x-nc-deployment: $id" -H "x-nc-ticket: $(echo "$res" | jq -r .ticket)" -H "x-nc-config: $CFG" -H "content-type: application/gzip"
+          echo
+          for i in $(seq 1 60); do
+            sleep 5
+            OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://app.nexaclouds.online" | jq -r .value)
+            st=$(curl -sS "https://app.nexaclouds.online/api/deploy/store-manager/server?id=$id" -H "Authorization: Bearer $OIDC")
+            state=$(echo "$st" | jq -r .state)
+            if [ "$state" = "ready" ]; then echo "$st" | jq -r .log | tail -n 20; echo "Live: https://store-manager.nexaclouds.online"; echo "url=https://store-manager.nexaclouds.online" >> "$GITHUB_OUTPUT"; exit 0; fi
+            if [ "$state" = "error" ]; then echo "$st" | jq -r .log | tail -n 80; echo "::error::$(echo "$st" | jq -r .error)"; exit 1; fi
+          done
+          echo "::error::The app did not start within 5 minutes"; exit 1
+      - uses: actions/setup-node@v4
+        if: env.NC_SERVER != 'true'
+        with: { node-version: "${{ env.NC_NODE }}" }
+      - name: Install
+        if: env.NC_SERVER != 'true'
+        run: |
+          cd "${NC_ROOT:-.}"
+          if [ "$NC_SKIP_INSTALL" = "true" ]; then echo "No install step"; exit 0; fi
+          if [ -n "$NC_INSTALL" ]; then bash -c "$NC_INSTALL"
+          elif [ -f package-lock.json ]; then npm ci
+          elif [ -f package.json ]; then npm install
+          else echo "No package.json: nothing to install"; fi
+      - name: Build
+        if: env.NC_SERVER != 'true'
+        run: |
+          cd "${NC_ROOT:-.}"
+          if [ -n "$NC_BUILD" ]; then bash -c "$NC_BUILD"
+          elif [ -f package.json ]; then npm run build --if-present
+          else echo "No build step"; fi
+      - name: Send to NexaCloud
+        if: env.NC_SERVER != 'true'
+        id: deploy
+        env:
+          PREVIEW: ${{ github.event_name == 'pull_request' && '?preview=1' || '' }}
+        run: |
+          cd "${NC_ROOT:-.}"
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://app.nexaclouds.online" | jq -r .value)
+          out="$NC_OUTPUT"
+          if [ -z "$out" ]; then for d in dist build out public .output/public _site; do if [ -f "$d/index.html" ]; then out="$d"; break; fi; done; fi
+          if [ -z "$out" ]; then out="."; fi
+          if [ ! -f "$out/index.html" ]; then echo "::error::No index.html in '$out'. Set the Output Directory in NexaCloud > Project > Settings > Build and Deployment."; exit 1; fi
+          echo "Publishing $out"
+          cd "$out"
+          args=(); while IFS= read -r f; do args+=(-F "${f#./}=@\"$f\""); done < <(find . -type f -not -path '*/.*' -not -path './node_modules/*' -o -type f -path './.well-known/*')
+          res=$(curl -sS -w '\n%{http_code}' -X POST "https://app.nexaclouds.online/api/deploy/store-manager$PREVIEW" -H "Authorization: Bearer $OIDC" "${args[@]}")
+          code=$(echo "$res" | tail -n1); res=$(echo "$res" | sed '$d')
+          echo "$res"
+          if [ "$code" -ge 400 ]; then echo "::error::NexaCloud refused the deploy ($code): $(echo "$res" | jq -r '.error // .' 2>/dev/null)"; exit 1; fi
+          if [ "$(echo "$res" | jq -r '.skipped | length' 2>/dev/null)" != "0" ]; then echo "::notice::Left out (hidden or invalid names): $(echo "$res" | jq -r '.skipped | join(", ")')"; fi
+          echo "url=$(echo "$res" | jq -r .url)" >> "$GITHUB_OUTPUT"
+      - name: Report a failed build to NexaCloud
+        if: failure()
+        run: |
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://app.nexaclouds.online" | jq -r .value)
+          curl -sS -X POST "https://app.nexaclouds.online/api/deploy/store-manager/failed" -H "Authorization: Bearer $OIDC" || true
+      - name: Comment the preview URL
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "NexaCloud preview: ${{ steps.deploy.outputs.url || steps.server.outputs.url || 'not available for server apps yet' }}"
