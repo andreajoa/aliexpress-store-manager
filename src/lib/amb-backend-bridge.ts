@@ -447,30 +447,97 @@ export async function ingestAmbPaidStripeSession(input: { storeId: string; sessi
   }
 
   const order = await createAmbOrder(input.storeId, session);
-  const warnings: string[] = [];
-  let prepared: Awaited<ReturnType<typeof prepareOrderFulfillment>> | null = null;
-  let aliExpress: Array<Record<string, unknown>> = [];
-
-  try {
-    await refreshOrderSuppliers(order.id);
-    prepared = await prepareOrderFulfillment(order.id);
-    aliExpress = await autoCreateAliExpressUnpaidOrders(order.id, session.shipping.countryCode);
-    if (aliExpress.some((result) => result.ok !== true)) {
-      warnings.push("Pedido pago registrado e fulfillment preparado, mas um ou mais lotes ainda exigem ação no AliExpress.");
-    }
-  } catch (error) {
-    warnings.push(error instanceof Error ? error.message : "Fulfillment automático não pôde ser concluído.");
-  }
+  const result = await runAmbAutoFulfillment(order.id, session.shipping.countryCode);
 
   return {
     ok: true,
     duplicate: order.duplicate,
     orderId: order.id,
     stripeSessionId: session.id,
-    prepared,
-    aliExpress,
-    warnings,
+    ...result,
   };
+}
+
+/**
+ * Refreshes the order's suppliers, prepares fulfillment and creates the unpaid
+ * AliExpress order(s) with the customer's name and address. Never throws: every
+ * failure comes back in `warnings` so callers can record it and retry later.
+ */
+export async function runAmbAutoFulfillment(orderId: string, countryCode: string) {
+  const warnings: string[] = [];
+  let prepared: Awaited<ReturnType<typeof prepareOrderFulfillment>> | null = null;
+  let aliExpress: Array<Record<string, unknown>> = [];
+
+  try {
+    await refreshOrderSuppliers(orderId);
+    prepared = await prepareOrderFulfillment(orderId);
+    aliExpress = await autoCreateAliExpressUnpaidOrders(orderId, countryCode);
+    const failed = aliExpress.filter((result) => result.ok !== true);
+    if (failed.length > 0) {
+      warnings.push(
+        `AliExpress: ${failed.map((result) => String(result.error || "falha")).join(" | ")}`,
+      );
+    }
+  } catch (error) {
+    warnings.push(error instanceof Error ? error.message : "Fulfillment automático não pôde ser concluído.");
+  }
+
+  return { prepared, aliExpress, warnings };
+}
+
+const AMB_RETRY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Paid AMB orders that still have no AliExpress order (the automatic run at
+ * payment time failed) are retried here. Batches with an inconclusive purchase
+ * attempt (PLACING/UNKNOWN) are skipped to avoid buying twice.
+ */
+export async function retryPendingAmbFulfillment(storeId: string, now = new Date()) {
+  const orders = await prisma.order.findMany({
+    where: {
+      storeId,
+      paymentStatus: "PAID",
+      fulfillmentStatus: { in: ["UNFULFILLED", "PROCESSING"] },
+      createdAt: { gte: new Date(now.getTime() - AMB_RETRY_WINDOW_MS) },
+      items: { some: { variantSnapshot: { path: ["source"], equals: "AMB_BACKEND_BRIDGE_V1" } } },
+    },
+    select: {
+      id: true,
+      externalOrderId: true,
+      shippingAddress: { select: { countryCode: true } },
+      fulfillmentBatches: { select: { provider: true, status: true, externalOrderId: true, placementStatus: true } },
+    },
+    orderBy: { createdAt: "asc" },
+    take: 20,
+  });
+
+  const results: Array<{ orderId: string; ok: boolean; skipped?: string; warnings?: string[]; aliExpress?: Array<Record<string, unknown>> }> = [];
+  for (const order of orders) {
+    const batches = order.fulfillmentBatches;
+    if (batches.some((batch) => batch.placementStatus === "PLACING" || batch.placementStatus === "UNKNOWN")) {
+      results.push({ orderId: order.id, ok: false, skipped: "Tentativa de compra inconclusiva: conferir no AliExpress." });
+      continue;
+    }
+    const pending = batches.length === 0 || batches.some(
+      (batch) => batch.provider === "ALIEXPRESS" && batch.status === "PROCESSING" && !batch.externalOrderId,
+    );
+    if (!pending) continue;
+    if (!order.shippingAddress) {
+      results.push({ orderId: order.id, ok: false, skipped: "Pedido sem endereço de entrega." });
+      continue;
+    }
+
+    const result = await runAmbAutoFulfillment(order.id, order.shippingAddress.countryCode);
+    const ok = result.warnings.length === 0;
+    await prisma.integrationEvent.updateMany({
+      where: { storeId, externalEventId: `amb:${order.externalOrderId}` },
+      data: ok
+        ? { status: "PROCESSED", errorMessage: null, processedAt: new Date() }
+        : { status: "FAILED", errorMessage: result.warnings.join(" | ").slice(0, 2000), processedAt: new Date() },
+    });
+    results.push({ orderId: order.id, ok, warnings: result.warnings, aliExpress: result.aliExpress });
+  }
+  return results;
 }
 
 export async function ambInventorySnapshot(storeId: string) {

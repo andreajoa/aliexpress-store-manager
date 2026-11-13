@@ -156,9 +156,15 @@ export async function POST(
 
   try {
     const result = await ingestAmbPaidStripeSession({ storeId, sessionId, accessToken: token });
+    // The order is saved either way; a fulfillment warning keeps the event FAILED
+    // (with the reason) so the daily cron and any resend retry it instead of
+    // treating it as done.
+    const fulfillmentWarning = result.warnings.join(" | ").slice(0, 2000);
     await prisma.integrationEvent.updateMany({
       where: { storeId, externalEventId },
-      data: { status: "PROCESSED", processedAt: new Date(), errorMessage: null },
+      data: fulfillmentWarning
+        ? { status: "FAILED", processedAt: new Date(), errorMessage: fulfillmentWarning }
+        : { status: "PROCESSED", processedAt: new Date(), errorMessage: null },
     });
     return NextResponse.json({
       ...result,
