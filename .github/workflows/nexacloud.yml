@@ -1,7 +1,7 @@
 name: Deploy NexaCloud
 on:
   push:
-    branches: [nexacloud-acesso-por-link]
+    branches: [main]
   pull_request:
   repository_dispatch:
     types: [nexacloud-redeploy]
