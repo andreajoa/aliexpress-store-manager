@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { retryPendingAmbFulfillment } from "@/lib/amb-backend-bridge";
 import { scanAmbCatalog } from "@/lib/amb-catalog-scan";
 import { maintainAliExpressConnection } from "@/lib/aliexpress-connection";
 import { syncAliExpressBatch } from "@/lib/aliexpress-fulfillment";
@@ -78,6 +79,13 @@ export async function GET(request: NextRequest) {
     };
   }
 
+  let ambFulfillmentRetries: Awaited<ReturnType<typeof retryPendingAmbFulfillment>> | { ok: false; error: string };
+  try {
+    ambFulfillmentRetries = await retryPendingAmbFulfillment("amb-boutique-store");
+  } catch (error) {
+    ambFulfillmentRetries = { ok: false, error: error instanceof Error ? error.message : "AMB fulfillment retry failed" };
+  }
+
   const batches = await prisma.fulfillmentBatch.findMany({
     where: {
       provider: "ALIEXPRESS",
@@ -108,6 +116,7 @@ export async function GET(request: NextRequest) {
       results: supplierResults,
     },
     ambCatalog,
+    ambFulfillmentRetries,
     tracking: {
       checked: trackingResults.length,
       failed: trackingResults.filter((item) => !item.ok).length,
