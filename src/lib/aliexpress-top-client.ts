@@ -646,6 +646,14 @@ export class AliExpressTopClient {
     });
   }
 
+  // Same milestones and delivery estimate the buyer sees on the AliExpress tracking page.
+  async orderTracking(input: { session: string; orderId: string; language?: string }) {
+    return this.execute("aliexpress.ds.order.tracking.get", input.session, {
+      ae_order_id: input.orderId,
+      language: input.language || "en_US",
+    });
+  }
+
   async trackingInfo(input: {
     session: string;
     logisticsNo: string;

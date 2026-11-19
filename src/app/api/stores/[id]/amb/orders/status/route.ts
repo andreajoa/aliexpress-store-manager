@@ -1,7 +1,7 @@
 import { createPublicKey, verify as verifySignature } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
-import { syncAliExpressBatch } from "@/lib/aliexpress-fulfillment";
+import { readAliExpressBatchTracking, syncAliExpressBatch } from "@/lib/aliexpress-fulfillment";
 import { prisma } from "@/lib/prisma";
 import { bearerToken, verifySharedWebhookToken } from "@/lib/store-webhook-auth";
 
@@ -155,10 +155,23 @@ export async function GET(
     trackingCode: string | null;
     trackingUrl: string | null;
     events: Array<{ eventDesc: string; status: string; address: string | null; eventDate: string | null }>;
+    estimatedDeliveryAt?: string | null;
     error?: string;
   }> = [];
 
   for (const batch of order.fulfillmentBatches) {
+    if (batch.externalOrderId && batch.status === "DELIVERED") {
+      const history = await readAliExpressBatchTracking(order.id, batch.id).catch(() => null);
+      syncResults.push({
+        batchId: batch.id,
+        status: batch.status,
+        trackingCode: batch.trackingCode || history?.logisticsNo || null,
+        trackingUrl: history?.carrierWebsite || null,
+        events: history?.events || [],
+        estimatedDeliveryAt: null,
+      });
+      continue;
+    }
     if (!batch.externalOrderId || !["ORDERED", "SHIPPED"].includes(batch.status)) {
       syncResults.push({
         batchId: batch.id,
@@ -178,6 +191,7 @@ export async function GET(
         trackingCode: result.logisticsNo || batch.trackingCode,
         trackingUrl: result.trackingUrl || null,
         events: result.trackingEvents || [],
+        estimatedDeliveryAt: result.estimatedDeliveryAt || null,
       });
     } catch (error) {
       syncResults.push({
@@ -213,6 +227,7 @@ export async function GET(
       trackingCode: batch.trackingCode || sync?.trackingCode || null,
       customerCarrier: "AMB Boutique Delivery",
       events: sync?.events || [],
+      estimatedDeliveryAt: sync?.estimatedDeliveryAt || null,
       syncError: sync?.error || null,
     };
   });
@@ -225,6 +240,7 @@ export async function GET(
     trackingCode: refreshed.trackingCode || batches.find((item) => item.trackingCode)?.trackingCode || null,
     shippedAt: refreshed.shippedAt?.toISOString() || null,
     deliveredAt: refreshed.deliveredAt?.toISOString() || null,
+    estimatedDeliveryAt: batches.find((item) => item.estimatedDeliveryAt)?.estimatedDeliveryAt || null,
     batches,
     checkedAt: new Date().toISOString(),
   }, {
