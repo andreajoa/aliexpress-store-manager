@@ -1,7 +1,7 @@
 import { createPublicKey, verify as verifySignature } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
-import { syncAliExpressBatch } from "@/lib/aliexpress-fulfillment";
+import { readAliExpressBatchTracking, syncAliExpressBatch } from "@/lib/aliexpress-fulfillment";
 import { prisma } from "@/lib/prisma";
 import { bearerToken, verifySharedWebhookToken } from "@/lib/store-webhook-auth";
 
@@ -160,6 +160,18 @@ export async function GET(
   }> = [];
 
   for (const batch of order.fulfillmentBatches) {
+    if (batch.externalOrderId && batch.status === "DELIVERED") {
+      const history = await readAliExpressBatchTracking(order.id, batch.id).catch(() => null);
+      syncResults.push({
+        batchId: batch.id,
+        status: batch.status,
+        trackingCode: batch.trackingCode || history?.logisticsNo || null,
+        trackingUrl: history?.carrierWebsite || null,
+        events: history?.events || [],
+        estimatedDeliveryAt: null,
+      });
+      continue;
+    }
     if (!batch.externalOrderId || !["ORDERED", "SHIPPED"].includes(batch.status)) {
       syncResults.push({
         batchId: batch.id,

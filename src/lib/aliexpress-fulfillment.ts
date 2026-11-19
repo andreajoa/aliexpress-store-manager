@@ -383,6 +383,18 @@ function looksDelivered(events: AliExpressTrackingEvent[]) {
   });
 }
 
+// Read-only history for batches that no longer need syncing (delivered): the
+// customer still sees the full AliExpress journey, and nothing is written.
+export async function readAliExpressBatchTracking(orderId: string, batchId: string) {
+  const batch = await loadBatch(orderId, batchId);
+  if (!batch.externalOrderId) return null;
+  const { session, client } = await requireAliExpressSession();
+  return orderTrackingFromEnvelope(
+    await client.orderTracking({ session, orderId: batch.externalOrderId }),
+    batch.trackingCode || "",
+  );
+}
+
 export async function syncAliExpressBatch(orderId: string, batchId: string) {
   const batch = await loadBatch(orderId, batchId);
   if (!batch.externalOrderId) throw new Error("Lote ainda não possui pedido AliExpress.");
