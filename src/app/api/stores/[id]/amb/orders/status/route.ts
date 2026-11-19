@@ -155,6 +155,7 @@ export async function GET(
     trackingCode: string | null;
     trackingUrl: string | null;
     events: Array<{ eventDesc: string; status: string; address: string | null; eventDate: string | null }>;
+    estimatedDeliveryAt?: string | null;
     error?: string;
   }> = [];
 
@@ -178,6 +179,7 @@ export async function GET(
         trackingCode: result.logisticsNo || batch.trackingCode,
         trackingUrl: result.trackingUrl || null,
         events: result.trackingEvents || [],
+        estimatedDeliveryAt: result.estimatedDeliveryAt || null,
       });
     } catch (error) {
       syncResults.push({
@@ -213,6 +215,7 @@ export async function GET(
       trackingCode: batch.trackingCode || sync?.trackingCode || null,
       customerCarrier: "AMB Boutique Delivery",
       events: sync?.events || [],
+      estimatedDeliveryAt: sync?.estimatedDeliveryAt || null,
       syncError: sync?.error || null,
     };
   });
@@ -225,6 +228,7 @@ export async function GET(
     trackingCode: refreshed.trackingCode || batches.find((item) => item.trackingCode)?.trackingCode || null,
     shippedAt: refreshed.shippedAt?.toISOString() || null,
     deliveredAt: refreshed.deliveredAt?.toISOString() || null,
+    estimatedDeliveryAt: batches.find((item) => item.estimatedDeliveryAt)?.estimatedDeliveryAt || null,
     batches,
     checkedAt: new Date().toISOString(),
   }, {

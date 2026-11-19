@@ -287,6 +287,62 @@ export type AliExpressTrackingEvent = {
   eventDate: string | null;
 };
 
+// The legacy logistics API returns "YYYY-MM-DD HH:mm:ss" in China time (GMT+8):
+// "2026-11-19 15:56:00" is the event the AliExpress page shows as 07:56 UTC.
+export function legacyAliExpressDateToIso(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return value || null;
+  const [, y, mo, d, h, mi, s = "00"] = match;
+  const parsed = Date.parse(`${y}-${mo}-${d}T${h}:${mi}:${s}+08:00`);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : value;
+}
+
+export type AliExpressOrderTracking = {
+  events: AliExpressTrackingEvent[];
+  logisticsNo: string;
+  carrierName: string;
+  carrierWebsite: string | null;
+  estimatedDeliveryAt: string | null;
+};
+
+// aliexpress.ds.order.tracking.get is the feed behind the buyer's AliExpress
+// tracking page: same milestone names ("Collected by carrier"), same sentences
+// ("Package collected by carrier.") and the same delivery estimate.
+export function orderTrackingFromEnvelope(value: unknown, logisticsNo: string): AliExpressOrderTracking | null {
+  const root = record(value);
+  const result = record(root.result);
+  if (result.ret === false) return null;
+  const data = record(result.data ?? root.data);
+  const lines = array(data.tracking_detail_line_list).map((item) => record(item));
+  const wanted = logisticsNo.trim().toUpperCase();
+  const line = (wanted && lines.find((item) => text(item.mail_no).toUpperCase() === wanted)) || lines[0];
+  if (!line) return null;
+  const seen = new Set<string>();
+  const events: AliExpressTrackingEvent[] = [];
+  for (const candidate of array(line.detail_node_list)) {
+    const node = record(candidate);
+    const stamp = Number(node.time_stamp);
+    const eventDate = Number.isFinite(stamp) && stamp > 0 ? new Date(stamp).toISOString() : null;
+    const status = text(node.tracking_name);
+    const eventDesc = text(node.tracking_detail_desc) || status;
+    const address = text(node.address ?? node.location) || null;
+    if (!eventDesc && !status) continue;
+    const key = [eventDate || "", status, eventDesc].join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    events.push({ eventDesc, status, address, eventDate });
+  }
+  events.sort((a, b) => Date.parse(a.eventDate || "") - Date.parse(b.eventDate || "") || 0);
+  const eta = Number(line.eta_time_stamps);
+  return {
+    events,
+    logisticsNo: text(line.mail_no),
+    carrierName: text(line.carrier_name) || text(line.cp_name),
+    carrierWebsite: text(line.cp_website_url) || null,
+    estimatedDeliveryAt: Number.isFinite(eta) && eta > 0 ? new Date(eta).toISOString() : null,
+  };
+}
+
 function trackingEventsFromEnvelope(value: unknown): AliExpressTrackingEvent[] {
   // TOP logistics responses may wrap the result and details as objects or arrays.
   const root = record(value);
@@ -303,7 +359,7 @@ function trackingEventsFromEnvelope(value: unknown): AliExpressTrackingEvent[] {
     const eventDesc = text(row.event_desc ?? row.eventDesc ?? row.description);
     const status = text(row.status ?? row.event_status);
     const address = text(row.address ?? row.location) || null;
-    const eventDate = text(row.event_date ?? row.eventDate ?? row.event_time) || null;
+    const eventDate = legacyAliExpressDateToIso(text(row.event_date ?? row.eventDate ?? row.event_time));
     if (!eventDesc && !status && !address && !eventDate) continue;
     const key = [eventDate || "", status, address || "", eventDesc].join("|");
     if (seen.has(key)) continue;
@@ -342,7 +398,7 @@ export async function syncAliExpressBatch(orderId: string, batchId: string) {
     .map((item) => record(item));
   const logistics = logisticsRows.find((item) =>
     text(item.logistics_no ?? item.logisticsNo ?? item.tracking_number)) || logisticsRows[0] || null;
-  const logisticsNo = (logistics ? text(logistics.logistics_no ?? logistics.logisticsNo ?? logistics.tracking_number) : "") ||
+  let logisticsNo = (logistics ? text(logistics.logistics_no ?? logistics.logisticsNo ?? logistics.tracking_number) : "") ||
     text(result.logistics_no ?? result.tracking_number) || batch.trackingCode || "";
   const serviceName = logistics ? text(logistics.logistics_service ?? logistics.service_name) : "";
   const logisticsStatus = text(result.logistics_status);
@@ -350,24 +406,41 @@ export async function syncAliExpressBatch(orderId: string, batchId: string) {
 
   let trackingUrl: string | null = null;
   let trackingEvents: AliExpressTrackingEvent[] = [];
+  let orderTracking: AliExpressOrderTracking | null = null;
+
+  try {
+    orderTracking = orderTrackingFromEnvelope(
+      await client.orderTracking({ session, orderId: batch.externalOrderId }),
+      logisticsNo,
+    );
+  } catch (error) {
+    console.warn("AliExpress order tracking query failed:", error);
+  }
+  if (!logisticsNo && orderTracking?.logisticsNo) logisticsNo = orderTracking.logisticsNo;
+  if (orderTracking?.events.length) {
+    trackingEvents = orderTracking.events;
+    trackingUrl = orderTracking.carrierWebsite;
+  }
 
   if (logisticsNo) {
-    try {
-      const tracking = await client.trackingInfo({
-        session,
-        logisticsNo,
-        orderId: batch.externalOrderId,
-        serviceName: serviceName || batch.logisticsServiceName || "OTHER",
-        countryCode: normalizeAliExpressCountryCode(batch.order.shippingAddress?.countryCode || ""),
-      });
-      trackingUrl = text(tracking.official_website) || null;
-      trackingEvents = trackingEventsFromEnvelope(tracking);
-    } catch (error) {
-      console.warn("AliExpress tracking detail query failed:", error);
+    if (!trackingEvents.length) {
+      try {
+        const tracking = await client.trackingInfo({
+          session,
+          logisticsNo,
+          orderId: batch.externalOrderId,
+          serviceName: serviceName || batch.logisticsServiceName || "OTHER",
+          countryCode: normalizeAliExpressCountryCode(batch.order.shippingAddress?.countryCode || ""),
+        });
+        trackingUrl = text(tracking.official_website) || null;
+        trackingEvents = trackingEventsFromEnvelope(tracking);
+      } catch (error) {
+        console.warn("AliExpress tracking detail query failed:", error);
+      }
     }
 
     const shipped = ["SELLER_SEND_GOODS", "WAIT_BUYER_ACCEPT_GOODS"].includes(logisticsStatus) ||
-      trackingEvents.some((event) => /in transit|awaiting flight|heading to|departed|customs|shipped/i.test(event.status+" "+event.eventDesc));
+      trackingEvents.some((event) => /in transit|awaiting flight|heading to|departed|customs|shipped|collected by carrier|picked ?up/i.test(event.status+" "+event.eventDesc));
     const delivered = looksDelivered(trackingEvents);
 
     if (shipped || delivered) {
@@ -391,5 +464,7 @@ export async function syncAliExpressBatch(orderId: string, batchId: string) {
     serviceName: serviceName || batch.logisticsServiceName || null,
     trackingUrl,
     trackingEvents,
+    carrierName: orderTracking?.carrierName || null,
+    estimatedDeliveryAt: orderTracking?.estimatedDeliveryAt || null,
   };
 }
