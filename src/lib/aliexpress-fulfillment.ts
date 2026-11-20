@@ -383,14 +383,32 @@ function looksDelivered(events: AliExpressTrackingEvent[]) {
   });
 }
 
+// The page feed occasionally fails for a moment; the legacy fallback has
+// different wording from the customer's AliExpress page, so try twice first.
+async function readOrderTrackingWithRetry(fetchFeed: () => Promise<unknown>, logisticsNo: string) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const tracking = orderTrackingFromEnvelope(await fetchFeed(), logisticsNo);
+      if (tracking?.events.length || attempt === 2) return tracking;
+    } catch (error) {
+      if (attempt === 2) {
+        console.warn("AliExpress order tracking query failed:", error);
+        return null;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 800));
+  }
+  return null;
+}
+
 // Read-only history for batches that no longer need syncing (delivered): the
 // customer still sees the full AliExpress journey, and nothing is written.
 export async function readAliExpressBatchTracking(orderId: string, batchId: string) {
   const batch = await loadBatch(orderId, batchId);
   if (!batch.externalOrderId) return null;
   const { session, client } = await requireAliExpressSession();
-  return orderTrackingFromEnvelope(
-    await client.orderTracking({ session, orderId: batch.externalOrderId }),
+  return readOrderTrackingWithRetry(
+    () => client.orderTracking({ session, orderId: batch.externalOrderId! }),
     batch.trackingCode || "",
   );
 }
@@ -420,14 +438,10 @@ export async function syncAliExpressBatch(orderId: string, batchId: string) {
   let trackingEvents: AliExpressTrackingEvent[] = [];
   let orderTracking: AliExpressOrderTracking | null = null;
 
-  try {
-    orderTracking = orderTrackingFromEnvelope(
-      await client.orderTracking({ session, orderId: batch.externalOrderId }),
-      logisticsNo,
-    );
-  } catch (error) {
-    console.warn("AliExpress order tracking query failed:", error);
-  }
+  orderTracking = await readOrderTrackingWithRetry(
+    () => client.orderTracking({ session, orderId: batch.externalOrderId! }),
+    logisticsNo,
+  );
   if (!logisticsNo && orderTracking?.logisticsNo) logisticsNo = orderTracking.logisticsNo;
   if (orderTracking?.events.length) {
     trackingEvents = orderTracking.events;
