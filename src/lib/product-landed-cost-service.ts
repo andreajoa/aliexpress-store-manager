@@ -1,6 +1,7 @@
 import { buildAliExpressImportCosting, aliExpressImportCostBreakdown } from "./aliexpress-import-costing";
 import { getAliExpressOperationalProduct } from "./aliexpress-operational-provider";
 import { prisma } from "./prisma";
+import { mergeDeliveryPayloadFields } from "./supplier-delivery";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -109,12 +110,18 @@ export async function recalculateProductLandedCost(productId: string) {
     }
 
     if (primarySupplier) {
+      const currentSupplierRaw = asRecord(primarySupplier.rawPayload);
       await tx.supplierProduct.update({
         where: { id: primarySupplier.id },
         data: {
           sourceCurrency: costing.costCurrency,
           costMin: costing.costMin,
           costMax: costing.costMax,
+          rawPayload: JSON.parse(JSON.stringify({
+            ...currentSupplierRaw,
+            costSnapshot: costing.snapshot,
+            ...mergeDeliveryPayloadFields(currentSupplierRaw, costing.snapshot),
+          })),
           lastCheckedAt: refreshedAt,
         },
       });

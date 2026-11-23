@@ -6,6 +6,7 @@ import { resolveAliExpressProductId } from "@/lib/omkar";
 import { aliExpressProductIdAliases } from "@/lib/aliexpress-catalog-id";
 import { getAliExpressOperationalProduct } from "@/lib/aliexpress-operational-provider";
 import { buildAliExpressImportCosting } from "@/lib/aliexpress-import-costing";
+import { extractSupplierDeliveryProfile, mergeDeliveryPayloadFields } from "@/lib/supplier-delivery";
 import {
   canonicalVariantsForMapping,
   normalizeSupplierProduct,
@@ -41,6 +42,7 @@ function supplierJson(supplier: {
   sourceCurrency: string | null;
   costMin: { toString(): string } | null;
   costMax: { toString(): string } | null;
+  rawPayload?: unknown;
   lastCheckedAt: Date | null;
   variants: Array<{
     id: string;
@@ -74,6 +76,10 @@ function supplierJson(supplier: {
     costMin: supplier.costMin?.toString() || null,
     costMax: supplier.costMax?.toString() || null,
     lastCheckedAt: supplier.lastCheckedAt?.toISOString() || null,
+    delivery: extractSupplierDeliveryProfile({
+      supplierRawPayload: supplier.rawPayload,
+      supplierUpdatedAt: supplier.lastCheckedAt,
+    }),
     variants: supplier.variants.map((variant) => ({
       id: variant.id,
       sourceSkuId: variant.sourceSkuId,
@@ -264,6 +270,7 @@ export async function POST(
             resolvedProductId: operational.resolvedProductId,
             product: snapshot.rawPayload,
             costSnapshot: costing.snapshot,
+            ...mergeDeliveryPayloadFields(null, costing.snapshot),
           })),
           lastCheckedAt: new Date(),
           variants: {

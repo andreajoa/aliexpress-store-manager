@@ -21,6 +21,22 @@ type SupplierMapping = {
   active: boolean;
 };
 
+type SupplierDelivery = {
+  markets: Partial<Record<"US" | "CA" | "UK" | "AU" | "NZ", {
+    minDays: number;
+    maxDays: number;
+    source: "manual" | "supplier-quote";
+    updatedAt: string | null;
+  }>>;
+  manualOverride: {
+    minDays: number;
+    maxDays: number;
+    allMarkets: boolean;
+    updatedAt: string | null;
+  } | null;
+  updatedAt: string | null;
+} | null;
+
 type Supplier = {
   id: string;
   sourceProductId: string;
@@ -33,6 +49,7 @@ type Supplier = {
   costMin: string | null;
   costMax: string | null;
   lastCheckedAt: string | null;
+  delivery?: SupplierDelivery;
   variants: SupplierVariant[];
   mappings: SupplierMapping[];
 };
@@ -79,7 +96,10 @@ function supplierCardKey(supplier: SupplierWithUrls) {
     .map((item) => `${item.id}:${item.sourceSkuId}:${item.stock}`)
     .sort()
     .join("|");
-  return `${supplier.id}:${supplier.role}:${supplier.status}:${mappings}:${variants}`;
+  const deliveryKey = supplier.delivery?.markets?.US
+    ? `${supplier.delivery.markets.US.minDays}-${supplier.delivery.markets.US.maxDays}:${supplier.delivery.markets.US.source}:${supplier.delivery.manualOverride?.allMarkets ? "all" : "us"}`
+    : "default";
+  return `${supplier.id}:${supplier.role}:${supplier.status}:${deliveryKey}:${mappings}:${variants}`;
 }
 
 function SupplierCard({
@@ -94,6 +114,18 @@ function SupplierCard({
   const [mapping, setMapping] = useState<Record<string, string>>(() => mappingState(supplier));
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [editingDelivery, setEditingDelivery] = useState(false);
+  const usDelivery = supplier.delivery?.markets?.US ?? null;
+  const manualDelivery = supplier.delivery?.manualOverride ?? null;
+  const [deliveryMin, setDeliveryMin] = useState<string>(
+    String(manualDelivery?.minDays ?? usDelivery?.minDays ?? ""),
+  );
+  const [deliveryMax, setDeliveryMax] = useState<string>(
+    String(manualDelivery?.maxDays ?? usDelivery?.maxDays ?? ""),
+  );
+  const [deliveryAllMarkets, setDeliveryAllMarkets] = useState<boolean>(
+    manualDelivery?.allMarkets ?? false,
+  );
 
   const mappedCount = supplier.mappings.filter((item) => item.active).length;
   const complete = canonicalVariants.length > 0 && mappedCount === canonicalVariants.length;
@@ -184,6 +216,104 @@ function SupplierCard({
           <p className="mt-1 text-xs text-zinc-500">
             custo {supplier.costMin || "—"}–{supplier.costMax || "—"} {supplier.sourceCurrency || ""}
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 text-zinc-300">
+              {usDelivery
+                ? `Prazo ${manualDelivery?.allMarkets ? "global" : "US"}: ${
+                    usDelivery.minDays === usDelivery.maxDays
+                      ? `${usDelivery.minDays} dias`
+                      : `${usDelivery.minDays}–${usDelivery.maxDays} dias`
+                  } (${usDelivery.source === "manual" ? "manual" : "fornecedor AliExpress"})`
+                : "Prazo do fornecedor: padrão da loja"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setEditingDelivery((prev) => !prev)}
+              className="text-sky-400 underline underline-offset-2 hover:text-sky-300"
+            >
+              {editingDelivery ? "Fechar prazo" : "Definir prazo"}
+            </button>
+          </div>
+          {editingDelivery && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/70 p-3 text-xs">
+              <label className="flex items-center gap-1.5 text-zinc-300">
+                <span>Mín (dias)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={deliveryMin}
+                  onChange={(event) => setDeliveryMin(event.target.value)}
+                  className="w-16 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-zinc-300">
+                <span>Máx</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={deliveryMax}
+                  onChange={(event) => setDeliveryMax(event.target.value)}
+                  className="w-16 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={deliveryAllMarkets}
+                  onChange={(event) => setDeliveryAllMarkets(event.target.checked)}
+                />
+                <span>Todos os países (US/CA/UK/AU/NZ)</span>
+              </label>
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => {
+                  const minNum = Number(deliveryMin);
+                  const maxNum = Number(deliveryMax || deliveryMin);
+                  if (!Number.isInteger(minNum) || !Number.isInteger(maxNum) || minNum < 1 || maxNum < minNum || maxNum > 60) {
+                    setMessage("Informe dias válidos entre 1 e 60 (máximo >= mínimo).");
+                    return;
+                  }
+                  void action("delivery", () =>
+                    fetch(supplier.baseUrl, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        manualDeliveryDays: {
+                          minDays: minNum,
+                          maxDays: maxNum,
+                          allMarkets: deliveryAllMarkets,
+                        },
+                      }),
+                    }),
+                  ).then(() => setEditingDelivery(false));
+                }}
+                className="rounded-md bg-sky-400 px-2.5 py-1 font-semibold text-zinc-950 hover:bg-sky-300 disabled:opacity-50"
+              >
+                Salvar prazo
+              </button>
+              {manualDelivery && (
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() =>
+                    void action("delivery-clear", () =>
+                      fetch(supplier.baseUrl, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ manualDeliveryDays: null }),
+                      }),
+                    ).then(() => setEditingDelivery(false))
+                  }
+                  className="rounded-md border border-zinc-700 px-2.5 py-1 text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  Usar automático
+                </button>
+              )}
+            </div>
+          )}
           {supplier.lastCheckedAt && (
             <p className="mt-1 text-xs text-zinc-600">
               atualizado {new Date(supplier.lastCheckedAt).toLocaleString("pt-BR")}

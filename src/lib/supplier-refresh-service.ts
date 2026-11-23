@@ -10,6 +10,7 @@ import {
   normalizeSupplierProduct,
 } from "./supplier-catalog";
 import { deriveCanonicalAvailability } from "./supplier-selection";
+import { mergeDeliveryPayloadFields } from "./supplier-delivery";
 import { suggestSupplierVariantMappings } from "./supplier-variant-mapper";
 
 // Large colour/size families need more than Prisma's default five seconds
@@ -318,7 +319,9 @@ export async function refreshSupplier(input: {
           operationalProvider: operational.provider,
           operationalWarnings: operational.warnings,
           product: snapshot.rawPayload,
-          ...(costingScope ? { costingSourceSkuIds: costingScope, costSnapshot: costing.snapshot } : {}),
+          costSnapshot: costing.snapshot,
+          ...mergeDeliveryPayloadFields(supplier.rawPayload, costing.snapshot),
+          ...(costingScope ? { costingSourceSkuIds: costingScope } : {}),
         })),
         lastCheckedAt: refreshedAt,
       },

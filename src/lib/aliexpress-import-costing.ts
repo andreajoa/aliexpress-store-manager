@@ -5,6 +5,7 @@ import {
 } from "./aliexpress-landed-cost";
 import { fetchFxRate } from "./fx-rate";
 import type { OmkarSkuPricing } from "./omkar";
+import { summarizeFreightDeliveryTimes } from "./supplier-delivery";
 
 function normalizeCostCountry(value: string | undefined) {
   const normalized = (value || "US").trim().toUpperCase();
@@ -88,6 +89,7 @@ export type AliExpressImportCosting = {
       itemPrice: number;
       itemCurrency: string;
       freightServiceName: string | null;
+      estimatedDeliveryTime?: string | null;
       freightAmountInCostCurrency: number | null;
       landedCost: number | null;
       costCurrency: string;
@@ -185,11 +187,12 @@ export async function buildAliExpressImportCosting(input: {
   productId: string;
   skuPricing: OmkarSkuPricing[];
   itemCurrency: string;
+  countryCode?: string;
   readOnlySession?: boolean;
 }): Promise<AliExpressImportCosting> {
   validateSkuPrices(input.skuPricing);
 
-  const countryCode = normalizeCostCountry(process.env.ALIEXPRESS_COST_COUNTRY);
+  const countryCode = normalizeCostCountry(input.countryCode || process.env.ALIEXPRESS_COST_COUNTRY);
   const costCurrency = normalizeCostCurrency(process.env.ALIEXPRESS_COST_CURRENCY);
   const sendGoodsCountryCode = normalizeCostCountry(
     process.env.ALIEXPRESS_SEND_GOODS_COUNTRY || "CN",
@@ -352,12 +355,8 @@ export async function buildAliExpressImportCosting(input: {
   }
 
   const serviceNames = Array.from(new Set(skuResults.map((result) => result.freight.serviceName)));
-  const estimatedTimes = Array.from(
-    new Set(
-      skuResults
-        .map((result) => result.freight.estimatedDeliveryTime)
-        .filter((value): value is string => Boolean(value)),
-    ),
+  const deliverySummary = summarizeFreightDeliveryTimes(
+    skuResults.map((result) => result.freight.estimatedDeliveryTime),
   );
   const firstFreight = skuResults[0]?.freight;
   const allSameFreightAmount = skuResults.every(
@@ -390,8 +389,7 @@ export async function buildAliExpressImportCosting(input: {
         status: "AVAILABLE",
         selectedServiceName:
           serviceNames.length === 1 ? serviceNames[0] : "PER_SKU",
-        estimatedDeliveryTime:
-          estimatedTimes.length === 1 ? estimatedTimes[0] : null,
+        estimatedDeliveryTime: deliverySummary?.estimatedDeliveryTime ?? null,
         originalAmount:
           allSameFreightAmount ? firstFreight?.originalAmount ?? null : null,
         originalCurrency:
@@ -409,6 +407,7 @@ export async function buildAliExpressImportCosting(input: {
         itemPrice: result.row.itemPrice,
         itemCurrency: result.row.itemCurrency,
         freightServiceName: result.freight.serviceName,
+        estimatedDeliveryTime: result.freight.estimatedDeliveryTime,
         freightAmountInCostCurrency: result.row.freightCostInCostCurrency,
         landedCost: result.row.landedCost,
         costCurrency: result.row.costCurrency,
