@@ -185,6 +185,7 @@ export async function POST(
     const costing = await buildAliExpressImportCosting({
       productId: operational.resolvedProductId,
       skuPricing: operational.product.sku_pricing || [],
+      variants: operational.product.variants || [],
       itemCurrency: (operational.product.currency || rawSnapshot.sourceCurrency || "USD").toUpperCase(),
     });
     if (!costing.complete) {

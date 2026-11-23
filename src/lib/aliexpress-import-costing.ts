@@ -4,7 +4,8 @@ import {
   selectCheapestFreightQuote,
 } from "./aliexpress-landed-cost";
 import { fetchFxRate } from "./fx-rate";
-import type { OmkarSkuPricing } from "./omkar";
+import type { OmkarSkuPricing, OmkarVariantGroup } from "./omkar";
+import { resolveSendGoodsCountryForSku } from "./aliexpress-warehouse";
 import { summarizeFreightDeliveryTimes } from "./supplier-delivery";
 
 function normalizeCostCountry(value: string | undefined) {
@@ -90,6 +91,7 @@ export type AliExpressImportCosting = {
       itemCurrency: string;
       freightServiceName: string | null;
       estimatedDeliveryTime?: string | null;
+      sendGoodsCountryCode?: string | null;
       freightAmountInCostCurrency: number | null;
       landedCost: number | null;
       costCurrency: string;
@@ -186,6 +188,7 @@ export function unavailableScopedImportCosting(input: { skuPricing: OmkarSkuPric
 export async function buildAliExpressImportCosting(input: {
   productId: string;
   skuPricing: OmkarSkuPricing[];
+  variants?: OmkarVariantGroup[];
   itemCurrency: string;
   countryCode?: string;
   readOnlySession?: boolean;
@@ -194,7 +197,7 @@ export async function buildAliExpressImportCosting(input: {
 
   const countryCode = normalizeCostCountry(input.countryCode || process.env.ALIEXPRESS_COST_COUNTRY);
   const costCurrency = normalizeCostCurrency(process.env.ALIEXPRESS_COST_CURRENCY);
-  const sendGoodsCountryCode = normalizeCostCountry(
+  const defaultSendGoodsCountryCode = normalizeCostCountry(
     process.env.ALIEXPRESS_SEND_GOODS_COUNTRY || "CN",
   );
   const defaultItemCurrency = input.itemCurrency.trim().toUpperCase();
@@ -210,7 +213,7 @@ export async function buildAliExpressImportCosting(input: {
       skuPricing: input.skuPricing,
       itemCurrency: defaultItemCurrency,
       countryCode,
-      sendGoodsCountryCode,
+      sendGoodsCountryCode: defaultSendGoodsCountryCode,
       error: compactError(error),
     });
   }
@@ -231,6 +234,7 @@ export async function buildAliExpressImportCosting(input: {
     freight: {
       serviceName: string;
       estimatedDeliveryTime: string | null;
+      sendGoodsCountryCode: string;
       originalAmount: number;
       originalCurrency: string;
       amountInCostCurrency: number;
@@ -247,12 +251,18 @@ export async function buildAliExpressImportCosting(input: {
       throw new Error("SKU oficial ausente durante o cálculo do custo.");
     }
 
+    const skuSendGoodsCountryCode = resolveSendGoodsCountryForSku({
+      skuVariantIds: sku.variant_ids,
+      variantGroups: input.variants,
+      defaultCountry: defaultSendGoodsCountryCode,
+    });
+
     const freightQuotes = await client.calculateFreight({
       session,
       productId: input.productId,
       quantity: 1,
       countryCode,
-      sendGoodsCountryCode,
+      sendGoodsCountryCode: skuSendGoodsCountryCode,
       price: String(itemPrice),
       priceCurrency: itemCurrency,
       skuId,
@@ -315,6 +325,7 @@ export async function buildAliExpressImportCosting(input: {
       freight: {
         serviceName: selectedFreight.serviceName,
         estimatedDeliveryTime: selectedFreight.estimatedDeliveryTime,
+        sendGoodsCountryCode: selectedFreight.sendGoodsCountryCode || skuSendGoodsCountryCode,
         originalAmount: Number(selectedFreight.amount || 0),
         originalCurrency: selectedFreight.currency || costCurrency,
         amountInCostCurrency: selectedFreight.amountInTargetCurrency,
@@ -335,7 +346,7 @@ export async function buildAliExpressImportCosting(input: {
       skuPricing: input.skuPricing,
       itemCurrency: defaultItemCurrency,
       countryCode,
-      sendGoodsCountryCode,
+      sendGoodsCountryCode: defaultSendGoodsCountryCode,
       error: compactError(error),
     });
   }
@@ -349,15 +360,33 @@ export async function buildAliExpressImportCosting(input: {
       skuPricing: input.skuPricing,
       itemCurrency: defaultItemCurrency,
       countryCode,
-      sendGoodsCountryCode,
+      sendGoodsCountryCode: defaultSendGoodsCountryCode,
       error: "Nem todas as variantes tiveram preço + frete confirmados.",
     });
   }
 
   const serviceNames = Array.from(new Set(skuResults.map((result) => result.freight.serviceName)));
+  // When a product offers US warehouse SKUs in stock for a US quote, compute the headline delivery
+  // estimate from the US-warehouse SKUs so customers see the true domestic delivery speed.
+  const usInStockResults = countryCode === "US"
+    ? skuResults.filter(
+      (result) =>
+        result.freight.sendGoodsCountryCode === "US" &&
+        (result.row.sku.available_quantity == null || result.row.sku.available_quantity > 0),
+    )
+    : [];
+  const deliveryBasisResults = usInStockResults.length > 0 ? usInStockResults : skuResults;
   const deliverySummary = summarizeFreightDeliveryTimes(
-    skuResults.map((result) => result.freight.estimatedDeliveryTime),
+    deliveryBasisResults.map((result) => result.freight.estimatedDeliveryTime),
   );
+  const resolvedSendCountries = Array.from(
+    new Set(deliveryBasisResults.map((result) => result.freight.sendGoodsCountryCode)),
+  );
+  const sendGoodsCountryCode = resolvedSendCountries.length === 1
+    ? resolvedSendCountries[0]
+    : usInStockResults.length > 0
+      ? "US"
+      : defaultSendGoodsCountryCode;
   const firstFreight = skuResults[0]?.freight;
   const allSameFreightAmount = skuResults.every(
     (result) =>
@@ -408,6 +437,7 @@ export async function buildAliExpressImportCosting(input: {
         itemCurrency: result.row.itemCurrency,
         freightServiceName: result.freight.serviceName,
         estimatedDeliveryTime: result.freight.estimatedDeliveryTime,
+        sendGoodsCountryCode: result.freight.sendGoodsCountryCode,
         freightAmountInCostCurrency: result.row.freightCostInCostCurrency,
         landedCost: result.row.landedCost,
         costCurrency: result.row.costCurrency,

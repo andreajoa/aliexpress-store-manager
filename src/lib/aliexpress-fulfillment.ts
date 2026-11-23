@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { prisma } from "./prisma";
 import { requireAliExpressSession } from "./aliexpress-connection";
+import { skuShipsFromCountryCode } from "./aliexpress-warehouse";
 import { markFulfillmentBatchOrdered, updateFulfillmentBatchTracking } from "./order-fulfillment-lifecycle";
 
 function record(value: unknown): Record<string, unknown> {
@@ -121,7 +122,7 @@ async function loadBatch(orderId: string, batchId: string) {
       items: {
         include: {
           fulfillmentSupplierVariant: {
-            select: { id: true, sourceSkuId: true, orderSkuAttr: true },
+            select: { id: true, sourceSkuId: true, orderSkuAttr: true, attributes: true },
           },
         },
       },
@@ -148,13 +149,27 @@ export async function quoteAliExpressBatch(orderId: string, batchId: string) {
   )];
   const skuId = officialSkuIds.length === 1 ? officialSkuIds[0] : null;
 
+  const skuDispatchCountries = Array.from(
+    new Set(
+      batch.items
+        .map((item) => skuShipsFromCountryCode(item.fulfillmentSupplierVariant?.attributes))
+        .filter((code): code is string => Boolean(code)),
+    ),
+  );
+  const sendGoodsCountryCode =
+    skuDispatchCountries.length === 1
+      ? skuDispatchCountries[0]
+      : skuDispatchCountries.includes("US") && normalizeAliExpressCountryCode(address.countryCode) === "US"
+        ? "US"
+        : process.env.ALIEXPRESS_SEND_GOODS_COUNTRY?.trim() || "CN";
+
   const { session, client } = await requireAliExpressSession();
   const quotes = await client.calculateFreight({
     session,
     productId: batch.sourceProductId,
     quantity,
     countryCode: normalizeAliExpressCountryCode(address.countryCode),
-    sendGoodsCountryCode: process.env.ALIEXPRESS_SEND_GOODS_COUNTRY?.trim() || "CN",
+    sendGoodsCountryCode,
     priceCurrency: batch.currency || undefined,
     skuId,
   });

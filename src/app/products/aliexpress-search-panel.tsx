@@ -2,10 +2,25 @@
 
 import {
   FormEvent,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
+
+type VerifiedShippingCheck = {
+  checked: boolean;
+  hasUsWarehouse: boolean;
+  hasUsInStock: boolean;
+  usTotalStock: number;
+  dispatchCountry: string;
+  countries: string[];
+  deliveryMinDays: number | null;
+  deliveryMaxDays: number | null;
+  ambDisplayMinDays: number | null;
+  ambDisplayMaxDays: number | null;
+  freightCostUsd: number | null;
+  serviceName: string | null;
+  error: string | null;
+};
 
 type OmkarSearchResult = {
   id: string;
@@ -28,11 +43,15 @@ type OmkarSearchResult = {
   store_name: string | null;
   category_ids: (string | number)[];
   listed_date: string;
+  shippingCheck?: VerifiedShippingCheck;
 };
 
 type SearchResponse = {
   ok: boolean;
   count?: number;
+  inspectedCount?: number;
+  usWarehouseCount?: number;
+  verified?: boolean;
   per_page?: number;
   current_page?: number;
   total_pages?: number;
@@ -43,27 +62,47 @@ type SearchResponse = {
   error?: string;
 };
 
+const QUICK_SEARCH_PRESETS = [
+  'women velvet midi dress',
+  'women winter sweater dress',
+  'women wool trench coat',
+  'women satin cocktail dress',
+  'women knit cardigan set',
+  'women linen midi dress',
+];
+
 export function AliExpressSearchPanel() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
+  const [verifyUs, setVerifyUs] = useState(true);
+  const [usOnly, setUsOnly] = useState(true);
+  const [maxDays, setMaxDays] = useState<string>('10');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<OmkarSearchResult[]>([]);
-  const [meta, setMeta] = useState<Pick<SearchResponse, 'count' | 'current_page' | 'total_pages' | 'next' | 'previous' | 'error'>>({});
+  const [meta, setMeta] = useState<Pick<SearchResponse, 'count' | 'inspectedCount' | 'usWarehouseCount' | 'verified' | 'current_page' | 'total_pages' | 'next' | 'previous' | 'error'>>({});
   const [importingId, setImportingId] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
 
   const currency = useMemo(() => results?.[0]?.pricing?.currency ?? 'USD', [results]);
 
-  async function search(targetPage = 1) {
-    const trimmed = query.trim();
+  async function runSearch(searchTerm: string, targetPage = 1) {
+    const trimmed = searchTerm.trim();
     if (!trimmed) return;
 
     setLoading(true);
     setImportMessage(null);
+    setPage(targetPage);
 
     try {
-      const endpoint = `/api/aliexpress/search?query=${encodeURIComponent(trimmed)}&page=${targetPage}`;
-      const response = await fetch(endpoint, { cache: 'no-store' });
+      const params = new URLSearchParams({
+        query: trimmed,
+        page: String(targetPage),
+      });
+      if (verifyUs || usOnly) params.set('verifyUs', '1');
+      if (usOnly) params.set('usOnly', '1');
+      if (maxDays && Number(maxDays) > 0) params.set('maxDays', maxDays);
+
+      const response = await fetch(`/api/aliexpress/search?${params.toString()}`, { cache: 'no-store' });
       const data = (await response.json()) as SearchResponse;
 
       if (!response.ok || !data.ok) {
@@ -72,6 +111,9 @@ export function AliExpressSearchPanel() {
       } else {
         setMeta({
           count: data.count ?? 0,
+          inspectedCount: data.inspectedCount,
+          usWarehouseCount: data.usWarehouseCount,
+          verified: data.verified,
           current_page: data.current_page ?? targetPage,
           total_pages: data.total_pages ?? 1,
           next: data.next ?? null,
@@ -90,8 +132,7 @@ export function AliExpressSearchPanel() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPage(1);
-    search(1);
+    void runSearch(query, 1);
   }
 
   async function importProduct(item: OmkarSearchResult) {
@@ -103,7 +144,7 @@ export function AliExpressSearchPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url: `https://www.aliexpress.com/item/${item.id}.html`,
+          url: `https://www.aliexpress.us/item/${item.id}.html`,
         }),
       });
 
@@ -131,11 +172,6 @@ export function AliExpressSearchPanel() {
     }
   }
 
-  useEffect(() => {
-    if (page <= 1) return;
-    search(page);
-  }, [page]);
-
   return (
     <div className="space-y-6">
       <form
@@ -143,24 +179,40 @@ export function AliExpressSearchPanel() {
         className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
       >
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-400">
-          Buscar no AliExpress
+          Buscador Oficial · Armazém EUA &amp; Entrega Rápida
         </p>
 
         <h2 className="mt-2 text-2xl font-semibold">
-          Encontre produtos por texto
+          Encontre fornecedores com envio dos Estados Unidos
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-zinc-400">
-          Usa o catálogo do Omkar para buscar produtos. Ao importar, o Manager
-          consulta o produto oficial, suas variantes, moeda e frete antes de liberar a precificação.
+          Verifica diretamente na API oficial do AliExpress se o anúncio possui estoque real em armazém dos EUA
+          (<code>Ships From: United States</code>) e o prazo real de entrega antes de importar.
         </p>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-4 flex flex-wrap gap-2">
+          {QUICK_SEARCH_PRESETS.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => {
+                setQuery(preset);
+                void runSearch(preset, 1);
+              }}
+              className="rounded-full border border-zinc-700 bg-zinc-950 px-3 py-1 text-xs text-zinc-300 transition hover:border-emerald-500 hover:text-emerald-300"
+            >
+              {preset}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <input
             required
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Ex: rubber duck"
+            placeholder="Ex: women velvet midi dress"
             className="min-w-0 flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-emerald-500"
           />
 
@@ -169,8 +221,50 @@ export function AliExpressSearchPanel() {
             disabled={loading}
             className="rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50"
           >
-            {loading ? 'Buscando...' : 'Buscar'}
+            {loading ? 'Verificando EUA...' : 'Buscar'}
           </button>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-zinc-300">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={usOnly}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setUsOnly(checked);
+                if (checked) setVerifyUs(true);
+              }}
+            />
+            <span>Somente estoque verificado nos EUA</span>
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={verifyUs}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setVerifyUs(checked);
+                if (!checked) setUsOnly(false);
+              }}
+            />
+            <span>Testar frete real na API oficial</span>
+          </label>
+
+          <label className="flex items-center gap-2">
+            <span>Prazo máx. fornecedor:</span>
+            <select
+              value={maxDays}
+              onChange={(event) => setMaxDays(event.target.value)}
+              className="rounded-lg border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-xs text-white"
+            >
+              <option value="7">Até 7 dias (12–14d na loja)</option>
+              <option value="10">Até 10 dias (15–18d na loja)</option>
+              <option value="14">Até 14 dias (19–22d na loja)</option>
+              <option value="0">Qualquer prazo</option>
+            </select>
+          </label>
         </div>
 
         {meta.error && (
@@ -180,18 +274,26 @@ export function AliExpressSearchPanel() {
         )}
       </form>
 
+      {meta.verified && results.length === 0 && !loading && !meta.error && (
+        <div className="rounded-2xl border border-amber-900/60 bg-amber-950/20 p-5 text-sm text-amber-200">
+          Verificamos {meta.inspectedCount ?? 0} anúncios desta página na API oficial ({meta.usWarehouseCount ?? 0} com armazém nos EUA), mas nenhum atendeu a todos os filtros juntos. Tente avançar para a próxima página, desmarcar &ldquo;Somente estoque nos EUA&rdquo; ou testar outro termo.
+        </div>
+      )}
+
       {results.length > 0 && (
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-zinc-400">
-              {meta.count ?? 0} resultados · página {meta.current_page ?? page} de {meta.total_pages ?? 1}
+              {meta.count ?? 0} aprovados
+              {meta.verified ? ` (de ${meta.inspectedCount ?? 0} verificados · ${meta.usWarehouseCount ?? 0} em armazém EUA)` : ''}
+              {' '}· página {meta.current_page ?? page} de {meta.total_pages ?? 1}
             </p>
 
             <div className="flex gap-2">
               <button
                 type="button"
                 disabled={page <= 1 || loading}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                onClick={() => void runSearch(query, Math.max(1, page - 1))}
                 className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm disabled:opacity-50"
               >
                 Anterior
@@ -200,7 +302,7 @@ export function AliExpressSearchPanel() {
               <button
                 type="button"
                 disabled={!meta.next || loading}
-                onClick={() => setPage((current) => current + 1)}
+                onClick={() => void runSearch(query, page + 1)}
                 className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm disabled:opacity-50"
               >
                 Próxima
@@ -209,68 +311,101 @@ export function AliExpressSearchPanel() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {results.map((item) => (
-              <article
-                key={item.id}
-                className="flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900"
-              >
-                <div className="aspect-square overflow-hidden rounded-t-2xl bg-zinc-950">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-
-                <div className="flex flex-1 flex-col gap-3 p-4">
-                  <p className="line-clamp-2 text-sm font-medium leading-5">
-                    {item.title}
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-                    <span>{item.orders_count != null ? `${item.orders_count} vendas` : 'Vendas não informadas'}</span>
-                    {item.rating != null && <span>· ⭐ {item.rating}</span>}
-                    {item.is_choice && <span>· Choice</span>}
+            {results.map((item) => {
+              const check = item.shippingCheck;
+              return (
+                <article
+                  key={item.id}
+                  className="flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900"
+                >
+                  <div className="relative aspect-square overflow-hidden rounded-t-2xl bg-zinc-950">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="h-full w-full object-cover"
+                    />
+                    {check?.hasUsInStock && (
+                      <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-zinc-950">
+                        US Warehouse · {check.usTotalStock} un.
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
-                    {item.store_name && <span>{item.store_name}</span>}
-                    <span>· {item.listed_date}</span>
-                  </div>
+                  <div className="flex flex-1 flex-col gap-3 p-4">
+                    <p className="line-clamp-2 text-sm font-medium leading-5">
+                      {item.title}
+                    </p>
 
-                  <div className="mt-auto flex items-end justify-between gap-3">
-                    <div>
-                      <p className="text-xl font-semibold">
-                        {item.pricing.sale_price != null ? `${item.pricing.sale_price.toFixed(2)}` : '—'}
-                        <span className="ml-1 text-sm text-zinc-400">{currency}</span>
-                      </p>
-
-                      {item.pricing.original_price != null && item.pricing.original_price !== item.pricing.sale_price && (
-                        <p className="text-xs text-zinc-500 line-through">
-                          {item.pricing.original_price.toFixed(2)} {currency}
+                    {check?.checked && (
+                      <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 p-2.5 text-xs">
+                        <p className={check.hasUsInStock ? 'font-semibold text-emerald-400' : 'font-semibold text-sky-300'}>
+                          Origem: {check.dispatchCountry}
+                          {check.deliveryMinDays != null && check.deliveryMaxDays != null
+                            ? ` · Fornecedor ${check.deliveryMinDays === check.deliveryMaxDays ? `${check.deliveryMinDays}d` : `${check.deliveryMinDays}–${check.deliveryMaxDays}d`}`
+                            : ' · Prazo não informado'}
                         </p>
-                      )}
+                        {check.ambDisplayMinDays != null && check.ambDisplayMaxDays != null && (
+                          <p className="mt-1 text-zinc-400">
+                            Na AMB (+5d Stripe): <strong className="text-zinc-200">{check.ambDisplayMinDays}–{check.ambDisplayMaxDays} dias</strong>
+                            {check.freightCostUsd != null ? ` · Frete $${check.freightCostUsd.toFixed(2)}` : ''}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+                      <span>{item.orders_count != null ? `${item.orders_count} vendas` : 'Vendas não informadas'}</span>
+                      {item.rating != null && <span>· ⭐ {item.rating}</span>}
+                      {item.is_choice && <span>· Choice</span>}
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={importingId === item.id}
-                      onClick={() => importProduct(item)}
-                      className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50"
-                    >
-                      {importingId === item.id ? 'Importando...' : 'Importar'}
-                    </button>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400">
+                      <span>{item.store_name || `AliExpress #${item.id}`}</span>
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sky-400 underline underline-offset-2 hover:text-sky-300"
+                      >
+                        Abrir anúncio ↗
+                      </a>
+                    </div>
+
+                    <div className="mt-auto flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-xl font-semibold">
+                          {item.pricing.sale_price != null ? `${item.pricing.sale_price.toFixed(2)}` : '—'}
+                          <span className="ml-1 text-sm text-zinc-400">{currency}</span>
+                        </p>
+
+                        {item.pricing.original_price != null && item.pricing.original_price !== item.pricing.sale_price && (
+                          <p className="text-xs text-zinc-500 line-through">
+                            {item.pricing.original_price.toFixed(2)} {currency}
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={importingId === item.id}
+                        onClick={() => importProduct(item)}
+                        className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50"
+                      >
+                        {importingId === item.id ? 'Importando...' : 'Importar'}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </section>
       )}
 
-      {!loading && results.length === 0 && !meta.error && (
+      {!loading && results.length === 0 && !meta.error && !meta.verified && (
         <div className="rounded-2xl border border-dashed border-zinc-800 p-8 text-center text-zinc-500">
-          Busque por um termo para ver produtos do AliExpress.
+          Busque por um termo acima ou clique em um atalho para encontrar fornecedores verificados dos EUA.
         </div>
       )}
 
