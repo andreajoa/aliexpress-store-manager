@@ -224,6 +224,7 @@ export async function POST(request: Request) {
     const costing = await buildAliExpressImportCosting({
       productId: resolvedProductId,
       skuPricing,
+      variants: groups,
       itemCurrency,
     });
     const costedBySkuId = new Map(

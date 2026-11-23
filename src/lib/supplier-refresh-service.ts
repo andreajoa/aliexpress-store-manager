@@ -195,6 +195,7 @@ export async function refreshSupplier(input: {
   const costing = scopedSoldOut ? unavailableScopedImportCosting({ skuPricing: scoped!.rows, itemCurrency }) : await buildAliExpressImportCosting({
     productId: operational.resolvedProductId,
     skuPricing: scoped ? scoped.available : quotedSkus,
+    variants: operational.product.variants || [],
     itemCurrency,
     ...(options.dryRun ? { readOnlySession: true } : {}),
   });

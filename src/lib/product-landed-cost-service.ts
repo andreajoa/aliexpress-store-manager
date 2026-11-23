@@ -39,6 +39,7 @@ export async function recalculateProductLandedCost(productId: string) {
   const costing = await buildAliExpressImportCosting({
     productId: operational.resolvedProductId,
     skuPricing,
+    variants: sourceProduct.variants || [],
     itemCurrency,
   });
 

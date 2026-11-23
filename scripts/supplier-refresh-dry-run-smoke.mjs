@@ -20,7 +20,8 @@ function loadTs(file, imports = {}) {
 const options = loadTs('src/lib/supplier-refresh-options.ts');
 const costingScope = loadTs('src/lib/supplier-costing-scope.ts', {'./supplier-refresh-options': options});
 const supplierDelivery = loadTs('src/lib/supplier-delivery.ts');
-const costHelpers = loadTs('src/lib/aliexpress-import-costing.ts', {'./aliexpress-connection': {}, './aliexpress-landed-cost': {}, './fx-rate': {}, './supplier-delivery': supplierDelivery});
+const warehouse = loadTs('src/lib/aliexpress-warehouse.ts');
+const costHelpers = loadTs('src/lib/aliexpress-import-costing.ts', {'./aliexpress-connection': {}, './aliexpress-landed-cost': {}, './fx-rate': {}, './supplier-delivery': supplierDelivery, './aliexpress-warehouse': warehouse});
 const aliases = loadTs('src/lib/aliexpress-catalog-id.ts');
 const catalog = loadTs('src/lib/supplier-catalog.ts');
 const mapper = loadTs('src/lib/supplier-variant-mapper.ts');
@@ -114,6 +115,7 @@ function harness({ allowWrites = false, actualCosting = false } = {}) {
       './aliexpress-landed-cost': landed,
       './fx-rate': { fetchFxRate: async () => { throw new Error('Unexpected FX request'); } },
       './supplier-delivery': supplierDelivery,
+      './aliexpress-warehouse': warehouse,
     }).buildAliExpressImportCosting;
   } else {
     costing = async (input) => {

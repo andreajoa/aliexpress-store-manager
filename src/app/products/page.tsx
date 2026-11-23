@@ -1,8 +1,10 @@
 import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
+import { summarizeProductWarehouses } from "@/lib/aliexpress-warehouse";
 import { ImportForm } from "./import-form";
 import { AliExpressSearchPanel } from "./aliexpress-search-panel";
+import { WarehouseAuditPanel } from "./warehouse-audit-panel";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,6 +20,11 @@ export default async function ProductsPage() {
       importedAt: "desc",
     },
   });
+
+  const productWarehouses = new Map(
+    products.map((product) => [product.id, summarizeProductWarehouses(product.variants)]),
+  );
+  const usWarehouseCount = [...productWarehouses.values()].filter((item) => item.hasUsWarehouse).length;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
@@ -46,6 +53,10 @@ export default async function ProductsPage() {
 
         <div className="mt-8">
           <ImportForm />
+        </div>
+
+        <div className="mt-8">
+          <WarehouseAuditPanel initialUsCount={usWarehouseCount} totalProducts={products.length} />
         </div>
 
         <div className="mt-8">
@@ -92,6 +103,16 @@ export default async function ProductsPage() {
                       <div className="text-sm text-zinc-400">
                         {product.variants.length} SKUs
                       </div>
+
+                      {productWarehouses.get(product.id)?.hasUsWarehouse ? (
+                        <span className="rounded-full border border-emerald-800 bg-emerald-950/60 px-3 py-1 text-xs font-semibold text-emerald-300">
+                          US Warehouse ({productWarehouses.get(product.id)?.usTotalStock ?? 0} un.)
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-500">
+                          CN
+                        </span>
+                      )}
 
                       <span
                         className={`rounded-full border px-3 py-1 text-xs font-medium ${

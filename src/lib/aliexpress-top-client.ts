@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { prioritizedSendGoodsCountries } from "./aliexpress-warehouse.ts";
 
 export type AliExpressTopConfig = {
   appKey: string;
@@ -11,6 +12,7 @@ export type FreightQuote = {
   estimatedDeliveryTime: string | null;
   amount: number | null;
   currency: string | null;
+  sendGoodsCountryCode?: string | null;
 };
 
 const ALIEXPRESS_REQUEST_TIMEOUT_MS = 10_000;
@@ -519,68 +521,98 @@ export class AliExpressTopClient {
       priceCurrency: input.priceCurrency,
     });
     const failures: string[] = [];
-    const sendGoodsCountryCode = input.sendGoodsCountryCode || "CN";
+    const sendCountries = prioritizedSendGoodsCountries({
+      requested: input.sendGoodsCountryCode,
+      destinationCountry: input.countryCode,
+      shipsFromValues: candidates.shipsFromValues,
+    });
 
-    for (const productId of candidates.productIds) {
-      if (input.skuId) {
-        try {
-          const skuQuotes = await this.calculateFreightBySku({
-            session: input.session,
-            productId,
-            quantity: input.quantity,
-            countryCode: input.countryCode,
-            sendGoodsCountryCode,
-            skuId: input.skuId,
-            price: input.price,
-            priceCurrency: input.priceCurrency,
-          });
-          if (skuQuotes.length > 0) return skuQuotes;
-          failures.push(`${productId}/sku:${input.skuId}: sem opções de frete`);
-        } catch (error) {
-          failures.push(`${productId}/sku:${input.skuId}: ${compactError(error)}`);
+    for (const sendGoodsCountryCode of sendCountries) {
+      for (const productId of candidates.productIds) {
+        if (input.skuId) {
+          try {
+            const skuQuotes = await this.calculateFreightBySku({
+              session: input.session,
+              productId,
+              quantity: input.quantity,
+              countryCode: input.countryCode,
+              sendGoodsCountryCode,
+              skuId: input.skuId,
+              price: input.price,
+              priceCurrency: input.priceCurrency,
+            });
+            if (skuQuotes.length > 0) {
+              return skuQuotes.map((quote) => ({ ...quote, sendGoodsCountryCode }));
+            }
+            failures.push(`${productId}/${sendGoodsCountryCode}/sku:${input.skuId}: sem opções de frete`);
+          } catch (error) {
+            failures.push(`${productId}/${sendGoodsCountryCode}/sku:${input.skuId}: ${compactError(error)}`);
+          }
         }
-      }
 
-      const pricingModes = input.price ? [true, false] : [false];
+        const pricingModes = input.price ? [true, false] : [false];
 
-      for (const includePrice of pricingModes) {
-        try {
-          const envelope = await this.execute(
-            "aliexpress.logistics.buyer.freight.calculate",
-            input.session,
-            {
-              param_aeop_freight_calculate_for_buyer_d_t_o: {
-                country_code: input.countryCode,
-                product_id: productId,
-                product_num: input.quantity,
-                ...(input.skuId ? { sku_id: input.skuId } : {}),
-                send_goods_country_code: sendGoodsCountryCode,
-                ...(includePrice && input.price ? { price: input.price } : {}),
-                ...(includePrice && input.priceCurrency ? { price_currency: input.priceCurrency } : {}),
+        for (const includePrice of pricingModes) {
+          try {
+            const envelope = await this.execute(
+              "aliexpress.logistics.buyer.freight.calculate",
+              input.session,
+              {
+                param_aeop_freight_calculate_for_buyer_d_t_o: {
+                  country_code: input.countryCode,
+                  product_id: productId,
+                  product_num: input.quantity,
+                  ...(input.skuId ? { sku_id: input.skuId } : {}),
+                  send_goods_country_code: sendGoodsCountryCode,
+                  ...(includePrice && input.price ? { price: input.price } : {}),
+                  ...(includePrice && input.priceCurrency ? { price_currency: input.priceCurrency } : {}),
+                },
               },
-            },
-          );
+            );
 
-          const quotes = freightQuotesFromEnvelope(envelope);
-          if (quotes.length > 0) return quotes;
+            const quotes = freightQuotesFromEnvelope(envelope);
+            if (quotes.length > 0) {
+              return quotes.map((quote) => ({ ...quote, sendGoodsCountryCode }));
+            }
 
-          failures.push(
-            `${productId}${includePrice ? "/com-preço" : "/sem-preço"}: sem opções de frete`,
-          );
-        } catch (error) {
-          failures.push(
-            `${productId}${includePrice ? "/com-preço" : "/sem-preço"}: ${compactError(error)}`,
-          );
+            failures.push(
+              `${productId}/${sendGoodsCountryCode}${includePrice ? "/com-preço" : "/sem-preço"}: sem opções de frete`,
+            );
+          } catch (error) {
+            failures.push(
+              `${productId}/${sendGoodsCountryCode}${includePrice ? "/com-preço" : "/sem-preço"}: ${compactError(error)}`,
+            );
+          }
         }
       }
     }
 
     throw new Error(
       "AliExpress não conseguiu calcular o frete para o produto. " +
-        `send_goods_country_code=${sendGoodsCountryCode}. ` +
+        `send_goods_country_code=${sendCountries.join(",")}. ` +
         `Ships From=${candidates.shipsFromValues.join(", ") || "não informado"}. ` +
         `Tentativas: ${failures.join(" || ") || "nenhuma opção retornada"}`,
     );
+  }
+
+  async searchDropshipProducts(input: {
+    session: string;
+    keyword: string;
+    countryCode?: string;
+    currency?: string;
+    page?: number;
+    pageSize?: number;
+    sortBy?: string;
+  }) {
+    return this.execute("aliexpress.ds.text.search", input.session, {
+      keyWord: input.keyword,
+      countryCode: input.countryCode || "US",
+      currency: input.currency || "USD",
+      local: "en_US",
+      pageIndex: input.page || 1,
+      pageSize: Math.min(50, Math.max(1, input.pageSize || 30)),
+      sortBy: input.sortBy || "orders,desc",
+    });
   }
 
   async placeOrder(input: {

@@ -26,6 +26,7 @@
     "test:web-export-currency": "node --no-warnings --experimental-strip-types scripts/web-export-currency-smoke.ts",
     "test:amb-backend-bridge": "node --no-warnings --experimental-strip-types scripts/amb-backend-bridge-smoke.ts",
     "test:amb-supplier-delivery": "node --no-warnings --experimental-strip-types scripts/amb-supplier-delivery-smoke.ts",
+    "test:us-warehouse": "node --no-warnings --experimental-strip-types scripts/us-warehouse-sourcing-smoke.ts",
     "test:amb-bound-variant": "node --no-warnings --experimental-strip-types scripts/amb-bound-variant-smoke.ts",
     "test:amb-catalog-identity": "node scripts/amb-catalog-identity-smoke.mjs",
     "test:amb-us-size": "node --no-warnings --experimental-strip-types scripts/amb-us-size-smoke.ts",
