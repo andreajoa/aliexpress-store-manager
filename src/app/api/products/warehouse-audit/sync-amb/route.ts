@@ -18,7 +18,7 @@ export async function POST() {
       method: "POST",
       headers: { Accept: "application/json" },
       cache: "no-store",
-      signal: AbortSignal.timeout(55_000),
+      signal: AbortSignal.timeout(45_000),
     });
 
     const data = (await response.json().catch(() => null)) as {

@@ -194,6 +194,7 @@ export async function searchOmkarProducts(query: string, page = 1): Promise<Omka
       Accept: 'application/json',
     },
     cache: 'no-store',
+    signal: AbortSignal.timeout(12_000),
   });
 
   if (!response.ok) {

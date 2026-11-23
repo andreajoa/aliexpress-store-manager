@@ -55,7 +55,8 @@ export async function GET(request: NextRequest) {
       const verified = await verifyAndFilterSearchResults(combined, {
         usOnly,
         maxDays,
-        maxInspect: 16,
+        maxInspect: 12,
+        budgetMs: 20_000,
       });
 
       return NextResponse.json({
@@ -63,12 +64,13 @@ export async function GET(request: NextRequest) {
         count: verified.results.length,
         inspectedCount: verified.inspectedCount,
         usWarehouseCount: verified.usWarehouseCount,
+        partial: verified.partial,
         verified: true,
         per_page: omkarRes?.per_page ?? 60,
         current_page: page,
         total_pages: omkarRes?.total_pages ?? 1,
-        next: omkarRes?.next ?? null,
-        previous: omkarRes?.previous ?? null,
+        next: omkarRes?.next ?? (combined.length >= 12 ? String(page + 1) : null),
+        previous: omkarRes?.previous ?? (page > 1 ? String(page - 1) : null),
         currency: omkarRes?.currency ?? "USD",
         results: verified.results,
       });
