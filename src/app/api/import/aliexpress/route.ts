@@ -5,6 +5,7 @@ import {
   aliExpressImportCostBreakdown,
   buildAliExpressImportCosting,
 } from "@/lib/aliexpress-import-costing";
+import { mergeDeliveryPayloadFields } from "@/lib/supplier-delivery";
 import {
   AliExpressProviderUnavailableError,
   getAliExpressOperationalProduct,
@@ -348,6 +349,7 @@ export async function POST(request: Request) {
             resolvedProductId,
             product: JSON.parse(JSON.stringify(sourceProduct)),
             costSnapshot: costing.snapshot,
+            ...mergeDeliveryPayloadFields(null, costing.snapshot),
           },
           lastCheckedAt: importedAt,
         },

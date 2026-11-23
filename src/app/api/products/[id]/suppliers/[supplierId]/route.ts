@@ -1,17 +1,34 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import type { Prisma } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { extractSupplierDeliveryProfile } from "@/lib/supplier-delivery";
 
 export const runtime = "nodejs";
+
+const manualDeliverySchema = z.object({
+  minDays: z.number().int().min(1).max(60),
+  maxDays: z.number().int().min(1).max(60),
+  allMarkets: z.boolean().optional(),
+}).refine((value) => value.maxDays >= value.minDays, {
+  message: "O prazo máximo deve ser maior ou igual ao prazo mínimo.",
+});
 
 const patchSchema = z.object({
   role: z.enum(["PRIMARY", "BACKUP", "ALTERNATIVE"]).optional(),
   priority: z.number().int().min(0).max(9999).optional(),
   status: z.enum(["ACTIVE", "PAUSED", "DISABLED"]).optional(),
+  manualDeliveryDays: manualDeliverySchema.nullable().optional(),
 }).refine((value) => Object.keys(value).length > 0, {
   message: "Nenhuma alteração informada.",
 });
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
 
 export async function PATCH(
   request: Request,
@@ -56,6 +73,22 @@ export async function PATCH(
         });
       }
 
+      let nextRawPayload: Prisma.InputJsonValue | undefined;
+      if (parsed.data.manualDeliveryDays !== undefined) {
+        const currentRaw = { ...asRecord(current.rawPayload) };
+        if (parsed.data.manualDeliveryDays === null) {
+          delete currentRaw.manualDeliveryDays;
+        } else {
+          currentRaw.manualDeliveryDays = {
+            minDays: parsed.data.manualDeliveryDays.minDays,
+            maxDays: parsed.data.manualDeliveryDays.maxDays,
+            allMarkets: parsed.data.manualDeliveryDays.allMarkets === true,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        nextRawPayload = JSON.parse(JSON.stringify(currentRaw)) as Prisma.InputJsonValue;
+      }
+
       return tx.supplierProduct.update({
         where: { id: supplierId },
         data: {
@@ -68,6 +101,7 @@ export async function PATCH(
                 ? 50
                 : undefined),
           status: parsed.data.status,
+          ...(nextRawPayload !== undefined ? { rawPayload: nextRawPayload } : {}),
         },
       });
     });
@@ -79,6 +113,10 @@ export async function PATCH(
         role: updated.role,
         priority: updated.priority,
         status: updated.status,
+        delivery: extractSupplierDeliveryProfile({
+          supplierRawPayload: updated.rawPayload,
+          supplierUpdatedAt: updated.lastCheckedAt,
+        }),
       },
     });
   } catch (error) {

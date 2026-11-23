@@ -29,6 +29,7 @@ function loadTs(file, imports = {}) {
 const aliases = loadTs('src/lib/aliexpress-catalog-id.ts');
 const catalog = loadTs('src/lib/supplier-catalog.ts');
 const mapper = loadTs('src/lib/supplier-variant-mapper.ts');
+const supplierDelivery = loadTs('src/lib/supplier-delivery.ts');
 
 function harness() {
   const calls = { provider: [], costing: [], duplicates: [], transactions: [], demotions: [], creates: [], mappings: [] };
@@ -108,6 +109,7 @@ function harness() {
     } },
     '@/lib/supplier-catalog': catalog,
     '@/lib/supplier-variant-mapper': mapper,
+    '@/lib/supplier-delivery': supplierDelivery,
   });
   return { state, calls, async post(body = { url: `https://www.aliexpress.us/item/${regionalId}.html`, role: 'PRIMARY' }) {
     const response = await route.POST(new Request('https://manager.test/api/products/canonical-product/suppliers', {

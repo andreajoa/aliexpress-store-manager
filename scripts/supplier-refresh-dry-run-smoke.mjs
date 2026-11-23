@@ -19,7 +19,8 @@ function loadTs(file, imports = {}) {
 }
 const options = loadTs('src/lib/supplier-refresh-options.ts');
 const costingScope = loadTs('src/lib/supplier-costing-scope.ts', {'./supplier-refresh-options': options});
-const costHelpers = loadTs('src/lib/aliexpress-import-costing.ts', {'./aliexpress-connection': {}, './aliexpress-landed-cost': {}, './fx-rate': {}});
+const supplierDelivery = loadTs('src/lib/supplier-delivery.ts');
+const costHelpers = loadTs('src/lib/aliexpress-import-costing.ts', {'./aliexpress-connection': {}, './aliexpress-landed-cost': {}, './fx-rate': {}, './supplier-delivery': supplierDelivery});
 const aliases = loadTs('src/lib/aliexpress-catalog-id.ts');
 const catalog = loadTs('src/lib/supplier-catalog.ts');
 const mapper = loadTs('src/lib/supplier-variant-mapper.ts');
@@ -112,6 +113,7 @@ function harness({ allowWrites = false, actualCosting = false } = {}) {
       } },
       './aliexpress-landed-cost': landed,
       './fx-rate': { fetchFxRate: async () => { throw new Error('Unexpected FX request'); } },
+      './supplier-delivery': supplierDelivery,
     }).buildAliExpressImportCosting;
   } else {
     costing = async (input) => {
@@ -131,6 +133,7 @@ function harness({ allowWrites = false, actualCosting = false } = {}) {
   }
   const service = loadTs('src/lib/supplier-refresh-service.ts', {
     './prisma': { prisma }, './supplier-catalog': catalog, './supplier-variant-mapper': mapper, './supplier-selection': selection,
+    './supplier-delivery': supplierDelivery,
     './supplier-refresh-options': options, './supplier-costing-scope': costingScope, './aliexpress-catalog-id': aliases, './product-pricing': pricing,
     './aliexpress-operational-provider': { getAliExpressOperationalProduct: async (...args) => {
       calls.provider.push(args); if (state.providerFailure) throw new Error('Provider unavailable'); return operational;
