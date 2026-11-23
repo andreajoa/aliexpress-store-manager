@@ -49,6 +49,27 @@ function toNum(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} excedeu ${Math.round(timeoutMs / 1000)}s.`));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+type AliExpressSessionContext = Awaited<ReturnType<typeof requireAliExpressSession>>;
+
 /**
  * Mirrors AMB Boutique's customer-facing +5 day Stripe settlement buffer + safety cushion
  * so Store Manager previews match the exact delivery range shoppers will see on the PDP.
@@ -71,16 +92,24 @@ export async function tryOfficialAliExpressSearch(
   page = 1,
 ): Promise<OmkarSearchResult[]> {
   try {
-    const { session, client } = await requireAliExpressSession({ readOnly: true });
-    const envelope = await client.searchDropshipProducts({
-      session,
-      keyword: query,
-      countryCode: "US",
-      currency: "USD",
-      page,
-      pageSize: 30,
-      sortBy: "orders,desc",
-    });
+    const { session, client } = await withTimeout(
+      requireAliExpressSession({ readOnly: true }),
+      6_000,
+      "Sessão AliExpress",
+    );
+    const envelope = await withTimeout(
+      client.searchDropshipProducts({
+        session,
+        keyword: query,
+        countryCode: "US",
+        currency: "USD",
+        page,
+        pageSize: 30,
+        sortBy: "orders,desc",
+      }),
+      8_000,
+      "Busca oficial AliExpress",
+    );
 
     const result = asRecord(envelope.result);
     const data = asRecord(result.data ?? result);
@@ -132,16 +161,28 @@ export async function tryOfficialAliExpressSearch(
 
 export async function verifySingleProductUsShipping(
   productId: string,
+  options?: {
+    context?: AliExpressSessionContext;
+    skipFreightIfNoUsStock?: boolean;
+    callTimeoutMs?: number;
+  },
 ): Promise<VerifiedShippingCheck> {
+  const timeoutMs = options?.callTimeoutMs ?? 7_000;
   try {
-    const { session, client } = await requireAliExpressSession({ readOnly: true });
-    const envelope = await client.getDropshipProduct({
-      session,
-      productId,
-      shipToCountry: "US",
-      targetCurrency: "USD",
-      targetLanguage: "EN",
-    });
+    const { session, client } =
+      options?.context ?? (await requireAliExpressSession({ readOnly: true }));
+
+    const envelope = await withTimeout(
+      client.getDropshipProduct({
+        session,
+        productId,
+        shipToCountry: "US",
+        targetCurrency: "USD",
+        targetLanguage: "EN",
+      }),
+      timeoutMs,
+      "Consulta de produto AliExpress",
+    );
 
     const shipsFromValues = shipsFromValuesFromEnvelope(envelope);
     const official = officialSkusFromProductResponse(envelope);
@@ -153,6 +194,25 @@ export async function verifySingleProductUsShipping(
       })),
       shipsFromValues,
     );
+
+    // Fast path for US-only sourcing: skip freight quote when product has zero US warehouse stock
+    if (options?.skipFreightIfNoUsStock && !summary.hasUsInStock) {
+      return {
+        checked: true,
+        hasUsWarehouse: summary.hasUsWarehouse,
+        hasUsInStock: false,
+        usTotalStock: summary.usTotalStock,
+        dispatchCountry: summary.countries[0] || "CN",
+        countries: summary.countries,
+        deliveryMinDays: null,
+        deliveryMaxDays: null,
+        ambDisplayMinDays: null,
+        ambDisplayMaxDays: null,
+        freightCostUsd: null,
+        serviceName: null,
+        error: null,
+      };
+    }
 
     const preferredSku =
       official.skus.find(
@@ -166,16 +226,20 @@ export async function verifySingleProductUsShipping(
       (preferredSku ? skuShipsFromCountryCode(preferredSku.attributes) : null) ||
       (summary.hasUsWarehouse ? "US" : "CN");
 
-    const quotes = await client.calculateFreight({
-      session,
-      productId,
-      quantity: 1,
-      countryCode: "US",
-      sendGoodsCountryCode,
-      price: preferredSku?.price != null ? String(preferredSku.price) : undefined,
-      priceCurrency: preferredSku?.currencyCode || "USD",
-      skuId: preferredSku?.sourceSkuId || undefined,
-    });
+    const quotes = await withTimeout(
+      client.calculateFreight({
+        session,
+        productId,
+        quantity: 1,
+        countryCode: "US",
+        sendGoodsCountryCode,
+        price: preferredSku?.price != null ? String(preferredSku.price) : undefined,
+        priceCurrency: preferredSku?.currencyCode || "USD",
+        skuId: preferredSku?.sourceSkuId || undefined,
+      }),
+      timeoutMs,
+      "Cálculo de frete AliExpress",
+    );
 
     // Prefer fastest quote that has a valid delivery estimate, breaking ties by lowest cost
     const parsedQuotes = quotes
@@ -237,22 +301,43 @@ export async function verifyAndFilterSearchResults(
     usOnly?: boolean;
     maxDays?: number | null;
     maxInspect?: number;
+    budgetMs?: number;
   },
 ): Promise<{
   results: EnrichedSearchResult[];
   inspectedCount: number;
   usWarehouseCount: number;
+  partial: boolean;
 }> {
   const maxInspect = Math.min(20, Math.max(1, options.maxInspect ?? 12));
   const candidates = items.slice(0, maxInspect);
   const enriched: EnrichedSearchResult[] = [];
-  const concurrency = 4;
+  const concurrency = 6;
+  const deadlineMs = Date.now() + Math.max(5_000, Math.min(35_000, options.budgetMs ?? 20_000));
+  let partial = false;
+
+  const sharedContext = await withTimeout(
+    requireAliExpressSession({ readOnly: true }),
+    6_000,
+    "Sessão AliExpress",
+  );
 
   for (let i = 0; i < candidates.length; i += concurrency) {
+    const remainingMs = deadlineMs - Date.now();
+    if (remainingMs <= 1_500 && enriched.length > 0) {
+      partial = true;
+      break;
+    }
+
     const chunk = candidates.slice(i, i + concurrency);
+    const callTimeoutMs = Math.max(3_500, Math.min(7_000, remainingMs - 500));
     const verifiedChunk = await Promise.all(
       chunk.map(async (item): Promise<EnrichedSearchResult> => {
-        const shippingCheck = await verifySingleProductUsShipping(item.id);
+        const shippingCheck = await verifySingleProductUsShipping(item.id, {
+          context: sharedContext,
+          skipFreightIfNoUsStock: Boolean(options.usOnly),
+          callTimeoutMs,
+        });
         return { ...item, shippingCheck };
       }),
     );
@@ -285,5 +370,6 @@ export async function verifyAndFilterSearchResults(
     results: filtered,
     inspectedCount: enriched.length,
     usWarehouseCount,
+    partial,
   };
 }

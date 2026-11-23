@@ -51,6 +51,7 @@ type SearchResponse = {
   count?: number;
   inspectedCount?: number;
   usWarehouseCount?: number;
+  partial?: boolean;
   verified?: boolean;
   per_page?: number;
   current_page?: number;
@@ -79,7 +80,7 @@ export function AliExpressSearchPanel() {
   const [maxDays, setMaxDays] = useState<string>('10');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<OmkarSearchResult[]>([]);
-  const [meta, setMeta] = useState<Pick<SearchResponse, 'count' | 'inspectedCount' | 'usWarehouseCount' | 'verified' | 'current_page' | 'total_pages' | 'next' | 'previous' | 'error'>>({});
+  const [meta, setMeta] = useState<Pick<SearchResponse, 'count' | 'inspectedCount' | 'usWarehouseCount' | 'partial' | 'verified' | 'current_page' | 'total_pages' | 'next' | 'previous' | 'error'>>({});
   const [importingId, setImportingId] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
 
@@ -103,16 +104,32 @@ export function AliExpressSearchPanel() {
       if (maxDays && Number(maxDays) > 0) params.set('maxDays', maxDays);
 
       const response = await fetch(`/api/aliexpress/search?${params.toString()}`, { cache: 'no-store' });
-      const data = (await response.json()) as SearchResponse;
+      const rawText = await response.text();
+      let data: SearchResponse | null = null;
+      if (rawText) {
+        try {
+          data = JSON.parse(rawText) as SearchResponse;
+        } catch {
+          data = null;
+        }
+      }
 
-      if (!response.ok || !data.ok) {
-        setMeta({ error: data.error || 'Falha na busca.' });
+      if (!data) {
+        setMeta({
+          error: response.status === 502 || response.status === 504
+            ? `A busca no AliExpress demorou além do limite (HTTP ${response.status}). Clique em Buscar novamente ou tente outro termo.`
+            : `O servidor retornou uma resposta inesperada (HTTP ${response.status}). Atualize a página e tente novamente.`,
+        });
+        setResults([]);
+      } else if (!response.ok || !data.ok) {
+        setMeta({ error: data.error || `Falha na busca (HTTP ${response.status}).` });
         setResults([]);
       } else {
         setMeta({
           count: data.count ?? 0,
           inspectedCount: data.inspectedCount,
           usWarehouseCount: data.usWarehouseCount,
+          partial: data.partial,
           verified: data.verified,
           current_page: data.current_page ?? targetPage,
           total_pages: data.total_pages ?? 1,
@@ -275,8 +292,28 @@ export function AliExpressSearchPanel() {
       </form>
 
       {meta.verified && results.length === 0 && !loading && !meta.error && (
-        <div className="rounded-2xl border border-amber-900/60 bg-amber-950/20 p-5 text-sm text-amber-200">
-          Verificamos {meta.inspectedCount ?? 0} anúncios desta página na API oficial ({meta.usWarehouseCount ?? 0} com armazém nos EUA), mas nenhum atendeu a todos os filtros juntos. Tente avançar para a próxima página, desmarcar &ldquo;Somente estoque nos EUA&rdquo; ou testar outro termo.
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-900/60 bg-amber-950/20 p-5 text-sm text-amber-200">
+          <span>
+            Verificamos {meta.inspectedCount ?? 0} anúncios da página {meta.current_page ?? page} na API oficial ({meta.usWarehouseCount ?? 0} com armazém nos EUA{meta.partial ? ' · verificação parcial rápida' : ''}), mas nenhum atendeu a todos os filtros juntos.
+          </span>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <button
+                type="button"
+                onClick={() => void runSearch(query, Math.max(1, page - 1))}
+                className="rounded-xl border border-amber-700/60 bg-zinc-950 px-3.5 py-2 text-xs font-semibold text-amber-200 hover:bg-zinc-900"
+              >
+                Página anterior
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void runSearch(query, page + 1)}
+              className="rounded-xl bg-amber-500 px-3.5 py-2 text-xs font-semibold text-zinc-950 hover:bg-amber-400"
+            >
+              Verificar página {page + 1} →
+            </button>
+          </div>
         </div>
       )}
 
