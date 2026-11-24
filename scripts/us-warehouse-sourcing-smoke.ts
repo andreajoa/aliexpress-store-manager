@@ -5,6 +5,7 @@ import {
   parseShipsFromCountryCode,
   prioritizedSendGoodsCountries,
   resolveSendGoodsCountryForSku,
+  selectUsWarehouseSkus,
   skuShipsFromCountryCode,
   summarizeProductWarehouses,
 } from "../src/lib/aliexpress-warehouse.ts";
@@ -97,5 +98,30 @@ assert.equal(fallbackChosen.sourceSkuId, "sku-cn-m", "Sem estoque nos EUA, deve 
 const dupA = { sourceSkuId: "sku-1", attributes: { Color: "Light blue", Size: "M" }, stock: 10, available: true };
 const dupB = { sourceSkuId: "sku-2", attributes: { Color: "Light blue", Size: "M" }, stock: 10, available: true };
 assert.throws(() => resolveAmbBoundVariant(binding, "M", [dupA, dupB], 1));
+
+// Bulk "Armazém EUA" import keeps only US SKUs with stock; unresolved SKUs never count as US
+const bulkGroups = [
+  { attribute_name: "Color", attribute_id: "14", options: [{ value_id: "c1", name: "Ivory" }] },
+  {
+    attribute_name: "Ships From",
+    attribute_id: "200007763",
+    options: [
+      { value_id: "201336100", name: "China" },
+      { value_id: "201336106", name: "United States" },
+    ],
+  },
+];
+const bulkSkus = [
+  { sku_id: "cn", variant_ids: "c1,201336100", available_quantity: 900 },
+  { sku_id: "us", variant_ids: "c1,201336106", available_quantity: 40 },
+  { sku_id: "us-empty", variant_ids: "c1,201336106", available_quantity: 0 },
+  { sku_id: "us-unknown-stock", variant_ids: "c1,201336106", available_quantity: null },
+  { sku_id: "no-origin", variant_ids: "c1", available_quantity: 50 },
+];
+assert.deepEqual(
+  selectUsWarehouseSkus(bulkSkus, bulkGroups as never).map((sku) => sku.sku_id),
+  ["us"],
+);
+assert.deepEqual(selectUsWarehouseSkus([bulkSkus[0]], bulkGroups as never), []);
 
 console.log("US WAREHOUSE SOURCING & ROUTING: PASS");

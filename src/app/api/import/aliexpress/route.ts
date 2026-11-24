@@ -6,6 +6,7 @@ import {
   buildAliExpressImportCosting,
 } from "@/lib/aliexpress-import-costing";
 import { mergeDeliveryPayloadFields } from "@/lib/supplier-delivery";
+import { selectUsWarehouseSkus } from "@/lib/aliexpress-warehouse";
 import {
   AliExpressProviderUnavailableError,
   getAliExpressOperationalProduct,
@@ -22,6 +23,8 @@ export const maxDuration = 120;
 
 const payloadSchema = z.object({
   url: z.string().trim().url(),
+  // Armazém EUA: importa só as variantes enviadas dos EUA com estoque.
+  usWarehouseOnly: z.boolean().optional(),
 });
 
 function decimal(value: number | null | undefined) {
@@ -216,7 +219,21 @@ export async function POST(request: Request) {
 
     const groups = sourceProduct.variants || [];
     const optionMap = buildOptionMap(groups);
-    const skuPricing = sourceProduct.sku_pricing || [];
+    const allSkuPricing = sourceProduct.sku_pricing || [];
+    const usWarehouseOnly = parsed.data.usWarehouseOnly === true;
+    const skuPricing = usWarehouseOnly
+      ? selectUsWarehouseSkus(allSkuPricing, groups)
+      : allSkuPricing;
+    if (usWarehouseOnly && skuPricing.length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          noUsWarehouse: true,
+          error: "Nenhuma variante com estoque no armazém dos EUA. Nada foi salvo.",
+        },
+        { status: 422 },
+      );
+    }
     const sourceUrl = sourceProduct.listing_url || requestedUrl;
     const itemCurrency = (sourceProduct.currency || "USD").toUpperCase();
     const importedAt = new Date();
@@ -266,6 +283,8 @@ export async function POST(request: Request) {
             operationalProvider: operational.provider,
             requestedProductId: productId,
             resolvedProductId,
+            usWarehouseOnly,
+            skippedNonUsSkus: allSkuPricing.length - skuPricing.length,
           },
           rawPayload: {
             operationalProvider: operational.provider,

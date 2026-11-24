@@ -348,7 +348,7 @@ export async function verifySingleProductUsShipping(
     fastDirectFreight?: boolean;
     callTimeoutMs?: number;
   },
-): Promise<VerifiedShippingCheck & { resolvedTitle?: string; resolvedImage?: string; resolvedPrice?: number | null }> {
+): Promise<VerifiedShippingCheck & { resolvedTitle?: string; resolvedImage?: string; resolvedPrice?: number | null; storeName?: string }> {
   const timeoutMs = options?.callTimeoutMs ?? 6_500;
   try {
     const { session, client } =
@@ -372,6 +372,7 @@ export async function verifySingleProductUsShipping(
     const rawImages = asText(mediaInfo.image_urls).split(";").map((u) => u.trim()).filter(Boolean);
     const resolvedTitle = asText(baseInfo.subject) || undefined;
     const resolvedImage = rawImages[0] || undefined;
+    const storeName = asText(asRecord(result.ae_store_info).store_name) || undefined;
 
     const shipsFromValues = shipsFromValuesFromEnvelope(envelope);
     const official = officialSkusFromProductResponse(envelope);
@@ -405,6 +406,7 @@ export async function verifySingleProductUsShipping(
         resolvedTitle,
         resolvedImage,
         resolvedPrice: firstPrice,
+        storeName,
       };
     }
 
@@ -491,6 +493,7 @@ export async function verifySingleProductUsShipping(
       resolvedTitle,
       resolvedImage,
       resolvedPrice: preferredSku?.price ?? firstPrice,
+      storeName,
     };
   } catch (error) {
     return {
@@ -548,6 +551,7 @@ export async function verifySearchBatch(
           ? item.title
           : shippingCheck.resolvedTitle || item.title,
         image: item.image || shippingCheck.resolvedImage || "",
+        store_name: item.store_name || shippingCheck.storeName || null,
         images: item.images.length > 0
           ? item.images
           : shippingCheck.resolvedImage ? [shippingCheck.resolvedImage] : [],

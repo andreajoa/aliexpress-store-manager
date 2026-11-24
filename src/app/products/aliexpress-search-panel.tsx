@@ -83,6 +83,21 @@ const QUICK_SEARCH_PRESETS = [
 
 const VERIFY_BATCH_SIZE = 4;
 
+type ImportState = 'importing' | 'imported' | 'duplicate' | 'no-us' | 'error';
+type ImportStatus = { state: ImportState; message: string };
+
+const IMPORT_STATUS_STYLE: Record<ImportState, string> = {
+  importing: 'border-sky-800 bg-sky-950/50 text-sky-200',
+  imported: 'border-emerald-800 bg-emerald-950/50 text-emerald-300',
+  duplicate: 'border-zinc-700 bg-zinc-950 text-zinc-300',
+  'no-us': 'border-amber-800 bg-amber-950/40 text-amber-200',
+  error: 'border-red-900 bg-red-950/40 text-red-300',
+};
+
+function isUsReady(item: OmkarSearchResult) {
+  return Boolean(item.shippingCheck?.checked && item.shippingCheck.hasUsInStock);
+}
+
 function sortVerifiedResults(list: OmkarSearchResult[]): OmkarSearchResult[] {
   return [...list].sort((a, b) => {
     const aUs = a.shippingCheck?.hasUsInStock ? 0 : 1;
@@ -127,6 +142,14 @@ export function AliExpressSearchPanel() {
   }>({});
   const [importingId, setImportingId] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [importStatus, setImportStatus] = useState<Record<string, ImportStatus>>({});
+  const [bulk, setBulk] = useState<{ running: boolean; done: number; total: number }>({
+    running: false,
+    done: 0,
+    total: 0,
+  });
+  const bulkStopRef = useRef(false);
 
   const runTokenRef = useRef(0);
   const stopRef = useRef(false);
@@ -190,6 +213,14 @@ export function AliExpressSearchPanel() {
         }
 
         const newApproved = batchData.results ?? [];
+        const newUsIds = newApproved.filter(isUsReady).map((item) => item.id);
+        if (newUsIds.length > 0) {
+          setSelectedIds((prev) => {
+            const next = new Set(prev);
+            for (const id of newUsIds) next.add(id);
+            return next;
+          });
+        }
         if (newApproved.length > 0) {
           setResults((prev) => {
             const seenIds = new Set(prev.map((r) => r.id));
@@ -230,6 +261,7 @@ export function AliExpressSearchPanel() {
     setPage(targetPage);
     setResults([]);
     setPendingCandidates([]);
+    setSelectedIds(new Set());
     setMeta({});
 
     try {
@@ -311,37 +343,136 @@ export function AliExpressSearchPanel() {
     void verifyCandidatesLoop(pendingCandidates, token, usOnly, maxDaysNum);
   }
 
-  async function importProduct(item: OmkarSearchResult) {
-    setImportingId(item.id);
-    setImportMessage(null);
-
-    try {
+  async function requestImport(item: OmkarSearchResult): Promise<ImportStatus> {
+    const usWarehouseOnly = isUsReady(item);
+    const send = async () => {
       const response = await fetch('/api/import/aliexpress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: `https://www.aliexpress.us/item/${item.id}.html`,
+          usWarehouseOnly,
         }),
       });
-
       const text = await response.text();
-      const data = parseJsonSafe<{ error?: string; product?: unknown }>(text) ?? {
-        error: `Resposta inválida do servidor (HTTP ${response.status}).`,
+      return {
+        response,
+        data: parseJsonSafe<{ error?: string; duplicate?: boolean; noUsWarehouse?: boolean }>(text),
       };
+    };
 
-      if (!response.ok) {
-        setImportMessage(data.error || 'Não foi possível importar este produto.');
-        return;
+    try {
+      let { response, data } = await send();
+      // Proxy timeouts answer without JSON even when the server finished saving.
+      // A second call then reports "already imported" instead of creating a copy.
+      if (!data && response.status >= 500) {
+        await new Promise((r) => setTimeout(r, 3000));
+        ({ response, data } = await send());
       }
-
-      setImportMessage(`Produto importado com sucesso: ${item.title}`);
+      if (response.ok) {
+        return {
+          state: 'imported',
+          message: usWarehouseOnly ? 'Importado (só variantes do armazém EUA)' : 'Importado',
+        };
+      }
+      if (data?.duplicate) return { state: 'duplicate', message: 'Já estava importado' };
+      if (data?.noUsWarehouse) {
+        return { state: 'no-us', message: data.error || 'Sem estoque no armazém dos EUA' };
+      }
+      return {
+        state: 'error',
+        message: data?.error || `Falha na importação (HTTP ${response.status}).`,
+      };
     } catch (error) {
-      setImportMessage(error instanceof Error ? error.message : 'Erro inesperado ao importar.');
+      return {
+        state: 'error',
+        message: error instanceof Error ? error.message : 'Erro inesperado ao importar.',
+      };
+    }
+  }
+
+  async function importProduct(item: OmkarSearchResult) {
+    setImportingId(item.id);
+    setImportMessage(null);
+    setImportStatus((prev) => ({ ...prev, [item.id]: { state: 'importing', message: 'Importando...' } }));
+    try {
+      const status = await requestImport(item);
+      setImportStatus((prev) => ({ ...prev, [item.id]: status }));
+      setImportMessage(
+        status.state === 'imported'
+          ? `Produto importado com sucesso: ${item.title}`
+          : status.message,
+      );
     } finally {
       setImportingId(null);
     }
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function importSelected() {
+    const queue = results.filter(
+      (item) =>
+        selectedIds.has(item.id) &&
+        isUsReady(item) &&
+        importStatus[item.id]?.state !== 'imported' &&
+        importStatus[item.id]?.state !== 'duplicate',
+    );
+    if (queue.length === 0 || bulk.running) return;
+
+    bulkStopRef.current = false;
+    setImportMessage(null);
+    setBulk({ running: true, done: 0, total: queue.length });
+    const tally: Record<ImportState, number> = {
+      importing: 0,
+      imported: 0,
+      duplicate: 0,
+      'no-us': 0,
+      error: 0,
+    };
+
+    for (let index = 0; index < queue.length; index++) {
+      if (bulkStopRef.current) break;
+      const item = queue[index];
+      setImportStatus((prev) => ({ ...prev, [item.id]: { state: 'importing', message: 'Importando...' } }));
+      const status = await requestImport(item);
+      tally[status.state] += 1;
+      setImportStatus((prev) => ({ ...prev, [item.id]: status }));
+      if (status.state === 'imported' || status.state === 'duplicate') {
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
+      }
+      setBulk({ running: true, done: index + 1, total: queue.length });
+    }
+
+    const processed = tally.imported + tally.duplicate + tally['no-us'] + tally.error;
+    setBulk((prev) => ({ ...prev, running: false }));
+    setImportMessage(
+      `${bulkStopRef.current ? 'Lote interrompido' : 'Lote concluído'}: ${tally.imported} importado(s)` +
+        (tally.duplicate ? `, ${tally.duplicate} já existiam` : '') +
+        (tally['no-us'] ? `, ${tally['no-us']} sem estoque EUA` : '') +
+        (tally.error ? `, ${tally.error} com erro` : '') +
+        ` (${processed} de ${queue.length}).`,
+    );
+  }
+
+  const usReadyResults = results.filter(isUsReady);
+  const importableUs = usReadyResults.filter(
+    (item) =>
+      importStatus[item.id]?.state !== 'imported' &&
+      importStatus[item.id]?.state !== 'duplicate',
+  );
+  const selectedCount = importableUs.filter((item) => selectedIds.has(item.id)).length;
   const totalCandidates = meta.totalCandidates ?? 0;
   const inspectedCount = meta.inspectedCount ?? 0;
   const progressPct = totalCandidates > 0
@@ -548,9 +679,78 @@ export function AliExpressSearchPanel() {
             </div>
           </div>
 
+          {usReadyResults.length > 0 && (
+            <div className="rounded-2xl border border-emerald-900/70 bg-emerald-950/20 p-4 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-emerald-300">
+                    Importação em lote · somente armazém EUA
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    {selectedCount} de {importableUs.length} selecionados. Cada produto entra só com as variantes enviadas dos EUA com estoque; as da China ficam de fora.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={bulk.running || importableUs.length === 0}
+                    onClick={() => setSelectedIds(new Set(importableUs.map((item) => item.id)))}
+                    className="rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-900 disabled:opacity-50"
+                  >
+                    Selecionar todos EUA
+                  </button>
+                  <button
+                    type="button"
+                    disabled={bulk.running || selectedCount === 0}
+                    onClick={() => setSelectedIds(new Set())}
+                    className="rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-900 disabled:opacity-50"
+                  >
+                    Limpar
+                  </button>
+                  {bulk.running ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        bulkStopRef.current = true;
+                      }}
+                      className="rounded-xl border border-amber-500/60 bg-amber-950/40 px-3.5 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-900/50"
+                    >
+                      Parar após o atual
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={selectedCount === 0 || importingId !== null}
+                      onClick={() => void importSelected()}
+                      className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-semibold text-zinc-950 hover:bg-emerald-400 disabled:opacity-50"
+                    >
+                      Importar {selectedCount} selecionado{selectedCount === 1 ? '' : 's'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {bulk.total > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-zinc-300">
+                    {bulk.running ? 'Importando' : 'Último lote'}: {bulk.done} de {bulk.total}
+                  </p>
+                  <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                      style={{ width: `${Math.round((bulk.done / bulk.total) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {results.map((item) => {
               const check = item.shippingCheck;
+              const status = importStatus[item.id];
+              const usReady = isUsReady(item);
+              const alreadyIn = status?.state === 'imported' || status?.state === 'duplicate';
               return (
                 <article
                   key={item.id}
@@ -567,6 +767,17 @@ export function AliExpressSearchPanel() {
                       <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-zinc-950">
                         US Warehouse · {check.usTotalStock} un.
                       </span>
+                    )}
+                    {usReady && !alreadyIn && (
+                      <label className="absolute right-3 top-3 flex cursor-pointer items-center gap-1.5 rounded-full bg-zinc-950/85 px-2.5 py-1 text-[11px] font-semibold text-white">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(item.id)}
+                          disabled={bulk.running}
+                          onChange={() => toggleSelected(item.id)}
+                        />
+                        Lote
+                      </label>
                     )}
                   </div>
 
@@ -610,6 +821,12 @@ export function AliExpressSearchPanel() {
                       </a>
                     </div>
 
+                    {status && (
+                      <p className={`rounded-lg border px-2.5 py-1.5 text-xs ${IMPORT_STATUS_STYLE[status.state]}`}>
+                        {status.message}
+                      </p>
+                    )}
+
                     <div className="mt-auto flex items-end justify-between gap-3">
                       <div>
                         <p className="text-xl font-semibold">
@@ -626,11 +843,11 @@ export function AliExpressSearchPanel() {
 
                       <button
                         type="button"
-                        disabled={importingId === item.id}
+                        disabled={importingId !== null || bulk.running || alreadyIn || status?.state === 'importing'}
                         onClick={() => importProduct(item)}
                         className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50"
                       >
-                        {importingId === item.id ? 'Importando...' : 'Importar'}
+                        {status?.state === 'importing' ? 'Importando...' : alreadyIn ? 'Importado' : 'Importar'}
                       </button>
                     </div>
                   </div>
