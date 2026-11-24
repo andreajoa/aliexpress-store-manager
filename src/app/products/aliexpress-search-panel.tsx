@@ -3,6 +3,7 @@
 import {
   FormEvent,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -40,6 +41,7 @@ type OmkarSearchResult = {
     tax_rate: number | null;
     sku_id: string | null;
   };
+  tags?: string[];
   store_name: string | null;
   category_ids: (string | number)[];
   listed_date: string;
@@ -48,17 +50,24 @@ type OmkarSearchResult = {
 
 type SearchResponse = {
   ok: boolean;
+  mode?: 'progressive' | 'direct';
   count?: number;
-  inspectedCount?: number;
-  usWarehouseCount?: number;
-  partial?: boolean;
-  verified?: boolean;
+  candidateCount?: number;
   per_page?: number;
   current_page?: number;
   total_pages?: number;
   next?: string | null;
   previous?: string | null;
   currency?: string;
+  candidates?: OmkarSearchResult[];
+  results?: OmkarSearchResult[];
+  error?: string;
+};
+
+type VerifyBatchResponse = {
+  ok: boolean;
+  inspectedCount?: number;
+  usWarehouseCount?: number;
   results?: OmkarSearchResult[];
   error?: string;
 };
@@ -72,6 +81,29 @@ const QUICK_SEARCH_PRESETS = [
   'women linen midi dress',
 ];
 
+const VERIFY_BATCH_SIZE = 4;
+
+function sortVerifiedResults(list: OmkarSearchResult[]): OmkarSearchResult[] {
+  return [...list].sort((a, b) => {
+    const aUs = a.shippingCheck?.hasUsInStock ? 0 : 1;
+    const bUs = b.shippingCheck?.hasUsInStock ? 0 : 1;
+    if (aUs !== bUs) return aUs - bUs;
+    const aDays = a.shippingCheck?.deliveryMaxDays ?? 999;
+    const bDays = b.shippingCheck?.deliveryMaxDays ?? 999;
+    if (aDays !== bDays) return aDays - bDays;
+    return (b.orders_count ?? 0) - (a.orders_count ?? 0);
+  });
+}
+
+function parseJsonSafe<T>(rawText: string): T | null {
+  if (!rawText) return null;
+  try {
+    return JSON.parse(rawText) as T;
+  } catch {
+    return null;
+  }
+}
+
 export function AliExpressSearchPanel() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -79,22 +111,129 @@ export function AliExpressSearchPanel() {
   const [usOnly, setUsOnly] = useState(true);
   const [maxDays, setMaxDays] = useState<string>('10');
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [results, setResults] = useState<OmkarSearchResult[]>([]);
-  const [meta, setMeta] = useState<Pick<SearchResponse, 'count' | 'inspectedCount' | 'usWarehouseCount' | 'partial' | 'verified' | 'current_page' | 'total_pages' | 'next' | 'previous' | 'error'>>({});
+  const [pendingCandidates, setPendingCandidates] = useState<OmkarSearchResult[]>([]);
+  const [meta, setMeta] = useState<{
+    totalCandidates?: number;
+    inspectedCount?: number;
+    usWarehouseCount?: number;
+    verified?: boolean;
+    current_page?: number;
+    total_pages?: number;
+    next?: string | null;
+    previous?: string | null;
+    error?: string;
+  }>({});
   const [importingId, setImportingId] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
 
+  const runTokenRef = useRef(0);
+  const stopRef = useRef(false);
+
   const currency = useMemo(() => results?.[0]?.pricing?.currency ?? 'USD', [results]);
+
+  async function verifyCandidatesLoop(
+    queue: OmkarSearchResult[],
+    token: number,
+    filterUsOnly: boolean,
+    filterMaxDays: number | null,
+  ) {
+    setVerifying(true);
+    stopRef.current = false;
+    let cursor = 0;
+
+    try {
+      while (cursor < queue.length && !stopRef.current && runTokenRef.current === token) {
+        const batch = queue.slice(cursor, cursor + VERIFY_BATCH_SIZE);
+        let batchData: VerifyBatchResponse | null = null;
+        let lastErr = '';
+
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const res = await fetch('/api/aliexpress/search/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify({
+                items: batch,
+                usOnly: filterUsOnly,
+                maxDays: filterMaxDays,
+              }),
+            });
+            const text = await res.text();
+            const parsed = parseJsonSafe<VerifyBatchResponse>(text);
+            if (res.ok && parsed?.ok) {
+              batchData = parsed;
+              break;
+            }
+            lastErr = parsed?.error || `HTTP ${res.status}`;
+          } catch (err) {
+            lastErr = err instanceof Error ? err.message : 'Oscilação de rede';
+          }
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 900 * (attempt + 1)));
+          }
+        }
+
+        if (runTokenRef.current !== token) return;
+
+        cursor += batch.length;
+        setPendingCandidates(queue.slice(cursor));
+
+        if (!batchData) {
+          setMeta((prev) => ({
+            ...prev,
+            inspectedCount: (prev.inspectedCount ?? 0) + batch.length,
+            error: `Um lote falhou (${lastErr}), mas os itens anteriores foram mantidos.`,
+          }));
+          continue;
+        }
+
+        const newApproved = batchData.results ?? [];
+        if (newApproved.length > 0) {
+          setResults((prev) => {
+            const seenIds = new Set(prev.map((r) => r.id));
+            const merged = [...prev];
+            for (const item of newApproved) {
+              if (!seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                merged.push(item);
+              }
+            }
+            return sortVerifiedResults(merged);
+          });
+        }
+
+        setMeta((prev) => ({
+          ...prev,
+          inspectedCount: (prev.inspectedCount ?? 0) + (batchData?.inspectedCount ?? batch.length),
+          usWarehouseCount: (prev.usWarehouseCount ?? 0) + (batchData?.usWarehouseCount ?? 0),
+          verified: true,
+        }));
+      }
+    } finally {
+      if (runTokenRef.current === token) {
+        setVerifying(false);
+      }
+    }
+  }
 
   async function runSearch(searchTerm: string, targetPage = 1) {
     const trimmed = searchTerm.trim();
     if (!trimmed) return;
 
+    const token = ++runTokenRef.current;
+    stopRef.current = false;
     setLoading(true);
+    setVerifying(false);
     setImportMessage(null);
     setPage(targetPage);
+    setResults([]);
+    setPendingCandidates([]);
+    setMeta({});
 
     try {
+      const shouldVerify = verifyUs || usOnly || Number(maxDays) > 0;
       const params = new URLSearchParams({
         query: trimmed,
         page: String(targetPage),
@@ -105,51 +244,71 @@ export function AliExpressSearchPanel() {
 
       const response = await fetch(`/api/aliexpress/search?${params.toString()}`, { cache: 'no-store' });
       const rawText = await response.text();
-      let data: SearchResponse | null = null;
-      if (rawText) {
-        try {
-          data = JSON.parse(rawText) as SearchResponse;
-        } catch {
-          data = null;
-        }
-      }
+      const data = parseJsonSafe<SearchResponse>(rawText);
+
+      if (runTokenRef.current !== token) return;
 
       if (!data) {
         setMeta({
-          error: response.status === 502 || response.status === 504
-            ? `A busca no AliExpress demorou além do limite (HTTP ${response.status}). Clique em Buscar novamente ou tente outro termo.`
-            : `O servidor retornou uma resposta inesperada (HTTP ${response.status}). Atualize a página e tente novamente.`,
+          error: `O servidor retornou uma resposta inesperada (HTTP ${response.status}). Atualize a página e tente novamente.`,
         });
-        setResults([]);
-      } else if (!response.ok || !data.ok) {
+        return;
+      }
+
+      if (!response.ok || !data.ok) {
         setMeta({ error: data.error || `Falha na busca (HTTP ${response.status}).` });
-        setResults([]);
+        return;
+      }
+
+      const candidates = data.candidates ?? [];
+      setMeta({
+        totalCandidates: shouldVerify ? candidates.length : (data.count ?? 0),
+        inspectedCount: 0,
+        usWarehouseCount: 0,
+        verified: shouldVerify,
+        current_page: data.current_page ?? targetPage,
+        total_pages: data.total_pages ?? 1,
+        next: data.next ?? null,
+        previous: data.previous ?? null,
+        error: undefined,
+      });
+
+      setLoading(false);
+
+      if (shouldVerify && data.mode === 'progressive') {
+        setPendingCandidates(candidates);
+        if (candidates.length > 0) {
+          const maxDaysNum = Number(maxDays) > 0 ? Number(maxDays) : null;
+          await verifyCandidatesLoop(candidates, token, usOnly, maxDaysNum);
+        }
       } else {
-        setMeta({
-          count: data.count ?? 0,
-          inspectedCount: data.inspectedCount,
-          usWarehouseCount: data.usWarehouseCount,
-          partial: data.partial,
-          verified: data.verified,
-          current_page: data.current_page ?? targetPage,
-          total_pages: data.total_pages ?? 1,
-          next: data.next ?? null,
-          previous: data.previous ?? null,
-          error: undefined,
-        });
         setResults(data.results ?? []);
       }
     } catch (error) {
+      if (runTokenRef.current !== token) return;
       setMeta({ error: error instanceof Error ? error.message : 'Erro inesperado na busca.' });
-      setResults([]);
     } finally {
-      setLoading(false);
+      if (runTokenRef.current === token) {
+        setLoading(false);
+      }
     }
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void runSearch(query, 1);
+  }
+
+  function handlePauseVerification() {
+    stopRef.current = true;
+    setVerifying(false);
+  }
+
+  function handleResumeVerification() {
+    if (pendingCandidates.length === 0 || verifying) return;
+    const token = ++runTokenRef.current;
+    const maxDaysNum = Number(maxDays) > 0 ? Number(maxDays) : null;
+    void verifyCandidatesLoop(pendingCandidates, token, usOnly, maxDaysNum);
   }
 
   async function importProduct(item: OmkarSearchResult) {
@@ -166,15 +325,9 @@ export function AliExpressSearchPanel() {
       });
 
       const text = await response.text();
-      let data: { error?: string; product?: unknown } = {};
-
-      if (text) {
-        try {
-          data = JSON.parse(text) as typeof data;
-        } catch {
-          data = { error: `Resposta inválida do servidor (HTTP ${response.status}).` };
-        }
-      }
+      const data = parseJsonSafe<{ error?: string; product?: unknown }>(text) ?? {
+        error: `Resposta inválida do servidor (HTTP ${response.status}).`,
+      };
 
       if (!response.ok) {
         setImportMessage(data.error || 'Não foi possível importar este produto.');
@@ -188,6 +341,12 @@ export function AliExpressSearchPanel() {
       setImportingId(null);
     }
   }
+
+  const totalCandidates = meta.totalCandidates ?? 0;
+  const inspectedCount = meta.inspectedCount ?? 0;
+  const progressPct = totalCandidates > 0
+    ? Math.min(100, Math.round((inspectedCount / totalCandidates) * 100))
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -204,7 +363,7 @@ export function AliExpressSearchPanel() {
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-zinc-400">
-          Verifica diretamente na API oficial do AliExpress se o anúncio possui estoque real em armazém dos EUA
+          Consulta o catálogo oficial do AliExpress e verifica em lotes rápidos de 4 anúncios se há estoque real em armazém dos EUA
           (<code>Ships From: United States</code>) e o prazo real de entrega antes de importar.
         </p>
 
@@ -213,11 +372,12 @@ export function AliExpressSearchPanel() {
             <button
               key={preset}
               type="button"
+              disabled={loading}
               onClick={() => {
                 setQuery(preset);
                 void runSearch(preset, 1);
               }}
-              className="rounded-full border border-zinc-700 bg-zinc-950 px-3 py-1 text-xs text-zinc-300 transition hover:border-emerald-500 hover:text-emerald-300"
+              className="rounded-full border border-zinc-700 bg-zinc-950 px-3 py-1 text-xs text-zinc-300 transition hover:border-emerald-500 hover:text-emerald-300 disabled:opacity-50"
             >
               {preset}
             </button>
@@ -238,8 +398,28 @@ export function AliExpressSearchPanel() {
             disabled={loading}
             className="rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-50"
           >
-            {loading ? 'Verificando EUA...' : 'Buscar'}
+            {loading ? 'Buscando catálogo...' : 'Buscar'}
           </button>
+
+          {verifying && (
+            <button
+              type="button"
+              onClick={handlePauseVerification}
+              className="rounded-xl border border-amber-500/60 bg-amber-950/40 px-4 py-3 text-sm font-semibold text-amber-200 transition hover:bg-amber-900/50"
+            >
+              Pausar
+            </button>
+          )}
+
+          {!verifying && !loading && pendingCandidates.length > 0 && (
+            <button
+              type="button"
+              onClick={handleResumeVerification}
+              className="rounded-xl border border-emerald-500/60 bg-emerald-950/40 px-4 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-900/50"
+            >
+              Continuar ({pendingCandidates.length})
+            </button>
+          )}
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-zinc-300">
@@ -284,6 +464,27 @@ export function AliExpressSearchPanel() {
           </label>
         </div>
 
+        {meta.verified && totalCandidates > 0 && (
+          <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950 p-3.5 text-xs text-zinc-300">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                {verifying ? 'Verificando anúncios na API oficial...' : 'Verificação da página concluída'}
+                {' '}· <strong>{inspectedCount}</strong> de <strong>{totalCandidates}</strong> checados ({progressPct}%)
+              </span>
+              <span>
+                Armazém EUA: <strong className="text-emerald-400">{meta.usWarehouseCount ?? 0}</strong>
+                {' '}· Aprovados nos filtros: <strong className="text-white">{results.length}</strong>
+              </span>
+            </div>
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {meta.error && (
           <div className="mt-4 rounded-xl border border-red-900 bg-red-950/40 p-4 text-sm text-red-300">
             {meta.error}
@@ -291,10 +492,10 @@ export function AliExpressSearchPanel() {
         )}
       </form>
 
-      {meta.verified && results.length === 0 && !loading && !meta.error && (
+      {meta.verified && results.length === 0 && !loading && !verifying && !meta.error && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-900/60 bg-amber-950/20 p-5 text-sm text-amber-200">
           <span>
-            Verificamos {meta.inspectedCount ?? 0} anúncios da página {meta.current_page ?? page} na API oficial ({meta.usWarehouseCount ?? 0} com armazém nos EUA{meta.partial ? ' · verificação parcial rápida' : ''}), mas nenhum atendeu a todos os filtros juntos.
+            Verificamos {inspectedCount} anúncios da página {meta.current_page ?? page} na API oficial ({meta.usWarehouseCount ?? 0} com armazém nos EUA), mas nenhum atendeu a todos os filtros juntos.
           </span>
           <div className="flex gap-2">
             {page > 1 && (
@@ -321,15 +522,15 @@ export function AliExpressSearchPanel() {
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-zinc-400">
-              {meta.count ?? 0} aprovados
-              {meta.verified ? ` (de ${meta.inspectedCount ?? 0} verificados · ${meta.usWarehouseCount ?? 0} em armazém EUA)` : ''}
+              {results.length} aprovados
+              {meta.verified ? ` (de ${inspectedCount}/${totalCandidates} verificados · ${meta.usWarehouseCount ?? 0} em armazém EUA)` : ''}
               {' '}· página {meta.current_page ?? page} de {meta.total_pages ?? 1}
             </p>
 
             <div className="flex gap-2">
               <button
                 type="button"
-                disabled={page <= 1 || loading}
+                disabled={page <= 1 || loading || verifying}
                 onClick={() => void runSearch(query, Math.max(1, page - 1))}
                 className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm disabled:opacity-50"
               >
@@ -338,7 +539,7 @@ export function AliExpressSearchPanel() {
 
               <button
                 type="button"
-                disabled={!meta.next || loading}
+                disabled={!meta.next || loading || verifying}
                 onClick={() => void runSearch(query, page + 1)}
                 className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm disabled:opacity-50"
               >
@@ -440,7 +641,7 @@ export function AliExpressSearchPanel() {
         </section>
       )}
 
-      {!loading && results.length === 0 && !meta.error && !meta.verified && (
+      {!loading && !verifying && results.length === 0 && !meta.error && !meta.verified && (
         <div className="rounded-2xl border border-dashed border-zinc-800 p-8 text-center text-zinc-500">
           Busque por um termo acima ou clique em um atalho para encontrar fornecedores verificados dos EUA.
         </div>

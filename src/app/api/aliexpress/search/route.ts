@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  tryOfficialAliExpressSearch,
-  verifyAndFilterSearchResults,
-} from "@/lib/aliexpress-us-finder";
+import { requireAliExpressSession } from "@/lib/aliexpress-connection";
+import { searchOfficialAliExpressCatalog } from "@/lib/aliexpress-us-finder";
 import { searchOmkarProducts, type OmkarSearchResult } from "@/lib/omkar-search";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 30;
 
+/**
+ * Fast candidate discovery (~2-4s total, well below Caddy's 30s upstream timeout).
+ * Per-product US warehouse & freight verification runs progressively via POST /api/aliexpress/search/verify.
+ */
 export async function GET(request: NextRequest) {
   try {
     const query = request.nextUrl.searchParams.get("query")?.trim() || "";
@@ -16,9 +18,7 @@ export async function GET(request: NextRequest) {
     const verifyUs = request.nextUrl.searchParams.get("verifyUs") === "1";
     const usOnly = request.nextUrl.searchParams.get("usOnly") === "1";
     const maxDaysRaw = Number(request.nextUrl.searchParams.get("maxDays") || "0");
-    const maxDays = Number.isFinite(maxDaysRaw) && maxDaysRaw > 0 && maxDaysRaw <= 60
-      ? Math.trunc(maxDaysRaw)
-      : null;
+    const hasFilter = verifyUs || usOnly || (Number.isFinite(maxDaysRaw) && maxDaysRaw > 0 && maxDaysRaw <= 60);
 
     if (!query) {
       return NextResponse.json(
@@ -27,65 +27,83 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const searchQuery = usOnly && !/\bus\b|\busa\b|united states/i.test(query)
+    const usKeywordQuery = !/\bus\b|\busa\b|united states/i.test(query)
       ? `${query} US warehouse`
-      : query;
+      : null;
 
-    const [omkarRes, officialItems] = await Promise.all([
-      searchOmkarProducts(searchQuery, page).catch(() => null),
-      verifyUs || usOnly ? tryOfficialAliExpressSearch(query, page) : Promise.resolve([]),
+    let sharedContext: Awaited<ReturnType<typeof requireAliExpressSession>> | undefined;
+    let sessionError: string | null = null;
+    try {
+      sharedContext = await requireAliExpressSession();
+    } catch (err) {
+      sessionError = err instanceof Error ? err.message : "Sessão AliExpress indisponível.";
+    }
+
+    const [usFocusedSearch, generalSearch, omkarFallback] = await Promise.all([
+      sharedContext && usOnly && usKeywordQuery
+        ? searchOfficialAliExpressCatalog(usKeywordQuery, page, {
+            context: sharedContext,
+            pageSize: 30,
+            timeoutMs: 8_000,
+          })
+        : Promise.resolve({ items: [] as OmkarSearchResult[], totalCount: 0, error: null }),
+      sharedContext
+        ? searchOfficialAliExpressCatalog(query, page, {
+            context: sharedContext,
+            pageSize: 40,
+            timeoutMs: 8_000,
+          })
+        : Promise.resolve({ items: [] as OmkarSearchResult[], totalCount: 0, error: sessionError }),
+      process.env.OMKAR_SEARCH_URL?.trim()
+        ? searchOmkarProducts(query, page).catch(() => null)
+        : Promise.resolve(null),
     ]);
 
     const seen = new Set<string>();
     const combined: OmkarSearchResult[] = [];
-    for (const item of [...officialItems, ...(omkarRes?.results || [])]) {
+    for (const item of [
+      ...usFocusedSearch.items,
+      ...generalSearch.items,
+      ...(omkarFallback?.results || []),
+    ]) {
       if (!item.id || seen.has(item.id)) continue;
       seen.add(item.id);
       combined.push(item);
     }
 
-    if (combined.length === 0 && !omkarRes) {
+    if (combined.length === 0 && (generalSearch.error || sessionError)) {
       return NextResponse.json(
-        { ok: false, error: "Não foi possível consultar a busca do AliExpress no momento." },
+        {
+          ok: false,
+          error: generalSearch.error || sessionError || "Não foi possível consultar o catálogo oficial do AliExpress.",
+        },
         { status: 502 },
       );
     }
 
-    if (verifyUs || usOnly || maxDays !== null) {
-      const verified = await verifyAndFilterSearchResults(combined, {
-        usOnly,
-        maxDays,
-        maxInspect: 12,
-        budgetMs: 20_000,
-      });
-
-      return NextResponse.json({
-        ok: true,
-        count: verified.results.length,
-        inspectedCount: verified.inspectedCount,
-        usWarehouseCount: verified.usWarehouseCount,
-        partial: verified.partial,
-        verified: true,
-        per_page: omkarRes?.per_page ?? 60,
-        current_page: page,
-        total_pages: omkarRes?.total_pages ?? 1,
-        next: omkarRes?.next ?? (combined.length >= 12 ? String(page + 1) : null),
-        previous: omkarRes?.previous ?? (page > 1 ? String(page - 1) : null),
-        currency: omkarRes?.currency ?? "USD",
-        results: verified.results,
-      });
-    }
+    const totalCount = Math.max(
+      combined.length,
+      generalSearch.totalCount,
+      usFocusedSearch.totalCount,
+      omkarFallback?.count ?? 0,
+    );
+    const perPage = 40;
+    const totalPages = Math.max(page, Math.ceil(totalCount / perPage) || (combined.length >= 20 ? page + 1 : page));
+    const hasNext = page < totalPages || combined.length >= 25;
 
     return NextResponse.json({
       ok: true,
-      count: omkarRes?.count ?? combined.length,
-      per_page: omkarRes?.per_page ?? 60,
-      current_page: omkarRes?.current_page ?? page,
-      total_pages: omkarRes?.total_pages ?? 1,
-      next: omkarRes?.next ?? null,
-      previous: omkarRes?.previous ?? null,
-      currency: omkarRes?.currency ?? "USD",
-      results: combined,
+      mode: hasFilter ? "progressive" : "direct",
+      count: hasFilter ? 0 : combined.length,
+      candidateCount: combined.length,
+      per_page: perPage,
+      current_page: page,
+      total_pages: totalPages,
+      next: hasNext ? String(page + 1) : null,
+      previous: page > 1 ? String(page - 1) : null,
+      currency: "USD",
+      candidates: hasFilter ? combined : [],
+      results: hasFilter ? [] : combined,
     });
   } catch (error) {
     console.error("AliExpress search failed:", error);
