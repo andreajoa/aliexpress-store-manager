@@ -42,19 +42,24 @@ export async function POST(request: NextRequest) {
       maxDays,
     });
 
-    return NextResponse.json({
-      ok: true,
-      inspectedCount: verified.inspectedCount,
-      usWarehouseCount: verified.usWarehouseCount,
-      results: verified.results,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        inspectedCount: verified.inspectedCount,
+        usWarehouseCount: verified.usWarehouseCount,
+        results: verified.results,
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha ao verificar lote de produtos.";
+    console.error("[AliExpress search verify] error:", message);
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : "Falha ao verificar lote de produtos.",
+        error: message,
       },
-      { status: 502 },
+      { status: 200, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
