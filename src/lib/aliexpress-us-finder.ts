@@ -93,7 +93,21 @@ export function estimateAmbStorefrontDays(minDays: number, maxDays: number) {
   };
 }
 
-function extractProductRowsFromSearchEnvelope(envelope: Record<string, unknown>): unknown[] {
+/**
+ * Extracts explicit AliExpress product IDs when the user pastes links or numeric IDs directly.
+ */
+export function extractDirectAliExpressProductIds(query: string): string[] {
+  const ids = new Set<string>();
+  for (const m of query.matchAll(/\/item\/(\d{10,})\.html/gi)) {
+    ids.add(m[1]);
+  }
+  for (const m of query.matchAll(/\b(\d{12,20})\b/g)) {
+    ids.add(m[1]);
+  }
+  return Array.from(ids).slice(0, 20);
+}
+
+function extractProductRowsFromEnvelope(envelope: Record<string, unknown>): unknown[] {
   const result = asRecord(envelope.result);
   const data = asRecord(result.data ?? envelope.data ?? result);
   const productsContainer =
@@ -108,6 +122,8 @@ function extractProductRowsFromSearchEnvelope(envelope: Record<string, unknown>)
   const containerRec = asRecord(productsContainer);
   for (const key of [
     "selection_search_product",
+    "traffic_product_d_t_o",
+    "traffic_product_dto",
     "ae_multimedia_info_dto",
     "product",
     "item",
@@ -121,9 +137,53 @@ function extractProductRowsFromSearchEnvelope(envelope: Record<string, unknown>)
   return [];
 }
 
+function normalizeOfficialSearchRow(raw: unknown, tag: string): OmkarSearchResult | null {
+  const row = asRecord(raw);
+  const id = asText(row.itemId ?? row.product_id ?? row.item_id ?? row.productId);
+  const title = asText(row.title ?? row.product_title ?? row.subject);
+  if (!/^\d{8,}$/.test(id) || !title) return null;
+
+  const image = asText(
+    row.itemMainPic ?? row.product_main_image_url ?? row.imageUrl ?? row.main_image_url,
+  );
+  const normalizedImage = image.startsWith("//") ? `https:${image}` : image;
+  const salePrice = toNum(
+    row.targetSalePrice ?? row.target_sale_price ?? row.salePrice ?? row.sale_price ?? row.app_sale_price,
+  );
+  const originalPrice = toNum(
+    row.targetOriginalPrice ?? row.target_original_price ?? row.originalPrice ?? row.original_price,
+  );
+  const rating = toNum(row.score ?? row.evaluate_rate ?? row.avg_evaluation_rating);
+  const orders = toNum(row.orders ?? row.lastest_volume ?? row.volume);
+
+  return {
+    id,
+    title,
+    link: `https://www.aliexpress.us/item/${id}.html`,
+    image: normalizedImage,
+    images: normalizedImage ? [normalizedImage] : [],
+    rating: rating != null ? (rating > 5 ? Math.round((rating / 20) * 10) / 10 : rating) : null,
+    orders_count: orders,
+    is_hot_sale: null,
+    is_choice: null,
+    pricing: {
+      sale_price: salePrice,
+      original_price: originalPrice ?? salePrice,
+      discount_percent: null,
+      currency: "USD",
+      tax_rate: null,
+      sku_id: null,
+    },
+    tags: [tag],
+    store_name: asText(row.storeName ?? row.shop_name ?? row.store_name) || null,
+    category_ids: [],
+    listed_date: "",
+  };
+}
+
 /**
  * Official AliExpress Dropshipping text search (`aliexpress.ds.text.search`).
- * Auto-refreshes OAuth session if needed and returns structured items + error diagnostic.
+ * Omits invalid `sortBy` values by default and logs exact API errors for observability.
  */
 export async function searchOfficialAliExpressCatalog(
   query: string,
@@ -132,6 +192,7 @@ export async function searchOfficialAliExpressCatalog(
     context?: AliExpressSessionContext;
     pageSize?: number;
     timeoutMs?: number;
+    sortBy?: string;
   },
 ): Promise<{
   items: OmkarSearchResult[];
@@ -151,7 +212,7 @@ export async function searchOfficialAliExpressCatalog(
         currency: "USD",
         page,
         pageSize: options?.pageSize ?? 40,
-        sortBy: "orders,desc",
+        sortBy: options?.sortBy,
       }),
       options?.timeoutMs ?? 8_000,
       "Busca oficial AliExpress",
@@ -162,50 +223,18 @@ export async function searchOfficialAliExpressCatalog(
     const totalCount =
       toNum(data.totalCount ?? result.totalCount ?? data.total_record_count ?? result.total_record_count) ?? 0;
 
-    const rawList = extractProductRowsFromSearchEnvelope(envelope);
-    const items = rawList.flatMap<OmkarSearchResult>((raw) => {
-      const row = asRecord(raw);
-      const id = asText(row.itemId ?? row.product_id ?? row.item_id ?? row.productId);
-      const title = asText(row.title ?? row.product_title ?? row.subject);
-      if (!/^\d{8,}$/.test(id) || !title) return [];
+    const rawList = extractProductRowsFromEnvelope(envelope);
+    const items = rawList
+      .map((raw) => normalizeOfficialSearchRow(raw, "official-ds-search"))
+      .filter((item): item is OmkarSearchResult => Boolean(item));
 
-      const image = asText(
-        row.itemMainPic ?? row.product_main_image_url ?? row.imageUrl ?? row.main_image_url,
-      );
-      const normalizedImage = image.startsWith("//") ? `https:${image}` : image;
-      const salePrice = toNum(
-        row.targetSalePrice ?? row.target_sale_price ?? row.salePrice ?? row.sale_price,
-      );
-      const originalPrice = toNum(
-        row.targetOriginalPrice ?? row.target_original_price ?? row.originalPrice ?? row.original_price,
-      );
-      const rating = toNum(row.score ?? row.evaluate_rate ?? row.avg_evaluation_rating);
-      const orders = toNum(row.orders ?? row.lastest_volume ?? row.volume);
-
-      return [{
-        id,
-        title,
-        link: `https://www.aliexpress.us/item/${id}.html`,
-        image: normalizedImage,
-        images: normalizedImage ? [normalizedImage] : [],
-        rating: rating != null ? (rating > 5 ? Math.round((rating / 20) * 10) / 10 : rating) : null,
-        orders_count: orders,
-        is_hot_sale: null,
-        is_choice: null,
-        pricing: {
-          sale_price: salePrice,
-          original_price: originalPrice ?? salePrice,
-          discount_percent: null,
-          currency: "USD",
-          tax_rate: null,
-          sku_id: null,
-        },
-        tags: ["official-ds-search"],
-        store_name: asText(row.storeName ?? row.shop_name ?? row.store_name) || null,
-        category_ids: [],
-        listed_date: "",
-      }];
-    });
+    if (items.length === 0) {
+      const code = asText(envelope.code ?? result.code ?? result.error_code ?? data.code);
+      const msg = asText(envelope.msg ?? result.msg ?? result.error_msg ?? data.msg);
+      if (code && code !== "0" && code.toLowerCase() !== "success") {
+        return { items: [], totalCount: 0, error: `ds.text.search ${code}: ${msg || "sem detalhes"}` };
+      }
+    }
 
     return { items, totalCount, error: null };
   } catch (error) {
@@ -213,6 +242,91 @@ export async function searchOfficialAliExpressCatalog(
       items: [],
       totalCount: 0,
       error: error instanceof Error ? error.message : "Falha na busca oficial AliExpress.",
+    };
+  }
+}
+
+/**
+ * Fallback official Dropshipping feed (`aliexpress.ds.recommend.feed.get`, Women's Clothing + Bestsellers)
+ * when `aliexpress.ds.text.search` is unavailable or returns 0 results.
+ */
+export async function searchOfficialRecommendFeed(
+  query: string,
+  page = 1,
+  options?: {
+    context?: AliExpressSessionContext;
+    timeoutMs?: number;
+  },
+): Promise<{
+  items: OmkarSearchResult[];
+  totalCount: number;
+  error: string | null;
+}> {
+  const errors: string[] = [];
+  try {
+    const { session, client } =
+      options?.context ??
+      (await withTimeout(requireAliExpressSession(), 6_000, "Sessão AliExpress"));
+
+    // 200000345 = Women's Clothing on AliExpress
+    const attempts: Array<{ feedName: string; categoryId?: string }> = [
+      { feedName: "DS bestseller", categoryId: "200000345" },
+      { feedName: "DS bestseller" },
+    ];
+
+    const queryTokens = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length >= 3 && !["women", "us", "usa", "warehouse"].includes(t));
+
+    for (const attempt of attempts) {
+      try {
+        const envelope = await withTimeout(
+          client.getDropshipRecommendFeed({
+            session,
+            feedName: attempt.feedName,
+            country: "US",
+            targetCurrency: "USD",
+            targetLanguage: "EN",
+            categoryId: attempt.categoryId,
+            pageNo: page,
+            pageSize: 50,
+            sort: "LAST_VOLUME_DESC",
+          }),
+          options?.timeoutMs ?? 8_000,
+          "Feed oficial AliExpress",
+        );
+
+        const result = asRecord(envelope.result);
+        const totalCount = toNum(result.total_record_count ?? result.current_record_count) ?? 0;
+        const rawList = extractProductRowsFromEnvelope(envelope);
+        const items = rawList
+          .map((raw) => normalizeOfficialSearchRow(raw, "official-ds-feed"))
+          .filter((item): item is OmkarSearchResult => Boolean(item));
+
+        if (items.length > 0) {
+          // Prioritize items whose title matches the requested search keywords
+          const scored = [...items].sort((a, b) => {
+            const aTitle = a.title.toLowerCase();
+            const bTitle = b.title.toLowerCase();
+            const aHits = queryTokens.reduce((acc, tok) => acc + (aTitle.includes(tok) ? 1 : 0), 0);
+            const bHits = queryTokens.reduce((acc, tok) => acc + (bTitle.includes(tok) ? 1 : 0), 0);
+            if (bHits !== aHits) return bHits - aHits;
+            return (b.orders_count ?? 0) - (a.orders_count ?? 0);
+          });
+          return { items: scored, totalCount: Math.max(totalCount, scored.length), error: null };
+        }
+      } catch (err) {
+        errors.push(`${attempt.feedName}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    return { items: [], totalCount: 0, error: errors.join(" | ") || null };
+  } catch (error) {
+    return {
+      items: [],
+      totalCount: 0,
+      error: error instanceof Error ? error.message : "Falha no feed oficial AliExpress.",
     };
   }
 }
@@ -233,7 +347,7 @@ export async function verifySingleProductUsShipping(
     fastDirectFreight?: boolean;
     callTimeoutMs?: number;
   },
-): Promise<VerifiedShippingCheck> {
+): Promise<VerifiedShippingCheck & { resolvedTitle?: string; resolvedImage?: string; resolvedPrice?: number | null }> {
   const timeoutMs = options?.callTimeoutMs ?? 6_500;
   try {
     const { session, client } =
@@ -251,6 +365,13 @@ export async function verifySingleProductUsShipping(
       "Consulta de produto AliExpress",
     );
 
+    const result = asRecord(envelope.result);
+    const baseInfo = asRecord(result.ae_item_base_info_dto);
+    const mediaInfo = asRecord(result.ae_multimedia_info_dto);
+    const rawImages = asText(mediaInfo.image_urls).split(";").map((u) => u.trim()).filter(Boolean);
+    const resolvedTitle = asText(baseInfo.subject) || undefined;
+    const resolvedImage = rawImages[0] || undefined;
+
     const shipsFromValues = shipsFromValuesFromEnvelope(envelope);
     const official = officialSkusFromProductResponse(envelope);
     const summary = summarizeProductWarehouses(
@@ -261,6 +382,8 @@ export async function verifySingleProductUsShipping(
       })),
       shipsFromValues,
     );
+
+    const firstPrice = official.skus.find((sku) => sku.price != null)?.price ?? null;
 
     // Fast path for US-only sourcing: skip freight quote when product has zero US warehouse stock
     if (options?.skipFreightIfNoUsStock && !summary.hasUsInStock) {
@@ -278,6 +401,9 @@ export async function verifySingleProductUsShipping(
         freightCostUsd: null,
         serviceName: null,
         error: null,
+        resolvedTitle,
+        resolvedImage,
+        resolvedPrice: firstPrice,
       };
     }
 
@@ -361,6 +487,9 @@ export async function verifySingleProductUsShipping(
       freightCostUsd: best?.quote.amount ?? null,
       serviceName: best?.quote.serviceName ?? null,
       error: null,
+      resolvedTitle,
+      resolvedImage,
+      resolvedPrice: preferredSku?.price ?? firstPrice,
     };
   } catch (error) {
     return {
@@ -411,7 +540,22 @@ export async function verifySearchBatch(
         fastDirectFreight: true,
         callTimeoutMs: 6_500,
       });
-      return { ...item, shippingCheck };
+
+      return {
+        ...item,
+        title: item.title && !item.title.startsWith("AliExpress #")
+          ? item.title
+          : shippingCheck.resolvedTitle || item.title,
+        image: item.image || shippingCheck.resolvedImage || "",
+        images: item.images.length > 0
+          ? item.images
+          : shippingCheck.resolvedImage ? [shippingCheck.resolvedImage] : [],
+        pricing: {
+          ...item.pricing,
+          sale_price: item.pricing.sale_price ?? shippingCheck.resolvedPrice ?? null,
+        },
+        shippingCheck,
+      };
     }),
   );
 

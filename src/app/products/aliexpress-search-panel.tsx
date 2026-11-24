@@ -389,7 +389,7 @@ export function AliExpressSearchPanel() {
             required
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Ex: women velvet midi dress"
+            placeholder="Ex: women velvet midi dress — ou cole links/IDs do AliExpress"
             className="min-w-0 flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-emerald-500"
           />
 

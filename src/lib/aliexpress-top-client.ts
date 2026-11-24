@@ -604,15 +604,42 @@ export class AliExpressTopClient {
     pageSize?: number;
     sortBy?: string;
   }) {
-    return this.execute("aliexpress.ds.text.search", input.session, {
+    const params: Record<string, unknown> = {
       keyWord: input.keyword,
       countryCode: input.countryCode || "US",
       currency: input.currency || "USD",
       local: "en_US",
       pageIndex: input.page || 1,
       pageSize: Math.min(50, Math.max(1, input.pageSize || 30)),
-      sortBy: input.sortBy || "orders,desc",
-    });
+    };
+    if (input.sortBy?.trim()) {
+      params.sortBy = input.sortBy.trim();
+    }
+    return this.execute("aliexpress.ds.text.search", input.session, params);
+  }
+
+  async getDropshipRecommendFeed(input: {
+    session: string;
+    feedName: string;
+    country?: string;
+    targetCurrency?: string;
+    targetLanguage?: string;
+    categoryId?: string;
+    pageNo?: number;
+    pageSize?: number;
+    sort?: string;
+  }) {
+    const params: Record<string, unknown> = {
+      feed_name: input.feedName,
+      country: input.country || "US",
+      target_currency: input.targetCurrency || "USD",
+      target_language: input.targetLanguage || "EN",
+      page_no: input.pageNo || 1,
+      page_size: Math.min(50, Math.max(1, input.pageSize || 50)),
+    };
+    if (input.categoryId?.trim()) params.category_id = input.categoryId.trim();
+    if (input.sort?.trim()) params.sort = input.sort.trim();
+    return this.execute("aliexpress.ds.recommend.feed.get", input.session, params);
   }
 
   /**
