@@ -223,3 +223,22 @@ export function prioritizedSendGoodsCountries(input: {
 
   return ordered.length > 0 ? ordered : ["CN"];
 }
+
+/**
+ * Keeps only the SKUs that ship from a US warehouse and have stock there.
+ * A SKU only counts as US when the supplier's "Ships From" option says so;
+ * unresolved SKUs fall back to CN and are dropped.
+ */
+export function selectUsWarehouseSkus<
+  T extends { variant_ids?: string | null; available_quantity?: number | null },
+>(skus: T[], variantGroups?: OmkarVariantGroup[] | null): T[] {
+  return skus.filter((sku) => {
+    const country = resolveSendGoodsCountryForSku({
+      skuVariantIds: sku.variant_ids,
+      variantGroups,
+      defaultCountry: "CN",
+    });
+    if (country !== "US") return false;
+    return typeof sku.available_quantity === "number" && sku.available_quantity > 0;
+  });
+}
