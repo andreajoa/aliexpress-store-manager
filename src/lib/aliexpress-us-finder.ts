@@ -1,6 +1,9 @@
 import { requireAliExpressSession } from "./aliexpress-connection";
 import { officialSkusFromProductResponse } from "./aliexpress-sku-parser";
-import { shipsFromValuesFromEnvelope } from "./aliexpress-top-client";
+import {
+  regionalProductIdFromEnvelope,
+  shipsFromValuesFromEnvelope,
+} from "./aliexpress-top-client";
 import {
   skuShipsFromCountryCode,
   summarizeProductWarehouses,
@@ -28,6 +31,8 @@ export type EnrichedSearchResult = OmkarSearchResult & {
   shippingCheck?: VerifiedShippingCheck;
 };
 
+type AliExpressSessionContext = Awaited<ReturnType<typeof requireAliExpressSession>>;
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -45,6 +50,12 @@ function asText(value: unknown): string {
 }
 
 function toNum(value: unknown): number | null {
+  if (typeof value === "string") {
+    const cleaned = value.replace(/[^0-9.-]/g, "");
+    if (!cleaned) return null;
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -68,8 +79,6 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
   });
 }
 
-type AliExpressSessionContext = Awaited<ReturnType<typeof requireAliExpressSession>>;
-
 /**
  * Mirrors AMB Boutique's customer-facing +5 day Stripe settlement buffer + safety cushion
  * so Store Manager previews match the exact delivery range shoppers will see on the PDP.
@@ -84,19 +93,56 @@ export function estimateAmbStorefrontDays(minDays: number, maxDays: number) {
   };
 }
 
+function extractProductRowsFromSearchEnvelope(envelope: Record<string, unknown>): unknown[] {
+  const result = asRecord(envelope.result);
+  const data = asRecord(result.data ?? envelope.data ?? result);
+  const productsContainer =
+    data.products ??
+    result.products ??
+    data.items ??
+    result.items ??
+    envelope.products;
+
+  if (Array.isArray(productsContainer)) return productsContainer;
+
+  const containerRec = asRecord(productsContainer);
+  for (const key of [
+    "selection_search_product",
+    "ae_multimedia_info_dto",
+    "product",
+    "item",
+    "list",
+  ]) {
+    if (key in containerRec) {
+      return asArray(containerRec[key]);
+    }
+  }
+
+  return [];
+}
+
 /**
- * Optional official AliExpress Dropshipping text search (returns [] if app lacks scope or fails).
+ * Official AliExpress Dropshipping text search (`aliexpress.ds.text.search`).
+ * Auto-refreshes OAuth session if needed and returns structured items + error diagnostic.
  */
-export async function tryOfficialAliExpressSearch(
+export async function searchOfficialAliExpressCatalog(
   query: string,
   page = 1,
-): Promise<OmkarSearchResult[]> {
+  options?: {
+    context?: AliExpressSessionContext;
+    pageSize?: number;
+    timeoutMs?: number;
+  },
+): Promise<{
+  items: OmkarSearchResult[];
+  totalCount: number;
+  error: string | null;
+}> {
   try {
-    const { session, client } = await withTimeout(
-      requireAliExpressSession({ readOnly: true }),
-      6_000,
-      "Sessão AliExpress",
-    );
+    const { session, client } =
+      options?.context ??
+      (await withTimeout(requireAliExpressSession(), 6_000, "Sessão AliExpress"));
+
     const envelope = await withTimeout(
       client.searchDropshipProducts({
         session,
@@ -104,38 +150,44 @@ export async function tryOfficialAliExpressSearch(
         countryCode: "US",
         currency: "USD",
         page,
-        pageSize: 30,
+        pageSize: options?.pageSize ?? 40,
         sortBy: "orders,desc",
       }),
-      8_000,
+      options?.timeoutMs ?? 8_000,
       "Busca oficial AliExpress",
     );
 
     const result = asRecord(envelope.result);
     const data = asRecord(result.data ?? result);
-    const productsContainer = data.products ?? result.products;
-    const rawList = Array.isArray(productsContainer)
-      ? productsContainer
-      : asArray(asRecord(productsContainer).selection_search_product ?? asRecord(productsContainer).product);
+    const totalCount =
+      toNum(data.totalCount ?? result.totalCount ?? data.total_record_count ?? result.total_record_count) ?? 0;
 
-    return rawList.flatMap<OmkarSearchResult>((raw) => {
+    const rawList = extractProductRowsFromSearchEnvelope(envelope);
+    const items = rawList.flatMap<OmkarSearchResult>((raw) => {
       const row = asRecord(raw);
-      const id = asText(row.itemId ?? row.product_id ?? row.item_id);
-      const title = asText(row.title ?? row.product_title);
-      if (!/^\d{10,}$/.test(id) || !title) return [];
+      const id = asText(row.itemId ?? row.product_id ?? row.item_id ?? row.productId);
+      const title = asText(row.title ?? row.product_title ?? row.subject);
+      if (!/^\d{8,}$/.test(id) || !title) return [];
 
-      const image = asText(row.itemMainPic ?? row.product_main_image_url);
-      const salePrice = toNum(row.targetSalePrice ?? row.target_sale_price ?? row.salePrice);
-      const originalPrice = toNum(row.targetOriginalPrice ?? row.target_original_price ?? row.originalPrice);
-      const rating = toNum(row.score ?? row.evaluate_rate);
-      const orders = toNum(row.orders ?? row.lastest_volume);
+      const image = asText(
+        row.itemMainPic ?? row.product_main_image_url ?? row.imageUrl ?? row.main_image_url,
+      );
+      const normalizedImage = image.startsWith("//") ? `https:${image}` : image;
+      const salePrice = toNum(
+        row.targetSalePrice ?? row.target_sale_price ?? row.salePrice ?? row.sale_price,
+      );
+      const originalPrice = toNum(
+        row.targetOriginalPrice ?? row.target_original_price ?? row.originalPrice ?? row.original_price,
+      );
+      const rating = toNum(row.score ?? row.evaluate_rate ?? row.avg_evaluation_rating);
+      const orders = toNum(row.orders ?? row.lastest_volume ?? row.volume);
 
       return [{
         id,
         title,
         link: `https://www.aliexpress.us/item/${id}.html`,
-        image: image.startsWith("//") ? `https:${image}` : image,
-        images: image ? [image.startsWith("//") ? `https:${image}` : image] : [],
+        image: normalizedImage,
+        images: normalizedImage ? [normalizedImage] : [],
         rating: rating != null ? (rating > 5 ? Math.round((rating / 20) * 10) / 10 : rating) : null,
         orders_count: orders,
         is_hot_sale: null,
@@ -149,14 +201,28 @@ export async function tryOfficialAliExpressSearch(
           sku_id: null,
         },
         tags: ["official-ds-search"],
-        store_name: asText(row.storeName ?? row.shop_name) || null,
+        store_name: asText(row.storeName ?? row.shop_name ?? row.store_name) || null,
         category_ids: [],
         listed_date: "",
       }];
     });
-  } catch {
-    return [];
+
+    return { items, totalCount, error: null };
+  } catch (error) {
+    return {
+      items: [],
+      totalCount: 0,
+      error: error instanceof Error ? error.message : "Falha na busca oficial AliExpress.",
+    };
   }
+}
+
+export async function tryOfficialAliExpressSearch(
+  query: string,
+  page = 1,
+): Promise<OmkarSearchResult[]> {
+  const res = await searchOfficialAliExpressCatalog(query, page);
+  return res.items;
 }
 
 export async function verifySingleProductUsShipping(
@@ -164,13 +230,14 @@ export async function verifySingleProductUsShipping(
   options?: {
     context?: AliExpressSessionContext;
     skipFreightIfNoUsStock?: boolean;
+    fastDirectFreight?: boolean;
     callTimeoutMs?: number;
   },
 ): Promise<VerifiedShippingCheck> {
-  const timeoutMs = options?.callTimeoutMs ?? 7_000;
+  const timeoutMs = options?.callTimeoutMs ?? 6_500;
   try {
     const { session, client } =
-      options?.context ?? (await requireAliExpressSession({ readOnly: true }));
+      options?.context ?? (await requireAliExpressSession());
 
     const envelope = await withTimeout(
       client.getDropshipProduct({
@@ -226,10 +293,13 @@ export async function verifySingleProductUsShipping(
       (preferredSku ? skuShipsFromCountryCode(preferredSku.attributes) : null) ||
       (summary.hasUsWarehouse ? "US" : "CN");
 
-    const quotes = await withTimeout(
-      client.calculateFreight({
+    const regionalId = regionalProductIdFromEnvelope(envelope, "US");
+    const candidateIds = [regionalId, productId].filter((id): id is string => Boolean(id));
+
+    let quotes = await withTimeout(
+      client.calculateFreightDirect({
         session,
-        productId,
+        productIds: candidateIds,
         quantity: 1,
         countryCode: "US",
         sendGoodsCountryCode,
@@ -238,10 +308,26 @@ export async function verifySingleProductUsShipping(
         skuId: preferredSku?.sourceSkuId || undefined,
       }),
       timeoutMs,
-      "Cálculo de frete AliExpress",
-    );
+      "Cálculo direto de frete AliExpress",
+    ).catch(() => []);
 
-    // Prefer fastest quote that has a valid delivery estimate, breaking ties by lowest cost
+    if (quotes.length === 0 && !options?.fastDirectFreight) {
+      quotes = await withTimeout(
+        client.calculateFreight({
+          session,
+          productId,
+          quantity: 1,
+          countryCode: "US",
+          sendGoodsCountryCode,
+          price: preferredSku?.price != null ? String(preferredSku.price) : undefined,
+          priceCurrency: preferredSku?.currencyCode || "USD",
+          skuId: preferredSku?.sourceSkuId || undefined,
+        }),
+        timeoutMs,
+        "Cálculo de frete AliExpress",
+      );
+    }
+
     const parsedQuotes = quotes
       .map((quote) => ({
         quote,
@@ -295,81 +381,55 @@ export async function verifySingleProductUsShipping(
   }
 }
 
-export async function verifyAndFilterSearchResults(
+export async function verifySearchBatch(
   items: OmkarSearchResult[],
   options: {
     usOnly?: boolean;
     maxDays?: number | null;
-    maxInspect?: number;
-    budgetMs?: number;
   },
 ): Promise<{
   results: EnrichedSearchResult[];
   inspectedCount: number;
   usWarehouseCount: number;
-  partial: boolean;
 }> {
-  const maxInspect = Math.min(20, Math.max(1, options.maxInspect ?? 12));
-  const candidates = items.slice(0, maxInspect);
-  const enriched: EnrichedSearchResult[] = [];
-  const concurrency = 6;
-  const deadlineMs = Date.now() + Math.max(5_000, Math.min(35_000, options.budgetMs ?? 20_000));
-  let partial = false;
+  const batch = items.slice(0, 4);
+  if (batch.length === 0) {
+    return { results: [], inspectedCount: 0, usWarehouseCount: 0 };
+  }
 
   const sharedContext = await withTimeout(
-    requireAliExpressSession({ readOnly: true }),
+    requireAliExpressSession(),
     6_000,
     "Sessão AliExpress",
   );
 
-  for (let i = 0; i < candidates.length; i += concurrency) {
-    const remainingMs = deadlineMs - Date.now();
-    if (remainingMs <= 1_500 && enriched.length > 0) {
-      partial = true;
-      break;
-    }
-
-    const chunk = candidates.slice(i, i + concurrency);
-    const callTimeoutMs = Math.max(3_500, Math.min(7_000, remainingMs - 500));
-    const verifiedChunk = await Promise.all(
-      chunk.map(async (item): Promise<EnrichedSearchResult> => {
-        const shippingCheck = await verifySingleProductUsShipping(item.id, {
-          context: sharedContext,
-          skipFreightIfNoUsStock: Boolean(options.usOnly),
-          callTimeoutMs,
-        });
-        return { ...item, shippingCheck };
-      }),
-    );
-    enriched.push(...verifiedChunk);
-  }
+  const enriched = await Promise.all(
+    batch.map(async (item): Promise<EnrichedSearchResult> => {
+      const shippingCheck = await verifySingleProductUsShipping(item.id, {
+        context: sharedContext,
+        skipFreightIfNoUsStock: Boolean(options.usOnly),
+        fastDirectFreight: true,
+        callTimeoutMs: 6_500,
+      });
+      return { ...item, shippingCheck };
+    }),
+  );
 
   const usWarehouseCount = enriched.filter((item) => item.shippingCheck?.hasUsInStock).length;
 
-  const filtered = enriched
-    .filter((item) => {
-      const check = item.shippingCheck;
-      if (!check?.checked) return false;
-      if (options.usOnly && !check.hasUsInStock) return false;
-      if (options.maxDays && (check.deliveryMaxDays == null || check.deliveryMaxDays > options.maxDays)) {
-        return false;
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      const aUs = a.shippingCheck?.hasUsInStock ? 0 : 1;
-      const bUs = b.shippingCheck?.hasUsInStock ? 0 : 1;
-      if (aUs !== bUs) return aUs - bUs;
-      const aDays = a.shippingCheck?.deliveryMaxDays ?? 999;
-      const bDays = b.shippingCheck?.deliveryMaxDays ?? 999;
-      if (aDays !== bDays) return aDays - bDays;
-      return (b.orders_count ?? 0) - (a.orders_count ?? 0);
-    });
+  const filtered = enriched.filter((item) => {
+    const check = item.shippingCheck;
+    if (!check?.checked) return false;
+    if (options.usOnly && !check.hasUsInStock) return false;
+    if (options.maxDays && (check.deliveryMaxDays == null || check.deliveryMaxDays > options.maxDays)) {
+      return false;
+    }
+    return true;
+  });
 
   return {
     results: filtered,
     inspectedCount: enriched.length,
     usWarehouseCount,
-    partial,
   };
 }

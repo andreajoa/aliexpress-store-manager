@@ -615,6 +615,58 @@ export class AliExpressTopClient {
     });
   }
 
+  /**
+   * Single-pass freight lookup reusing already-resolved product candidate IDs
+   * (avoids redundant getDropshipProduct + multi-country fallback loops during search).
+   */
+  async calculateFreightDirect(input: {
+    session: string;
+    productIds: string[];
+    quantity: number;
+    countryCode: string;
+    sendGoodsCountryCode: string;
+    skuId?: string | null;
+    price?: string | null;
+    priceCurrency?: string | null;
+  }): Promise<FreightQuote[]> {
+    const uniqueIds = Array.from(
+      new Set(input.productIds.map((id) => id.trim()).filter((id) => /^\d{10,}$/.test(id))),
+    ).slice(0, 2);
+
+    let lastError: unknown = null;
+    for (const productId of uniqueIds) {
+      try {
+        const envelope = await this.execute(
+          "aliexpress.logistics.buyer.freight.calculate",
+          input.session,
+          {
+            param_aeop_freight_calculate_for_buyer_d_t_o: {
+              country_code: input.countryCode,
+              product_id: productId,
+              product_num: input.quantity,
+              ...(input.skuId ? { sku_id: input.skuId } : {}),
+              send_goods_country_code: input.sendGoodsCountryCode,
+              ...(input.price ? { price: input.price } : {}),
+              ...(input.priceCurrency ? { price_currency: input.priceCurrency } : {}),
+            },
+          },
+        );
+        const quotes = freightQuotesFromEnvelope(envelope);
+        if (quotes.length > 0) {
+          return quotes.map((quote) => ({
+            ...quote,
+            sendGoodsCountryCode: input.sendGoodsCountryCode,
+          }));
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastError) throw lastError;
+    return [];
+  }
+
   async placeOrder(input: {
     session: string;
     logisticsAddress: Record<string, unknown>;
