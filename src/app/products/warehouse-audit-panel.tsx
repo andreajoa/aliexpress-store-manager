@@ -1,24 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type UsAuditItem = {
   productId: string;
   sourceProductId: string;
   title: string;
+  ambSlugs?: string[];
+  isLinkedToAmb?: boolean;
+  hasUsWarehouse?: boolean;
+  hasUsInStock?: boolean;
   usTotalStock: number;
   dispatchCountry: string;
   deliveryMinDays: number | null;
   deliveryMaxDays: number | null;
   ambDisplayMinDays: number | null;
   ambDisplayMaxDays: number | null;
+  error?: string | null;
 };
 
 type AuditState = {
+  totalProducts: number;
   totalLinkedProducts: number;
   auditedCount: number;
+  failedCount: number;
   pendingCount: number;
   updatedWithDaysCount: number;
+  usInStockCount: number;
+  usOutOfStockCount: number;
   usWarehouseProducts: UsAuditItem[];
 };
 
@@ -31,19 +41,29 @@ async function fetchAuditSummary(signal?: AbortSignal): Promise<AuditState | nul
     if (!res.ok) return null;
     const data = (await res.json()) as {
       ok?: boolean;
+      totalProducts?: number;
       totalLinkedProducts?: number;
       auditedCount?: number;
+      failedCount?: number;
       pendingCount?: number;
       updatedWithDaysCount?: number;
+      usInStockCount?: number;
+      usOutOfStockCount?: number;
       usWarehouseProducts?: UsAuditItem[];
     };
     if (!data.ok) return null;
+    const list = data.usWarehouseProducts ?? [];
+    const inStock = data.usInStockCount ?? list.filter((item) => item.hasUsInStock).length;
     return {
+      totalProducts: data.totalProducts ?? 0,
       totalLinkedProducts: data.totalLinkedProducts ?? 0,
       auditedCount: data.auditedCount ?? 0,
+      failedCount: data.failedCount ?? 0,
       pendingCount: data.pendingCount ?? 0,
       updatedWithDaysCount: data.updatedWithDaysCount ?? 0,
-      usWarehouseProducts: data.usWarehouseProducts ?? [],
+      usInStockCount: inStock,
+      usOutOfStockCount: data.usOutOfStockCount ?? Math.max(0, list.length - inStock),
+      usWarehouseProducts: list,
     };
   } catch {
     return null;
@@ -57,6 +77,7 @@ export function WarehouseAuditPanel({
   initialUsCount: number;
   totalProducts: number;
 }) {
+  const router = useRouter();
   const [state, setState] = useState<AuditState | null>(null);
   const [running, setRunning] = useState(false);
   const [syncingAmb, setSyncingAmb] = useState(false);
@@ -106,14 +127,15 @@ export function WarehouseAuditPanel({
       setSyncMessage(
         data.throttled
           ? `AMB Boutique já sincronizada há poucos segundos (${data.syncedProducts ?? 0} produtos atualizados).`
-          : `AMB Boutique sincronizada agora! ${data.syncedProducts ?? 0} produtos com prazo dinâmico atualizados na loja.`,
+          : `AMB Boutique sincronizada agora! ${data.syncedProducts ?? 0} produtos com prazo dinâmico e status US Warehouse atualizados na loja.`,
       );
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao sincronizar com a AMB Boutique.");
     } finally {
       setSyncingAmb(false);
     }
-  }, []);
+  }, [router]);
 
   async function runAudit(resetFirst = false) {
     setRunning(true);
@@ -136,16 +158,19 @@ export function WarehouseAuditPanel({
       let consecutiveFailures = 0;
       let batchesRun = 0;
 
-      while (!stopRef.current && batchesRun < 80) {
+      while (!stopRef.current && batchesRun < 140) {
         batchesRun++;
         let batchData: {
           ok?: boolean;
           done?: boolean;
+          totalProducts?: number;
           totalLinkedProducts?: number;
           auditedCount?: number;
           pendingCount?: number;
           checked?: number;
-          results?: Array<UsAuditItem & { hasUsInStock?: boolean; updated?: boolean }>;
+          succeededCount?: number;
+          rateLimited?: boolean;
+          results?: Array<UsAuditItem & { checked?: boolean; updated?: boolean }>;
           error?: string;
         } | null = null;
 
@@ -153,7 +178,7 @@ export function WarehouseAuditPanel({
           const response = await fetch("/api/products/warehouse-audit", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ limit: 5 }),
+            body: JSON.stringify({ limit: 3 }),
           });
           batchData = await response.json().catch(() => null);
           if (!response.ok || !batchData?.ok) {
@@ -165,26 +190,41 @@ export function WarehouseAuditPanel({
           const detail = batchErr instanceof Error ? batchErr.message : "tempo excedido";
           if (consecutiveFailures <= 2) {
             setWarningMessage(`Oscilação temporária na API (${detail}) — tentando continuar automaticamente...`);
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+            await new Promise((resolve) => setTimeout(resolve, 2500));
             continue;
           }
-          throw new Error(`Auditoria pausada após falhas seguidas (${detail}). Clique em "Continuar auditoria" para retomar de onde parou.`);
+          throw new Error(`Auditoria pausada após falhas seguidas (${detail}). Clique em "Continuar auditoria" para retomar.`);
         }
 
-        setWarningMessage(null);
+        if (batchData.rateLimited) {
+          setWarningMessage("AliExpress pediu pausa breve (AppApiCallLimit) — aguardando 4s antes do próximo lote...");
+          await new Promise((resolve) => setTimeout(resolve, 4000));
+        } else {
+          setWarningMessage(null);
+        }
+
         setState((prev) => {
           const existingMap = new Map((prev?.usWarehouseProducts || []).map((item) => [item.sourceProductId, item]));
           for (const item of batchData?.results || []) {
-            if (item.hasUsInStock) {
+            if (item.hasUsWarehouse || item.hasUsInStock) {
               existingMap.set(item.sourceProductId, item);
             }
           }
+          const mergedList = [...existingMap.values()].sort((a, b) => {
+            if (Boolean(a.hasUsInStock) !== Boolean(b.hasUsInStock)) return a.hasUsInStock ? -1 : 1;
+            return b.usTotalStock - a.usTotalStock;
+          });
+          const inStock = mergedList.filter((item) => item.hasUsInStock).length;
           return {
+            totalProducts: batchData?.totalProducts ?? prev?.totalProducts ?? totalProducts,
             totalLinkedProducts: batchData?.totalLinkedProducts ?? prev?.totalLinkedProducts ?? 0,
             auditedCount: batchData?.auditedCount ?? prev?.auditedCount ?? 0,
+            failedCount: prev?.failedCount ?? 0,
             pendingCount: batchData?.pendingCount ?? prev?.pendingCount ?? 0,
             updatedWithDaysCount: (prev?.updatedWithDaysCount ?? 0) + (batchData?.results?.filter((r) => r.updated).length ?? 0),
-            usWarehouseProducts: [...existingMap.values()],
+            usInStockCount: inStock,
+            usOutOfStockCount: mergedList.length - inStock,
+            usWarehouseProducts: mergedList,
           };
         });
 
@@ -194,36 +234,41 @@ export function WarehouseAuditPanel({
       }
 
       await loadSummary();
+      router.refresh();
       if (!stopRef.current) {
         await syncWithAmbBoutique();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao auditar catálogo.");
       await loadSummary();
+      router.refresh();
     } finally {
       setRunning(false);
     }
   }
 
-  const totalLinked = state?.totalLinkedProducts ?? 0;
+  const totalScope = state?.totalProducts ?? totalProducts;
   const audited = state?.auditedCount ?? 0;
+  const failed = state?.failedCount ?? 0;
   const pending = state?.pendingCount ?? 0;
-  const pct = totalLinked > 0 ? Math.round((audited / totalLinked) * 100) : 0;
+  const pct = totalScope > 0 ? Math.round((audited / totalScope) * 100) : 0;
   const usItems = state?.usWarehouseProducts ?? [];
-  const usCountDisplay = state ? usItems.length : initialUsCount;
+  const usInStockDisplay = state ? state.usInStockCount : initialUsCount;
+  const usOutOfStockDisplay = state ? state.usOutOfStockCount : 0;
 
   return (
     <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-400">
-            Auditoria de Armazém EUA · Catálogo AMB
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+            Auditoria de Armazém EUA · Todos os Fornecedores
           </p>
           <h2 className="mt-1 text-xl font-semibold">
-            {usCountDisplay} de {totalProducts} produtos com estoque nos EUA
+            {usInStockDisplay} com estoque nos EUA
+            {usOutOfStockDisplay > 0 ? ` · ${usOutOfStockDisplay} US sem estoque` : ""} (de {totalScope} produtos)
           </h2>
           <p className="mt-1 text-sm text-zinc-400">
-            Audita em lotes rápidos de 5 produtos, salva progresso automático (retoma de onde parou sem voltar do zero) e sincroniza direto na AMB Boutique ao terminar.
+            Audita todos os {totalScope} produtos em cadência segura (evitando AppApiCallLimit), separa US com estoque vs sem estoque e sincroniza o selo &ldquo;Ships from U.S.&rdquo; na AMB Boutique.
           </p>
         </div>
 
@@ -234,7 +279,7 @@ export function WarehouseAuditPanel({
               onClick={() => { stopRef.current = true; }}
               className="rounded-xl border border-amber-700 bg-amber-950/60 px-4 py-3 text-sm font-semibold text-amber-200 hover:bg-amber-950"
             >
-              Pausar ({audited}/{totalLinked || "..."})
+              Pausar ({audited}/{totalScope || "..."})
             </button>
           ) : (
             <button
@@ -245,7 +290,7 @@ export function WarehouseAuditPanel({
             >
               {pending > 0 && audited > 0
                 ? `Continuar auditoria (faltam ${pending})`
-                : totalLinked > 0 && pending === 0
+                : totalScope > 0 && pending === 0
                   ? "Auditoria 100% em dia"
                   : "Auditar Armazém EUA e Prazos"}
             </button>
@@ -273,16 +318,23 @@ export function WarehouseAuditPanel({
         </div>
       </div>
 
-      {totalLinked > 0 && (
+      {totalScope > 0 && (
         <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-300">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span>
-              Progresso: <strong>{audited}/{totalLinked} ({pct}%)</strong> · Faltam: <strong>{pending}</strong> · Armazém EUA: <strong className="text-emerald-400">{usItems.length}</strong>
+              Auditados com sucesso: <strong>{audited}/{totalScope} ({pct}%)</strong>
+              {" · "}Pendentes: <strong>{pending}</strong>
+              {failed > 0 ? (
+                <>
+                  {" · "}Falhas/Rate-limit a reprocessar: <strong className="text-amber-300">{failed}</strong>
+                </>
+              ) : null}
+              {" · "}US em estoque: <strong className="text-emerald-400">{usInStockDisplay}</strong>
             </span>
           </div>
           <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-zinc-800">
             <div
-              className="h-full rounded-full bg-sky-400 transition-all duration-300"
+              className="h-full rounded-full bg-emerald-400 transition-all duration-300"
               style={{ width: `${Math.min(100, pct)}%` }}
             />
           </div>
@@ -302,25 +354,50 @@ export function WarehouseAuditPanel({
       {usItems.length > 0 && (
         <div className="mt-4 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-            Produtos da loja com estoque nos EUA ({usItems.length})
+            Fornecedores com Armazém nos EUA ({usItems.length})
           </p>
-          {usItems.map((item) => (
-            <div
-              key={item.sourceProductId}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-900/50 bg-emerald-950/20 px-4 py-2.5 text-xs"
-            >
-              <a href={`/products/${item.productId}`} className="font-medium text-emerald-200 underline-offset-2 hover:underline">
-                {item.title}
-              </a>
-              <span className="text-emerald-300">
-                US Warehouse · {item.usTotalStock} un.
-                {item.deliveryMinDays != null
-                  ? ` · Fornecedor ${item.deliveryMinDays === item.deliveryMaxDays ? `${item.deliveryMinDays}d` : `${item.deliveryMinDays}–${item.deliveryMaxDays}d`}`
-                  : ""}
-                {item.ambDisplayMinDays != null ? ` (AMB: ${item.ambDisplayMinDays}–${item.ambDisplayMaxDays}d)` : ""}
-              </span>
-            </div>
-          ))}
+          {usItems.map((item) => {
+            const inStock = Boolean(item.hasUsInStock);
+            return (
+              <div
+                key={item.sourceProductId}
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2.5 text-xs ${
+                  inStock
+                    ? "border-emerald-900/60 bg-emerald-950/25"
+                    : "border-amber-900/50 bg-amber-950/20"
+                }`}
+              >
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <a
+                    href={`/products/${item.productId}`}
+                    className={`font-medium underline-offset-2 hover:underline ${
+                      inStock ? "text-emerald-200" : "text-amber-200"
+                    }`}
+                  >
+                    {item.title}
+                  </a>
+                  {item.isLinkedToAmb ? (
+                    <span className="rounded border border-emerald-800/70 bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                      Na loja AMB ({item.ambSlugs?.length || 1})
+                    </span>
+                  ) : (
+                    <span className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-400">
+                      Importado
+                    </span>
+                  )}
+                </div>
+                <span className={inStock ? "text-emerald-300" : "text-amber-300"}>
+                  {inStock
+                    ? `US Warehouse · ${item.usTotalStock} un.`
+                    : "US Warehouse · Sem estoque (0 un. · oculto na loja)"}
+                  {item.deliveryMinDays != null
+                    ? ` · Fornecedor ${item.deliveryMinDays === item.deliveryMaxDays ? `${item.deliveryMinDays}d` : `${item.deliveryMinDays}–${item.deliveryMaxDays}d`}`
+                    : ""}
+                  {item.ambDisplayMinDays != null ? ` (AMB: ${item.ambDisplayMinDays}–${item.ambDisplayMaxDays}d)` : ""}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -179,6 +179,13 @@ export async function GET(
         rawPayload: true,
         specifications: true,
         updatedAt: true,
+        variants: {
+          select: {
+            attributes: true,
+            stock: true,
+            available: true,
+          },
+        },
         supplierProducts: {
           where: { status: "ACTIVE" },
           select: {
@@ -188,6 +195,12 @@ export async function GET(
             rawPayload: true,
             lastCheckedAt: true,
             updatedAt: true,
+            variants: {
+              select: {
+                attributes: true,
+                stock: true,
+              },
+            },
           },
           orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
         },

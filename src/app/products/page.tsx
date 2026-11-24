@@ -1,30 +1,112 @@
 import Link from "next/link";
 
+import { aliExpressProductIdAliases } from "@/lib/aliexpress-catalog-id";
+import { extractSupplierWarehouseStatus } from "@/lib/aliexpress-warehouse";
+import { parseAmbBridgeConfig } from "@/lib/amb-bridge-contract";
 import { prisma } from "@/lib/prisma";
-import { summarizeProductWarehouses } from "@/lib/aliexpress-warehouse";
 import { ImportForm } from "./import-form";
 import { AliExpressSearchPanel } from "./aliexpress-search-panel";
 import { WarehouseAuditPanel } from "./warehouse-audit-panel";
+import { ProductsCatalogList, type CatalogProductRow } from "./products-catalog-list";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export default async function ProductsPage() {
-  const products = await prisma.product.findMany({
-    include: {
-      images: true,
-      variants: true,
-    },
+  const [store, products] = await Promise.all([
+    prisma.store.findUnique({
+      where: { id: "amb-boutique-store" },
+      select: { connectorCapabilities: true },
+    }),
+    prisma.product.findMany({
+      include: {
+        images: { select: { id: true } },
+        variants: { select: { attributes: true, stock: true, available: true } },
+        supplierProducts: {
+          where: { status: "ACTIVE" },
+          orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+          select: {
+            id: true,
+            sellerName: true,
+            rawPayload: true,
+            variants: { select: { attributes: true, stock: true } },
+          },
+        },
+      },
+      orderBy: {
+        importedAt: "desc",
+      },
+    }),
+  ]);
 
-    orderBy: {
-      importedAt: "desc",
-    },
+  const bridge = parseAmbBridgeConfig(store?.connectorCapabilities);
+  const slugsByAlias = new Map<string, string[]>();
+  if (bridge) {
+    for (const [slug, binding] of Object.entries(bridge.products)) {
+      for (const alias of aliExpressProductIdAliases(binding.sourceProductId)) {
+        const list = slugsByAlias.get(alias) || [];
+        if (!list.includes(slug)) list.push(slug);
+        slugsByAlias.set(alias, list);
+      }
+    }
+  }
+
+  const catalogRows: CatalogProductRow[] = products.map((product) => {
+    const primarySupplier = product.supplierProducts[0] || null;
+    const variants = primarySupplier?.variants.length
+      ? primarySupplier.variants.map((v) => ({ attributes: v.attributes, stock: v.stock, available: v.stock > 0 }))
+      : product.variants;
+
+    // Check primary supplier first; also detect if any backup/alternative active supplier has US warehouse
+    const primaryStatus = extractSupplierWarehouseStatus({
+      supplierRawPayload: primarySupplier?.rawPayload,
+      variants,
+    });
+
+    const anyAltUs = product.supplierProducts.slice(1).map((sup) =>
+      extractSupplierWarehouseStatus({
+        supplierRawPayload: sup.rawPayload,
+        variants: sup.variants.map((v) => ({ attributes: v.attributes, stock: v.stock, available: v.stock > 0 })),
+      }),
+    );
+
+    const bestUs = primaryStatus.hasUsInStock
+      ? primaryStatus
+      : anyAltUs.find((s) => s.hasUsInStock) ||
+        (primaryStatus.hasUsWarehouse ? primaryStatus : anyAltUs.find((s) => s.hasUsWarehouse)) ||
+        primaryStatus;
+
+    return {
+      id: product.id,
+      sourceProductId: product.sourceProductId,
+      title: product.optimizedTitle || product.sourceTitle,
+      imageCount: product.images.length,
+      variantCount: product.variants.length,
+      status: product.status,
+      sellerName: primarySupplier?.sellerName || null,
+      ambSlugs: slugsByAlias.get(product.sourceProductId) || [],
+      hasUsWarehouse: bestUs.hasUsWarehouse,
+      hasUsInStock: bestUs.hasUsInStock,
+      usTotalStock: bestUs.usTotalStock,
+      dispatchCountry: bestUs.dispatchCountry,
+      checked: bestUs.checked,
+      error: bestUs.error,
+      deliveryMinDays: bestUs.deliveryMinDays,
+      deliveryMaxDays: bestUs.deliveryMaxDays,
+      ambDisplayMinDays: bestUs.ambDisplayMinDays,
+      ambDisplayMaxDays: bestUs.ambDisplayMaxDays,
+    };
   });
 
-  const productWarehouses = new Map(
-    products.map((product) => [product.id, summarizeProductWarehouses(product.variants)]),
-  );
-  const usWarehouseCount = [...productWarehouses.values()].filter((item) => item.hasUsWarehouse).length;
+  // Always pin US Warehouse (in stock first, then out of stock) at the top
+  catalogRows.sort((a, b) => {
+    if (a.hasUsInStock !== b.hasUsInStock) return a.hasUsInStock ? -1 : 1;
+    if (a.hasUsWarehouse !== b.hasUsWarehouse) return a.hasUsWarehouse ? -1 : 1;
+    if (b.usTotalStock !== a.usTotalStock) return b.usTotalStock - a.usTotalStock;
+    return 0;
+  });
+
+  const usInStockCount = catalogRows.filter((item) => item.hasUsInStock).length;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
@@ -46,8 +128,7 @@ export default async function ProductsPage() {
           </h1>
 
           <p className="mt-2 text-zinc-400">
-            Importe produtos do AliExpress, revise os dados e
-            prepare-os antes de publicar em qualquer loja.
+            Importe produtos do AliExpress, identifique fornecedores com armazém nos EUA e sincronize prazos direto com a AMB Boutique.
           </p>
         </div>
 
@@ -56,89 +137,14 @@ export default async function ProductsPage() {
         </div>
 
         <div className="mt-8">
-          <WarehouseAuditPanel initialUsCount={usWarehouseCount} totalProducts={products.length} />
+          <WarehouseAuditPanel initialUsCount={usInStockCount} totalProducts={products.length} />
         </div>
 
         <div className="mt-8">
           <AliExpressSearchPanel />
         </div>
 
-        <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-          <p className="text-sm text-zinc-500">
-            Produtos importados
-          </p>
-
-          <p className="mt-1 text-3xl font-semibold">
-            {products.length}
-          </p>
-
-          {products.length === 0 ? (
-            <div className="mt-6 rounded-xl border border-dashed border-zinc-700 p-8 text-center text-zinc-500">
-              Nenhum produto importado.
-            </div>
-          ) : (
-            <div className="mt-6 space-y-4">
-              {products.map((product) => (
-                <article
-                  key={product.id}
-                  className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-5"
-                >
-                  <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold leading-6">
-                        {product.optimizedTitle ||
-                          product.sourceTitle}
-                      </p>
-
-                      <p className="mt-2 text-xs text-zinc-500">
-                        AliExpress #{product.sourceProductId}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-4">
-                      <div className="text-sm text-zinc-400">
-                        {product.images.length} imagens
-                      </div>
-
-                      <div className="text-sm text-zinc-400">
-                        {product.variants.length} SKUs
-                      </div>
-
-                      {productWarehouses.get(product.id)?.hasUsWarehouse ? (
-                        <span className="rounded-full border border-emerald-800 bg-emerald-950/60 px-3 py-1 text-xs font-semibold text-emerald-300">
-                          US Warehouse ({productWarehouses.get(product.id)?.usTotalStock ?? 0} un.)
-                        </span>
-                      ) : (
-                        <span className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-500">
-                          CN
-                        </span>
-                      )}
-
-                      <span
-                        className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                          product.status === "READY"
-                            ? "border-emerald-800 bg-emerald-950/50 text-emerald-300"
-                            : "border-zinc-700 bg-zinc-900 text-zinc-400"
-                        }`}
-                      >
-                        {product.status === "READY"
-                          ? "Otimizado"
-                          : "Importado"}
-                      </span>
-
-                      <Link
-                        href={`/products/${product.id}`}
-                        className="rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400"
-                      >
-                        Abrir produto
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+        <ProductsCatalogList items={catalogRows} />
       </div>
     </main>
   );

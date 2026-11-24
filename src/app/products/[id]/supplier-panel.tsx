@@ -37,6 +37,17 @@ type SupplierDelivery = {
   updatedAt: string | null;
 } | null;
 
+type SupplierWarehouse = {
+  hasUsWarehouse: boolean;
+  hasUsInStock: boolean;
+  usTotalStock: number;
+  dispatchCountry: string;
+  countries: string[];
+  checked: boolean;
+  checkedAt: string | null;
+  error: string | null;
+};
+
 type Supplier = {
   id: string;
   sourceProductId: string;
@@ -50,6 +61,7 @@ type Supplier = {
   costMax: string | null;
   lastCheckedAt: string | null;
   delivery?: SupplierDelivery;
+  warehouse?: SupplierWarehouse;
   variants: SupplierVariant[];
   mappings: SupplierMapping[];
 };
@@ -200,6 +212,23 @@ function SupplierCard({
             >
               {complete ? "Mapping completo" : `${mappedCount}/${canonicalVariants.length} mapeadas`}
             </span>
+            {supplier.warehouse?.hasUsInStock ? (
+              <span className="rounded-full border border-emerald-700 bg-emerald-950/80 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+                US Warehouse · {supplier.warehouse.usTotalStock} un. (visível na AMB)
+              </span>
+            ) : supplier.warehouse?.hasUsWarehouse ? (
+              <span className="rounded-full border border-amber-700 bg-amber-950/70 px-2.5 py-1 text-xs font-semibold text-amber-200">
+                US Warehouse · Sem estoque (0 un.)
+              </span>
+            ) : supplier.warehouse?.checked ? (
+              <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-400">
+                Armazém {supplier.warehouse.dispatchCountry || "CN"}
+              </span>
+            ) : (
+              <span className="rounded-full border border-orange-900/60 bg-orange-950/30 px-2.5 py-1 text-xs text-orange-300">
+                Armazém não auditado
+              </span>
+            )}
             {supplier.status !== "ACTIVE" && (
               <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-400">
                 {supplier.status}

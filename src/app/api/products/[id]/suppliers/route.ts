@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { resolveAliExpressProductId } from "@/lib/omkar";
 import { aliExpressProductIdAliases } from "@/lib/aliexpress-catalog-id";
+import { extractSupplierWarehouseStatus } from "@/lib/aliexpress-warehouse";
 import { getAliExpressOperationalProduct } from "@/lib/aliexpress-operational-provider";
 import { buildAliExpressImportCosting } from "@/lib/aliexpress-import-costing";
 import { extractSupplierDeliveryProfile, mergeDeliveryPayloadFields } from "@/lib/supplier-delivery";
@@ -79,6 +80,14 @@ function supplierJson(supplier: {
     delivery: extractSupplierDeliveryProfile({
       supplierRawPayload: supplier.rawPayload,
       supplierUpdatedAt: supplier.lastCheckedAt,
+    }),
+    warehouse: extractSupplierWarehouseStatus({
+      supplierRawPayload: supplier.rawPayload,
+      variants: supplier.variants.map((variant) => ({
+        attributes: variant.attributes,
+        stock: variant.stock,
+        available: variant.stock > 0,
+      })),
     }),
     variants: supplier.variants.map((variant) => ({
       id: variant.id,

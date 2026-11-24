@@ -1,4 +1,5 @@
 import type { AmbBridgeConfig } from "./amb-bridge-contract.ts";
+import { extractSupplierWarehouseStatus } from "./aliexpress-warehouse.ts";
 
 export const AMB_DELIVERY_MARKETS = ["US", "CA", "UK", "AU", "NZ"] as const;
 export type AmbDeliveryMarket = (typeof AMB_DELIVERY_MARKETS)[number];
@@ -14,6 +15,7 @@ export type DeliveryWindowEntry = {
   maxDays: number;
   source: "manual" | "supplier-quote";
   updatedAt: string | null;
+  usWarehouse?: boolean;
 };
 
 export type SupplierDeliverySummary = {
@@ -30,6 +32,7 @@ export type SupplierDeliverySummary = {
 export type SanitizedAmbProductDelivery = {
   markets: Partial<Record<AmbDeliveryMarket, DeliveryWindowEntry>>;
   updatedAt: string | null;
+  shipsFromUs?: boolean;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -310,6 +313,11 @@ export type AmbDeliveryProductSource = {
   rawPayload: unknown;
   specifications: unknown;
   updatedAt: Date | string;
+  variants?: Array<{
+    attributes?: unknown;
+    stock?: number | null;
+    available?: boolean;
+  }>;
   supplierProducts: Array<{
     role: string;
     priority: number;
@@ -317,6 +325,11 @@ export type AmbDeliveryProductSource = {
     rawPayload: unknown;
     lastCheckedAt: Date | string | null;
     updatedAt: Date | string;
+    variants?: Array<{
+      attributes?: unknown;
+      stock?: number | null;
+      available?: boolean;
+    }>;
   }>;
 };
 
@@ -364,6 +377,12 @@ export function buildSanitizedAmbDeliveryPayload(input: {
   const sanitizedProducts: Record<string, SanitizedAmbProductDelivery> = {};
   for (const [slug, product] of [...slugToProduct.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
     const primarySupplier = selectPrimarySupplier(product.supplierProducts);
+    const warehouse = extractSupplierWarehouseStatus({
+      supplierRawPayload: primarySupplier?.rawPayload,
+      variants: primarySupplier?.variants?.length ? primarySupplier.variants : product.variants,
+    });
+    const shipsFromUs = warehouse.hasUsInStock;
+
     const summary = extractSupplierDeliveryProfile({
       supplierRawPayload: primarySupplier?.rawPayload,
       supplierUpdatedAt: primarySupplier?.lastCheckedAt || primarySupplier?.updatedAt || product.updatedAt,
@@ -371,25 +390,30 @@ export function buildSanitizedAmbDeliveryPayload(input: {
       productSpecifications: product.specifications,
     });
 
-    if (!summary || Object.keys(summary.markets).length === 0) continue;
+    const hasMarkets = Boolean(summary && Object.keys(summary.markets).length > 0);
+    if (!hasMarkets && !shipsFromUs) continue;
 
     // Strictly copy ONLY customer-safe fields
     const safeMarkets: Partial<Record<AmbDeliveryMarket, DeliveryWindowEntry>> = {};
-    for (const market of AMB_DELIVERY_MARKETS) {
-      const entry = summary.markets[market];
-      if (!entry) continue;
-      safeMarkets[market] = {
-        minDays: entry.minDays,
-        maxDays: entry.maxDays,
-        source: entry.source,
-        updatedAt: entry.updatedAt,
-      };
+    if (summary) {
+      for (const market of AMB_DELIVERY_MARKETS) {
+        const entry = summary.markets[market];
+        if (!entry) continue;
+        safeMarkets[market] = {
+          minDays: entry.minDays,
+          maxDays: entry.maxDays,
+          source: entry.source,
+          updatedAt: entry.updatedAt,
+          ...(market === "US" && shipsFromUs ? { usWarehouse: true } : {}),
+        };
+      }
     }
 
-    if (Object.keys(safeMarkets).length > 0) {
+    if (Object.keys(safeMarkets).length > 0 || shipsFromUs) {
       sanitizedProducts[slug] = {
         markets: safeMarkets,
-        updatedAt: summary.updatedAt,
+        updatedAt: summary?.updatedAt || warehouse.checkedAt || null,
+        ...(shipsFromUs ? { shipsFromUs: true } : {}),
       };
     }
   }

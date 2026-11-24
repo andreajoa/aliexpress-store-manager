@@ -160,4 +160,83 @@ for (const forbidden of ["aliexpress", "yunexpress", "cainiao", "secret", "32568
   assert(!serialized.includes(forbidden), `Vazamento proibido no payload AMB: ${forbidden}`);
 }
 
+// 6. US Warehouse signal: only shipsFromUs/usWarehouse=true when US warehouse has stock > 0
+const usWarehousePayload = buildSanitizedAmbDeliveryPayload({
+  storeId: "amb-boutique-store",
+  bridge: {
+    version: 1,
+    mode: "backend-only",
+    products: {
+      "us-in-stock-dress": { sourceProductId: "3256809001", color: "Ivory" },
+      "us-out-of-stock-shorts": { sourceProductId: "3256809002", color: "Blue" },
+    },
+  },
+  publications: [],
+  products: [
+    {
+      id: "prod-us-ok",
+      sourceProductId: "3256809001",
+      rawPayload: {},
+      specifications: {},
+      updatedAt: "2026-11-24T12:00:00.000Z",
+      supplierProducts: [
+        {
+          role: "PRIMARY",
+          priority: 0,
+          status: "ACTIVE",
+          rawPayload: {
+            deliveryByMarket: {
+              US: { minDays: 6, maxDays: 8, source: "supplier-quote", updatedAt: "2026-11-24T12:00:00.000Z" },
+            },
+            usWarehouseAudit: {
+              checkedAt: "2026-11-24T12:00:00.000Z",
+              checked: true,
+              hasUsWarehouse: true,
+              hasUsInStock: true,
+              usTotalStock: 120,
+              dispatchCountry: "US",
+            },
+          },
+          lastCheckedAt: "2026-11-24T12:00:00.000Z",
+          updatedAt: "2026-11-24T12:00:00.000Z",
+        },
+      ],
+    },
+    {
+      id: "prod-us-empty",
+      sourceProductId: "3256809002",
+      rawPayload: {},
+      specifications: {},
+      updatedAt: "2026-11-24T12:00:00.000Z",
+      supplierProducts: [
+        {
+          role: "PRIMARY",
+          priority: 0,
+          status: "ACTIVE",
+          rawPayload: {
+            deliveryByMarket: {
+              US: { minDays: 14, maxDays: 18, source: "supplier-quote", updatedAt: "2026-11-24T12:00:00.000Z" },
+            },
+            usWarehouseAudit: {
+              checkedAt: "2026-11-24T12:00:00.000Z",
+              checked: true,
+              hasUsWarehouse: true,
+              hasUsInStock: false,
+              usTotalStock: 0,
+              dispatchCountry: "CN",
+            },
+          },
+          lastCheckedAt: "2026-11-24T12:00:00.000Z",
+          updatedAt: "2026-11-24T12:00:00.000Z",
+        },
+      ],
+    },
+  ],
+});
+
+assert(usWarehousePayload.products["us-in-stock-dress"]?.shipsFromUs === true, "Produto com estoque nos EUA deve sinalizar shipsFromUs=true");
+assert(usWarehousePayload.products["us-in-stock-dress"]?.markets.US?.usWarehouse === true, "Mercado US com estoque EUA deve sinalizar usWarehouse=true");
+assert(!usWarehousePayload.products["us-out-of-stock-shorts"]?.shipsFromUs, "Produto US com estoque 0 NÃO pode sinalizar shipsFromUs na loja");
+assert(!usWarehousePayload.products["us-out-of-stock-shorts"]?.markets.US?.usWarehouse, "Mercado US com estoque 0 NÃO pode sinalizar usWarehouse na loja");
+
 console.log("AMB SUPPLIER DELIVERY: PASS");

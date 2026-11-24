@@ -242,3 +242,98 @@ export function selectUsWarehouseSkus<
     return typeof sku.available_quantity === "number" && sku.available_quantity > 0;
   });
 }
+
+export type SupplierWarehouseStatus = {
+  hasUsWarehouse: boolean;
+  hasUsInStock: boolean;
+  usTotalStock: number;
+  dispatchCountry: string;
+  countries: string[];
+  checked: boolean;
+  checkedAt: string | null;
+  deliveryMinDays: number | null;
+  deliveryMaxDays: number | null;
+  ambDisplayMinDays: number | null;
+  ambDisplayMaxDays: number | null;
+  error: string | null;
+};
+
+type StoredUsAudit = {
+  checkedAt?: string;
+  checked?: boolean;
+  hasUsWarehouse?: boolean;
+  hasUsInStock?: boolean;
+  usTotalStock?: number;
+  dispatchCountry?: string;
+  countries?: unknown;
+  deliveryMinDays?: number | null;
+  deliveryMaxDays?: number | null;
+  ambDisplayMinDays?: number | null;
+  ambDisplayMaxDays?: number | null;
+  error?: string | null;
+};
+
+export function extractSupplierWarehouseStatus(input: {
+  supplierRawPayload?: unknown;
+  variants?: Array<{
+    attributes?: unknown;
+    stock?: number | null;
+    available?: boolean;
+  }>;
+}): SupplierWarehouseStatus {
+  const raw = asRecord(input.supplierRawPayload);
+  const auditRec = asRecord(raw.usWarehouseAudit) as StoredUsAudit;
+  const hasAudit = typeof auditRec.checkedAt === "string" && auditRec.checkedAt.length > 0;
+  const checked = hasAudit && auditRec.checked === true;
+
+  const variantSummary = summarizeProductWarehouses(input.variants || []);
+  const auditCountries = Array.isArray(auditRec.countries)
+    ? auditRec.countries.map((item) => asText(item).toUpperCase()).filter(Boolean)
+    : [];
+  const countries = Array.from(new Set([...variantSummary.countries, ...auditCountries])).sort();
+
+  const auditUsStock =
+    typeof auditRec.usTotalStock === "number" && Number.isFinite(auditRec.usTotalStock)
+      ? Math.max(0, Math.trunc(auditRec.usTotalStock))
+      : null;
+
+  const hasUsWarehouse = Boolean(
+    (checked && (auditRec.hasUsWarehouse || auditRec.hasUsInStock)) ||
+    variantSummary.hasUsWarehouse ||
+    countries.includes("US"),
+  );
+
+  const usTotalStock = checked
+    ? (auditUsStock ?? 0)
+    : variantSummary.usTotalStock;
+
+  const hasUsInStock = checked
+    ? Boolean(auditRec.hasUsInStock || (auditRec.hasUsWarehouse && usTotalStock > 0))
+    : variantSummary.hasUsInStock;
+
+  const auditDispatch = asText(auditRec.dispatchCountry).toUpperCase();
+  const dispatchCountry = hasUsInStock
+    ? "US"
+    : checked && auditDispatch && auditDispatch !== "UNKNOWN"
+      ? auditDispatch
+      : variantSummary.hasUsWarehouse
+        ? "US"
+        : checked
+          ? "CN"
+          : "UNKNOWN";
+
+  return {
+    hasUsWarehouse,
+    hasUsInStock,
+    usTotalStock,
+    dispatchCountry,
+    countries,
+    checked,
+    checkedAt: hasAudit ? auditRec.checkedAt || null : null,
+    deliveryMinDays: typeof auditRec.deliveryMinDays === "number" ? auditRec.deliveryMinDays : null,
+    deliveryMaxDays: typeof auditRec.deliveryMaxDays === "number" ? auditRec.deliveryMaxDays : null,
+    ambDisplayMinDays: typeof auditRec.ambDisplayMinDays === "number" ? auditRec.ambDisplayMinDays : null,
+    ambDisplayMaxDays: typeof auditRec.ambDisplayMaxDays === "number" ? auditRec.ambDisplayMaxDays : null,
+    error: hasAudit && !checked ? (asText(auditRec.error) || "Auditoria incompleta") : null,
+  };
+}
