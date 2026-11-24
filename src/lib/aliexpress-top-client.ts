@@ -29,6 +29,15 @@ function compactError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * AliExpress success codes vary by API: most return "0", while the dropshipping
+ * search (`aliexpress.ds.text.search`) returns "00" with the results.
+ */
+export function isAliExpressSuccessCode(code: string) {
+  const normalized = code.trim().toLowerCase();
+  return /^0+$/.test(normalized) || normalized === "success";
+}
+
 export function topTimestamp(date = new Date()) {
   return String(date.getTime());
 }
@@ -402,7 +411,7 @@ export class AliExpressTopClient {
     }
 
     const rootCode = scalar(json.code);
-    if (rootCode && rootCode !== "0" && rootCode.toLowerCase() !== "success") {
+    if (rootCode && !isAliExpressSuccessCode(rootCode)) {
       const message = scalar(
         json.message || json.msg || json.error_message || json.error_msg || "Erro da API AliExpress",
       );

@@ -117,6 +117,27 @@ try {
   apiBlocked = error instanceof Error && error.message.includes("invalid");
 }
 assert(apiBlocked, "error_response was not surfaced");
+
+// ds.text.search answers success with code "00" (flattened at the root when simplify=true).
+const searchFetch = async () => new Response(JSON.stringify({
+  code: "00",
+  data: { pageIndex: 1, pageSize: 1, totalCount: 1, products: [{ itemId: "1005007328784728", title: "Linen dress" }] },
+  request_id: "test",
+}), { status: 200, headers: { "Content-Type": "application/json" } });
+const searchEnvelope = await client.execute("aliexpress.ds.text.search", "session", {}, searchFetch as typeof fetch);
+assert(
+  (searchEnvelope.data as { totalCount?: number }).totalCount === 1,
+  "ds.text.search code 00 was treated as an error",
+);
+
+let rootErrorBlocked = false;
+const rootErrorFetch = async () => new Response(JSON.stringify({ code: "IllegalAccessToken", message: "expired" }), { status: 200 });
+try {
+  await client.execute("aliexpress.ds.text.search", "session", {}, rootErrorFetch as typeof fetch);
+} catch (error) {
+  rootErrorBlocked = error instanceof Error && error.message.includes("expired");
+}
+assert(rootErrorBlocked, "root error code was not surfaced");
 console.log("✅ success and error envelopes normalized");
 
 console.log("====================================================");

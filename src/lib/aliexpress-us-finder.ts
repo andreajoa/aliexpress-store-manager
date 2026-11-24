@@ -1,6 +1,7 @@
 import { requireAliExpressSession } from "./aliexpress-connection";
 import { officialSkusFromProductResponse } from "./aliexpress-sku-parser";
 import {
+  isAliExpressSuccessCode,
   regionalProductIdFromEnvelope,
   shipsFromValuesFromEnvelope,
 } from "./aliexpress-top-client";
@@ -219,7 +220,7 @@ export async function searchOfficialAliExpressCatalog(
     );
 
     const result = asRecord(envelope.result);
-    const data = asRecord(result.data ?? result);
+    const data = asRecord(result.data ?? envelope.data ?? result);
     const totalCount =
       toNum(data.totalCount ?? result.totalCount ?? data.total_record_count ?? result.total_record_count) ?? 0;
 
@@ -231,7 +232,7 @@ export async function searchOfficialAliExpressCatalog(
     if (items.length === 0) {
       const code = asText(envelope.code ?? result.code ?? result.error_code ?? data.code);
       const msg = asText(envelope.msg ?? result.msg ?? result.error_msg ?? data.msg);
-      if (code && code !== "0" && code.toLowerCase() !== "success") {
+      if (code && !isAliExpressSuccessCode(code)) {
         return { items: [], totalCount: 0, error: `ds.text.search ${code}: ${msg || "sem detalhes"}` };
       }
     }
