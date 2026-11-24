@@ -47,12 +47,13 @@ export async function GET(
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await context.params;
-    const result = await scanAmbCatalog({ storeId: id, force: true });
+    const accessToken = request.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
+    const result = await scanAmbCatalog({ storeId: id, force: true, accessToken });
     return NextResponse.json(result, {
       headers: { "Cache-Control": "private, no-store" },
     });
