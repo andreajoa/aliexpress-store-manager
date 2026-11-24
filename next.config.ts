@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     "@sparticuz/chromium",
     "puppeteer-core",
+    "pg",
   ],
   outputFileTracingIncludes: {
     "/api/import/aliexpress": ["./node_modules/@sparticuz/chromium/bin/**/*"],
