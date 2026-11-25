@@ -12,7 +12,37 @@ const mappingSchema = z.object({
     canonicalVariantId: z.string().min(1),
     supplierVariantId: z.string().min(1),
   })).min(1),
+  ifUnmapped: z.boolean().optional(),
 });
+
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string; supplierId: string }> },
+) {
+  const { id, supplierId } = await context.params;
+  const headers = { "Cache-Control": "private, no-store" };
+  const supplier = await prisma.supplierProduct.findFirst({
+    where: { id: supplierId, productId: id },
+    select: { id: true },
+  });
+  if (!supplier) {
+    return NextResponse.json({ ok: false, error: "Fornecedor não encontrado." }, { status: 404, headers });
+  }
+  const product = await prisma.product.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      sourceProductId: true,
+      variants: {
+        select: { id: true, sourceSkuId: true, attributes: true, available: true, stock: true },
+      },
+    },
+  });
+  if (!product) {
+    return NextResponse.json({ ok: false, error: "Produto não encontrado." }, { status: 404, headers });
+  }
+  return NextResponse.json({ ok: true, product }, { headers });
+}
 
 export async function PUT(
   request: Request,
@@ -72,10 +102,14 @@ export async function PUT(
 
     const supplierById = new Map(supplier.variants.map((variant) => [variant.id, variant]));
 
-    await prisma.$transaction(async (tx) => {
-      await tx.supplierVariantMapping.deleteMany({
-        where: { supplierProductId: supplierId },
-      });
+    const { ifUnmapped } = parsed.data;
+    const saved = await prisma.$transaction(async (tx) => {
+      const where = { supplierProductId: supplierId };
+      if (ifUnmapped) {
+        if (await tx.supplierVariantMapping.count({ where })) return false;
+      } else {
+        await tx.supplierVariantMapping.deleteMany({ where });
+      }
 
       await tx.supplierVariantMapping.createMany({
         data: parsed.data.mappings.map((mapping) => {
@@ -95,7 +129,11 @@ export async function PUT(
           };
         }),
       });
-    });
+      return true;
+    }, ifUnmapped ? { isolationLevel: "Serializable" } : undefined);
+    if (!saved) {
+      return NextResponse.json({ ok: false, error: "O fornecedor já possui vínculos." }, { status: 409 });
+    }
 
     return NextResponse.json({
       ok: true,
