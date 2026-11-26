@@ -15,7 +15,7 @@ export function resolveAmbBoundVariant<T extends SupplierVariant>(
   size: string,
   variants: T[],
   quantity = 1,
-  options?: { preferUsWarehouse?: boolean },
+  options?: { preferUsWarehouse?: boolean; requireStock?: boolean },
 ): T {
   if (!Number.isInteger(quantity) || quantity < 1) throw new Error("Quantidade inválida.");
   const skuMap = binding.sourceSkuIdsBySize;
@@ -61,7 +61,10 @@ export function resolveAmbBoundVariant<T extends SupplierVariant>(
     throw new Error(`${binding.sourceProductId}/${binding.color}/${size} resolveu ${candidates.length} SKUs; vínculo exige revisão.`);
   }
   const variant = candidates[0];
-  if (!variant.sourceSkuId || !variant.available || variant.stock == null || variant.stock < quantity) {
+  // Re-linking an order that was already bought only needs the SKU identity, not today's stock.
+  const stockOk = options?.requireStock === false ||
+    (variant.available && variant.stock != null && variant.stock >= quantity);
+  if (!variant.sourceSkuId || !stockOk) {
     throw new Error(`SKU indisponível para ${binding.sourceProductId}/${binding.color}/${size}.`);
   }
   return variant;
