@@ -1,10 +1,12 @@
-import { placeAliExpressBatchOrder, quoteAliExpressBatch } from "./aliexpress-fulfillment";
+import { placeAliExpressBatchOrder, quoteAliExpressBatch, syncAliExpressBatch } from "./aliexpress-fulfillment";
+import { requireAliExpressSession } from "./aliexpress-connection";
 import { ambBoundInventory, resolveAmbBoundVariant } from "./amb-bound-variant.ts";
 import {
   chooseAliExpressFreight,
   parseAmbBridgeConfig,
 } from "./amb-bridge-contract";
 import { synchronizeOfficialAliExpressSkus } from "./aliexpress-sku-sync";
+import { markFulfillmentBatchOrdered } from "./order-fulfillment-lifecycle";
 import { prepareOrderFulfillment } from "./order-fulfillment-service";
 import { prisma } from "./prisma";
 import { refreshSupplier, syncCanonicalAvailability } from "./supplier-refresh-service";
@@ -563,4 +565,148 @@ export async function ambInventorySnapshot(storeId: string) {
       ...ambBoundInventory(binding, product?.variants || []),
     };
   });
+}
+
+/**
+ * Re-links a paid AMB order to an AliExpress order that ALREADY exists in the
+ * connected account (used when the Manager database lost its order rows, as in
+ * the Neon -> NexaCloud migration of 24 Nov 2026). It never quotes, places or
+ * pays anything: it records the existing AliExpress order on the AMB order and
+ * reads its tracking, so the storefront tracking page works again.
+ */
+export async function relinkAmbPaidOrderToAliExpress(input: {
+  storeId: string;
+  sessionId: string;
+  aliexpressOrderId: string;
+  accessToken?: string;
+}) {
+  const aliexpressOrderId = input.aliexpressOrderId.trim();
+  if (!/^\d{10,24}$/.test(aliexpressOrderId)) {
+    throw new Error("Número de pedido AliExpress inválido.");
+  }
+
+  // Prove the AliExpress order exists in this account before writing anything.
+  const { session: aliExpressSession, client } = await requireAliExpressSession();
+  const envelope = record(await client.getOrder({ session: aliExpressSession, orderId: aliexpressOrderId }));
+  if (!Object.keys(record(envelope.result)).length) {
+    throw new Error("Pedido AliExpress não encontrado na conta conectada.");
+  }
+
+  const claimed = await prisma.fulfillmentBatch.findFirst({
+    where: { provider: "ALIEXPRESS", externalOrderId: aliexpressOrderId },
+    select: { order: { select: { storeId: true, externalOrderId: true } } },
+  });
+  if (claimed && (claimed.order.storeId !== input.storeId || claimed.order.externalOrderId !== input.sessionId)) {
+    throw new Error("Este pedido AliExpress já está ligado a outro pedido.");
+  }
+
+  const session = await loadAmbStripeSession(input.sessionId, input.accessToken);
+  if (normalized(session.paymentStatus) !== "paid") {
+    throw new Error(`Stripe Session ${session.id} ainda não está paga.`);
+  }
+  if (session.metadata.store && normalized(session.metadata.store) !== normalized("AMB BOUTIQUE")) {
+    throw new Error("Stripe Session não pertence à AMB BOUTIQUE.");
+  }
+
+  const findOrder = () => prisma.order.findUnique({
+    where: { storeId_externalOrderId: { storeId: input.storeId, externalOrderId: session.id } },
+    include: {
+      fulfillmentBatches: true,
+      items: { select: { id: true, productId: true, fulfillmentBatchId: true } },
+    },
+  });
+  let order = await findOrder();
+  const createdOrder = !order;
+  if (!order) {
+    await createAmbOrder(input.storeId, session);
+    order = await findOrder();
+  }
+  if (!order) throw new Error("Pedido AMB não pôde ser criado.");
+  const orderId = order.id;
+
+  let batch = order.fulfillmentBatches.find((item) =>
+    item.provider === "ALIEXPRESS" && item.externalOrderId === aliexpressOrderId) || null;
+  if (!batch) {
+    if (order.fulfillmentBatches.some((item) => item.provider === "ALIEXPRESS" && item.status !== "CANCELLED")) {
+      throw new Error("Pedido já possui outro lote AliExpress; conferir no painel antes de religar.");
+    }
+    try {
+      const productId = order.items.find((item) => item.productId)?.productId || null;
+      const supplier = productId ? await prisma.supplierProduct.findFirst({
+        where: { productId, provider: "ALIEXPRESS" },
+        orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+        select: { id: true, sourceProductId: true, sourceUrl: true },
+      }) : null;
+      const product = productId ? await prisma.product.findUnique({
+        where: { id: productId },
+        select: { sourceProductId: true, sourceUrl: true },
+      }) : null;
+      const sourceProductId = supplier?.sourceProductId || product?.sourceProductId || "";
+      const sourceUrl = supplier?.sourceUrl || product?.sourceUrl || "";
+      if (!sourceProductId || !sourceUrl) throw new Error("Produto do pedido sem origem AliExpress no catálogo.");
+
+      batch = await prisma.fulfillmentBatch.create({
+        data: {
+          orderId,
+          supplierProductId: supplier?.id || null,
+          provider: "ALIEXPRESS",
+          sourceProductId,
+          sourceUrl,
+          currency: order.currency,
+          status: "ORDERED",
+          externalOrderId: aliexpressOrderId,
+          placementStatus: "COMPLETE",
+          orderedAt: order.orderedAt || new Date(),
+          items: {
+            connect: order.items.filter((item) => !item.fulfillmentBatchId).map((item) => ({ id: item.id })),
+          },
+        },
+      });
+    } catch (error) {
+      // Never leave a paid order without a batch: the daily retry would buy it again.
+      if (createdOrder) await prisma.order.delete({ where: { id: orderId } }).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  await markFulfillmentBatchOrdered({ orderId, batchId: batch.id, externalOrderId: aliexpressOrderId });
+  await prisma.order.update({ where: { id: orderId }, data: { aliexpressOrderId } });
+
+  const externalEventId = `amb:${session.id}`;
+  await prisma.integrationEvent.upsert({
+    where: { storeId_externalEventId: { storeId: input.storeId, externalEventId } },
+    create: {
+      storeId: input.storeId,
+      externalEventId,
+      eventType: "amb.order.relinked",
+      status: "PROCESSED",
+      processedAt: new Date(),
+      payload: { source: "AMB_RELINK_EXISTING_ALIEXPRESS_ORDER", sessionId: session.id },
+    },
+    update: { status: "PROCESSED", processedAt: new Date(), errorMessage: null },
+  });
+
+  let tracking: Awaited<ReturnType<typeof syncAliExpressBatch>> | null = null;
+  let trackingError: string | null = null;
+  try {
+    tracking = await syncAliExpressBatch(orderId, batch.id);
+  } catch (error) {
+    trackingError = error instanceof Error ? error.message : "Falha ao ler o rastreio.";
+  }
+
+  const refreshed = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { status: true, fulfillmentStatus: true, trackingCode: true },
+  });
+  return {
+    ok: true,
+    createdOrder,
+    orderId,
+    batchId: batch.id,
+    status: refreshed?.status || null,
+    fulfillmentStatus: refreshed?.fulfillmentStatus || null,
+    trackingCode: refreshed?.trackingCode || tracking?.logisticsNo || null,
+    trackingEvents: tracking?.trackingEvents.length || 0,
+    trackingError,
+  };
 }
