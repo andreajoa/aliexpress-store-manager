@@ -262,7 +262,7 @@ function cents(value: number) {
   return Math.round(value) / 100;
 }
 
-async function resolveAmbLineItems(storeId: string, session: AmbStripeSession) {
+async function resolveAmbLineItems(storeId: string, session: AmbStripeSession, options?: { requireStock?: boolean }) {
   const store = await prisma.store.findUnique({
     where: { id: storeId },
     select: { id: true, status: true, connectorCapabilities: true },
@@ -297,21 +297,23 @@ async function resolveAmbLineItems(storeId: string, session: AmbStripeSession) {
   return requested.map(({ line, slug, size, binding }) => {
     const product = bySource.get(binding.sourceProductId);
     if (!product) throw new Error(`Produto-fonte ${binding.sourceProductId} não existe no Manager.`);
-    const variant = resolveAmbBoundVariant(binding, size, product.variants, line.quantity);
+    const variant = resolveAmbBoundVariant(binding, size, product.variants, line.quantity, {
+      requireStock: options?.requireStock,
+    });
     const supplierProduct = product.supplierProducts[0];
     if (!supplierProduct) throw new Error(`Produto ${slug} não possui fornecedor AliExpress ativo.`);
     return { line, slug, size, binding, product, variant, supplierProductId: supplierProduct.id };
   });
 }
 
-async function createAmbOrder(storeId: string, session: AmbStripeSession) {
+async function createAmbOrder(storeId: string, session: AmbStripeSession, options?: { requireStock?: boolean }) {
   const existing = await prisma.order.findUnique({
     where: { storeId_externalOrderId: { storeId, externalOrderId: session.id } },
     select: { id: true, status: true, fulfillmentStatus: true },
   });
   if (existing) return { ...existing, duplicate: true };
 
-  const items = await resolveAmbLineItems(storeId, session);
+  const items = await resolveAmbLineItems(storeId, session, options);
   const order = await prisma.order.create({
     data: {
       storeId,
@@ -618,7 +620,8 @@ export async function relinkAmbPaidOrderToAliExpress(input: {
   let order = await findOrder();
   const createdOrder = !order;
   if (!order) {
-    await createAmbOrder(input.storeId, session);
+    // The purchase already exists at AliExpress, so today's stock is irrelevant.
+    await createAmbOrder(input.storeId, session, { requireStock: false });
     order = await findOrder();
   }
   if (!order) throw new Error("Pedido AMB não pôde ser criado.");
